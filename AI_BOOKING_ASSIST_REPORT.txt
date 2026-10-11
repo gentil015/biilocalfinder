@@ -1,0 +1,196 @@
+THOROUGH REPORT: AI-powered booking assistant (Gemini) implementation prep
+
+1) TECH STACK
+- API: NestJS 10 (Express-based). CommonJS, decorators enabled. 
+  See: /home/gentil/Projects/bii-localfinder/apps/api/package.json
+    - "@nestjs/common": ^10.4.0, "@nestjs/core": ^10.4.0, "@nestjs/platform-express": ^10.4.0
+    - TypeScript ^5.5.4, ts-jest ^29.2.5, jest ^29.7.0
+    - ORM/DB: Prisma 5.19.0 with @prisma/client ^5.19.0 (PostgreSQL). Migrations in apps/api/prisma/migrations.
+    - Validation: class-validator ^0.14.1, class-transformer ^0.5.1, Zod ^3.23.8 used on web side
+    - Auth: @nestjs/jwt ^10.2.0, @nestjs/passport ^10.0.3, passport-jwt ^4.0.1, bcrypt ^6.0.0
+    - Storage: @aws-sdk/client-s3 ^3.658.1 (S3-compatible, MinIO locally)
+    - Realtime/queues: @nestjs/websockets ^10.4.0, socket.io ^4.7.5, @nestjs/bullmq ^10.2.1, bullmq ^5.12.0, ioredis ^5.4.1
+    - Email: nodemailer ^6.10.1
+    - Docs/security/throttle: @nestjs/swagger ^7.4.0, helmet ^7.1.0, @nestjs/throttler ^6.2.1
+    - Sentry: @sentry/node ^8.26.0
+  API tsconfig: /home/gentil/Projects/bii-localfinder/apps/api/tsconfig.json (commonjs, decorators, strict-ish checks)
+  Tests: jest (rootDir src, testRegex *.spec.ts, ts-jest). No jest-e2e config file visible outside node_modules. Run: "jest" (package.json scripts).
+
+- Web: Next.js 14.2.35 (React 18.3.1). TypeScript ^5.5.4
+  See: /home/gentil/Projects/bii-localfinder/apps/web/package.json
+    - next 14.2.35, react ^18.3.1, react-dom ^18.3.1
+    - react-hook-form ^7.53.0, @hookform/resolvers ^3.9.0, zod ^3.23.8
+    - @tanstack/react-query ^5.56.0
+    - tailwindcss ^3.4.10, clsx, tailwind-merge
+    - socket.io-client ^4.7.5, leaflet ^1.9.4
+  Web tsconfig: /home/gentil/Projects/bii-localfinder/apps/web/tsconfig.json (moduleResolution bundler, paths @/*)
+  Lint: "next lint" (web), "eslint ..." (api). No test script in web package.json.
+
+- Root: no root package.json seen (monorepo layout apps/, packages/, infra/, docs/). Tooling/config at repo level.
+
+
+2) BOOKING SYSTEM
+- Booking creation: bookings are created via QuotesService.accept() when a client accepts a quote. In that flow:
+  - Transaction: mark quote ACCEPTED, reject other pending quotes for same request, set serviceRequest status BOOKED, create Booking (status defaults to REQUESTED per schema? schema shows default(REQUESTED) but in accept() code sets status: 'ACCEPTED' and creates BookingStatusHistory with toStatus 'ACCEPTED' and note 'Quote accepted by client').
+  - See: /home/gentil/Projects/bii-localfinder/apps/api/src/quotes/quotes.service.ts around lines ~200-250 (accept method).
+  - BookingStatus enum includes: REQUESTED, QUOTED, NEGOTIATING, ACCEPTED, CONFIRMED, IN_PROGRESS, COMPLETED, CANCELLED (Prisma schema; BookingStateMachine controls transitions).
+  - Booking state machine and transitions: /home/gentil/Projects/bii-localfinder/apps/api/src/bookings/booking-state-machine.ts
+  - Update status DTO: /home/gentil/Projects/bii-localfinder/apps/api/src/bookings/dto/update-booking-status.dto.ts (class-validator @IsEnum(BookingStatus), optional note)
+
+- Web UI (no standalone "BookingForm" component found by search):
+  - Bookings list: /home/gentil/Projects/bii-localfinder/apps/web/app/bookings/page.tsx (loads bookingsApi.mineAsClient() and mineAsProvider(), merges, shows status badges, links to detail)
+  - Booking detail: /home/gentil/Projects/bii-localfinder/apps/web/app/bookings/[id]/page.tsx (shows agreed price prominently, status history, transition actions filtered by viewerRole per NEXT_ACTION rules, allows review submission when COMPLETED+CLIENT+canReview; review form component)
+  - Review form: /home/gentil/Projects/bii-localfinder/apps/web/components/review-form.tsx (stars, dimension ratings, comment, photo upload via reviewsApi)
+  - Quote acceptance flow in UI: /home/gentil/Projects/bii-localfinder/apps/web/components/quote-thread.tsx - client can Accept & book (calls quotesApi.accept(id)) which creates booking and onAccepted navigates to /bookings/[id]. Also handles revisions.
+
+- Booking API (endpoints/controllers/services):
+  - Controller: /home/gentil/Projects/bii-localfinder/apps/api/src/bookings/bookings.controller.ts
+    - @Roles('CLIENT') GET /bookings/mine → findMineAsClient
+    - @Roles('PROVIDER') GET /bookings/provider/mine → findMineAsProvider
+    - @Roles('CLIENT','PROVIDER') GET /bookings/:id → findOne (adds viewerRole)
+    - @Roles('CLIENT','PROVIDER') PATCH /bookings/:id/status → updateStatus
+  - Service: /home/gentil/Projects/bii-localfinder/apps/api/src/bookings/bookings.service.ts
+    - findMine: for CLIENT looks up clientProfile, returns bookings with include BOOKING_INCLUDE (serviceRequest include service, provider select id/businessName, client include user firstName/lastName, statusHistory ordered asc). For PROVIDER uses ProviderContextService.getProviderIdsForUser and queries by providerId in.
+    - findOne: fetch by id with include, assert participant, return { ...booking, viewerRole: role }
+    - updateStatus: validate transition via stateMachine.canTransition and actorAllowed, set completedAt/cancelledAt as appropriate, transactional update + statusHistory create, notify other party, record interactions on COMPLETE/CANCEL
+    - includes booking-reminder.processor.ts and module registers BullMQ queue + hourly scheduler
+  - Module: /home/gentil/Projects/bii-localfinder/apps/api/src/bookings/bookings.module.ts
+  - Update status DTO: /home/gentil/Projects/bii-localfinder/apps/api/src/bookings/dto/update-booking-status.dto.ts
+  - State machine spec/test: /home/gentil/Projects/bii-localfinder/apps/api/src/bookings/booking-state-machine.ts, booking-state-machine.spec.ts
+
+- Booking DB model/schema/migration (full content of model shown):
+  - Model: /home/gentil/Projects/bii-localfinder/apps/api/prisma/schema.prisma (lines ~1142-1195 for Booking, ~1197+ for BookingStatusHistory)
+    ```prisma
+    model Booking {
+      id                     String        @id @default(uuid())
+      serviceRequestId       String        @unique
+      quoteId                String        @unique
+      clientId               String
+      providerId             String
+      status                 BookingStatus @default(REQUESTED)
+      agreedPrice            Decimal       @db.Decimal(12, 2)
+      currency               String        @default("RWF")
+      paymentArrangementNote String        @default("Payment for this service is handled directly between you and the service provider.")
+      scheduledAt            DateTime?
+      reminderSentAt         DateTime?
+      completedAt            DateTime?
+      cancelledAt            DateTime?
+      createdAt              DateTime      @default(now())
+      updatedAt              DateTime      @updatedAt
+      serviceRequest         ServiceRequest         @relation(fields: [serviceRequestId], references: [id])
+      quote                  Quote                  @relation(fields: [quoteId], references: [id])
+      client                 ClientProfile          @relation(fields: [clientId], references: [id])
+      provider               Provider               @relation(fields: [providerId], references: [id])
+      statusHistory          BookingStatusHistory[]
+      review                 Review?
+      disputes               Dispute[]
+      @@index([clientId, providerId, status])
+    }
+    model BookingStatusHistory { ... bookingId FK, fromStatus?, toStatus, note?, createdAt ... }
+    ```
+  - Enums: BookingStatus as above; migration init: /home/gentil/Projects/bii-localfinder/apps/api/prisma/migrations/20260927215114_init/migration.sql (CREATE TYPE "BookingStatus" ...)
+
+
+3) API STRUCTURE CONVENTIONS
+- Module-based NestJS: each feature in src/<module> with <module>.module.ts, .controller.ts, .service.ts, dto/, guards/decorators as needed. Example bookings module above.
+- Routes: Controllers use decorators (@Controller, @Get/@Post/@Patch/@Delete, @UseGuards, @Roles, @ApiTags/@ApiBearerAuth, @Throttle etc.). Route prefixes from @Controller('bookings') etc. App routes mounted via feature modules imported in AppModule (/home/gentil/Projects/bii-localfinder/apps/api/src/app.module.ts).
+- Validation: DTOs use class-validator decorators (e.g. UpdateBookingStatusDto uses @IsEnum, @IsOptional, @IsString). Also class-transformer via ValidationPipe (global typically; see main or common setup). For file uploads, additional validation (MIME sniffing with sniffMime, size checks) applied in services/controllers.
+- Errors: NestJS built-in exceptions (BadRequestException, ForbiddenException, NotFoundException, ServiceUnavailableException) thrown from services/controllers; global filter not explicitly shown in snippets but standard NestJS behavior.
+- Env vars: @nestjs/config ConfigModule.forRoot({ isGlobal: true }) in AppModule. Services read process.env directly (e.g. Redis URL parsing in AppModule, ANTHROPIC_API_KEY in anthropic-assist.provider, env in main/config). Also .env.example at repo root lists all vars.
+- Web API client: uses fetch with custom wrapper in /home/gentil/Projects/bii-localfinder/apps/web/lib/api.ts
+  - Base URL from NEXT_PUBLIC_API_URL (defaults http://localhost:4000), requests go to `${API_URL}/api${path}`
+  - Attaches Authorization: Bearer <accessToken> when auth=true via authHeader()
+  - Handles 401 by refreshing once (shares in-flight refresh) using /auth/refresh; clears tokens on failure
+  - Handles FormData (no Content-Type forced), parses JSON/empty body safely
+  - Exports typed API objects (searchApi, bookingsApi, quotesApi, reviewsApi, usersApi, providersApi, requestAssistApi?, see request assist in web if exists). Bookings API: bookingsApi.mineAsClient/mineAsProvider/getOne/updateStatus as shown.
+  - Uses react-query in some places (dependency present); components call api directly in examples shown.
+
+
+4) ENVIRONMENT CONFIG
+- Root .env.example: /home/gentil/Projects/bii-localfinder/.env.example (full file shown above). Key sections:
+  - DATABASE_URL (Postgres)
+  - REDIS_URL
+  - JWT_SECRET, JWT_ACCESS_EXPIRES_IN, JWT_REFRESH_SECRET, JWT_REFRESH_EXPIRES_IN
+  - S3_* (MinIO/S3-compatible)
+  - MAP_PROVIDER, MAP_PROVIDER_KEY
+  - SENTRY_DSN, OTEL_EXPORTER_OTLP_ENDPOINT
+  - SUBSCRIPTION_PAYMENT_PROVIDER
+  - ANTHROPIC_API_KEY (AI-assisted request writing; falls back to offline mock if unset)
+  - VOYAGE_API_KEY (embeddings; falls back to hashing mock if unset), SEMANTIC_SEARCH_MAX_DISTANCE
+  - API_PORT, WEB_PORT, NODE_ENV, CORS_ORIGIN, NEXT_PUBLIC_API_URL
+  - WEB_URL, PASSWORD_RESET_EXPIRES_MINUTES, SMTP_* (optional; logs in dev if SMTP_HOST empty)
+- No other .env files except root .env/.env.example visible in repo root; apps may rely on global ConfigModule reading process.env (isGlobal). No app-specific env files in apps/api/apps/web listed except in examples. Do NOT paste secrets (only variable names present).
+
+
+5) PROVIDERS/SERVICES DATA (entities, where services offered by providers stored)
+- Core models (Prisma schema highlights):
+  - User, ClientProfile, Provider, Workspace (multi-workspace support noted)
+  - Category, Service (catalog), ServiceOffering (provider's offering of a service) — see ServiceOfferingsModule
+  - ServiceRequest (client request), Quote, Booking, BookingStatusHistory, Review, Message/Conversation, Notification, Availability (weekly + exceptions), Portfolio, Subscription, Verification, Reports/Disputes, SavedSearch, Favorites, etc.
+  - Attribute models: CategoryAttribute, ServiceRequestAttributeValue, ServiceOfferingAttributeValue (for structured forms)
+- Service offerings (provider-specific): stored as ServiceOffering. 
+  - Model/fields implied by schema context: provider offers a Service (shared catalog), has title/description/basePrice/priceType/duration, attribute values. Also in service-offerings module (apps/api/src/service-offerings). ServiceOffering links providerId and serviceId.
+- Services/catalog: Service model links to Category. 
+- Availability: AvailabilitySlot (weekly), AvailabilityException; provider availability exposed via AvailabilityModule and also Provider.availabilityStatus.
+- Providers: Provider model has location, serviceRadiusKm, rating, verificationStatus, etc. ProviderContextService resolves provider(s) for a user (supports multiple providers per user).
+- Where AI should suggest only existing data: 
+  - Services exist in Service table (filterable by category). 
+  - Providers list services via ServiceOffering; each offering references serviceId + providerId. 
+  - To suggest "existing data" (services/providers/availability/prices), use existing APIs/modules: ServicesModule/CategoriesModule (to get services and attributes), ServiceOfferingsModule (public/provider offerings), ProvidersModule/SearchModule (to find providers offering a service), AvailabilityModule (provider availability windows/status). 
+  - Booking/quotes tie to ServiceRequest → Service (serviceRequest.service relation shown). 
+  - Also RequestAssistService shows pattern: loads service by serviceId, gets attributes for service.categoryId (publicOnly), uses them as allowed schema for suggestions.
+
+
+6) LANGUAGES/I18N
+- Web has locale support on user settings and locale persisted. 
+  - User model has locale String @default("en") (schema). UpdateLocaleDto constrains to SUPPORTED_LOCALES in apps/api/src/common/locales.ts (referenced in schema comment).
+  - API: UsersController has updateLocale; UsersService updates locale. 
+  - Web: settings/languages page (/home/gentil/Projects/bii-localfinder/apps/web/app/settings/languages/page.tsx), usersApi.updateLocale, and lib/locales.ts exists? Let us check. 
+  - Search: grep for i18n/react-i18next gives no obvious matches in package.json; web deps don't include i18next/react-i18next. Instead appears custom locale handling (common/locales.ts + web lib/locales?). But let us look.
+- Look for i18n setup:
+  - apps/web/lib/locales.ts: exists? apps/web/components/language-switcher.tsx?
+- Quick checks:
+
+6) LANGUAGES/I18N (continued)
+- Web: custom i18n implementation (not react-i18next). 
+  - Components: /home/gentil/Projects/bii-localfinder/apps/web/components/locale-provider.tsx (context/provider, useI18n hook), language-switcher.tsx
+  - Catalog/messages: /home/gentil/Projects/bii-localfinder/apps/web/lib/locales.ts (LOCALES en/rw, MESSAGES, useI18n pattern)
+  - Settings page: /home/gentil/Projects/bii-localfinder/apps/web/app/settings/languages/page.tsx uses LocaleContext
+  - API: /home/gentil/Projects/bii-localfinder/apps/api/src/common/locales.ts mirrors supported locales (en, rw), UpdateLocaleDto validates against them
+- Verdict: i18n present but custom (no react-i18next package). Translations stored in locales.ts (client-side catalog). API stores user.locale in DB and validates against common/locales.ts.
+
+
+7) EXISTING AI/GEMINI CODE
+- Search (excluding node_modules):
+  - "gemini": no matches
+  - "genai": no matches  
+  - "googleapis": no matches (package.json deps: no @google/generative-ai, googleapis)
+  - "AI": many matches (UI labels like "AI-assisted request writing", comments in request-assist)
+  - "openai": no matches
+- Existing AI integration: only Anthropic-based via Request Assist module.
+  - Module: /home/gentil/Projects/bii-localfinder/apps/api/src/request-assist/
+    - controller: request-assist.controller.ts (@Post('suggest'), throttled 8/min, @Roles('CLIENT'), uses JwtAuthGuard+RolesGuard)
+    - service: request-assist.service.ts (loads service+attributes, validates suggestions against schema, caps title/desc, converts to frontend attribute shape)
+    - provider interface: assist-provider.interface.ts (RequestAssistProvider, REQUEST_ASSIST_PROVIDER token, types)
+    - providers: anthropic-assist.provider.ts (fetch to https://api.anthropic.com/v1/messages, model 'claude-sonnet-4-6', parses JSON, falls back to ServiceUnavailable on errors; output re-validated by caller), mock-assist.provider.ts (deterministic offline fallback)
+    - DTO: dto/suggest-request.dto.ts (@IsString serviceId, @MaxLength description, optional imageKey from upload)
+  - Module registered in AppModule (RequestAssistModule). 
+  - Web integration: check for request-assist API usage in web? Look for requestAssistApi or suggest endpoint.
+
+7) EXISTING AI/GEMINI CODE (continued)
+- Current AI: Anthropic Claude Sonnet 4-6 via RequestAssist (for service request form pre-fill). No Gemini/Google GenAI usage found. 
+- Config: ANTHROPIC_API_KEY in .env.example (optional, falls back to mock). 
+- Frontend has AiRequestAssist component used on request creation page; API client has requestAssistApi.
+- Recommendation for Gemini: since the codebase already uses an interface-based provider pattern (REQUEST_ASSIST_PROVIDER + implementations), to add Gemini booking assistant you should add a GeminiAssistProvider implementing RequestAssistProvider (or create a new interface/module if the use case differs from request form pre-fill). Alternatively, create a new module like BookingAssistModule with a provider interface (e.g. BOOKING_ASSIST_PROVIDER) and Gemini implementation, following the same pattern (env-based selection, mock fallback, untrusted output validation).
+
+
+8) TESTS
+- API: unit tests are *.spec.ts colocated in src/ (Jest). Examples: bookings/booking-state-machine.spec.ts, request-assist/request-assist.service.spec.ts, many others. Run with "jest" (apps/api/package.json "test": "jest"). 
+- Jest config in package.json: rootDir "src", testRegex ".*\.spec\.ts$", transform ts-jest.
+- No e2e test files found in repo (outside node_modules). package.json has "test:e2e" script pointing to ./test/jest-e2e.json but that file doesn't exist in apps/api/test; may be a template.
+- Web: no test script in apps/web/package.json; no *.spec.ts/*.test.ts files found in web app source (search returned none). 
+- Run commands (from package.json):
+  - API: npm run test (apps/api), npm run test:e2e (apps/api, config may be missing)
+  - Lint: npm run lint in apps/api and apps/web (next lint)
+  - Build/start as usual.
+

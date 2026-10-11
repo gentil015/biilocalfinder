@@ -1,0 +1,226 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useState } from 'react';
+import { Menu, X, Plus, LayoutDashboard, ShieldCheck } from 'lucide-react';
+import { BrandMark } from '@/components/brand-mark';
+import { BackButton, useCanGoBack } from '@/components/back-button';
+import { useAuth, useSession } from '@/components/auth-provider';
+
+const PUBLIC_LINKS = [
+  { href: '/search', label: 'Find providers' },
+  { href: '/requests/new', label: 'Post a request' },
+  { href: '/#how-it-works', label: 'How it works' },
+];
+
+// "Become a provider" is an acquisition CTA for people who aren't one yet.
+// Showing it to a signed-in provider sent them to the public /register form
+// to create a *second* account, which is never what the link implies.
+//
+// A signed-in CLIENT is sent to the application form instead: that upgrades the
+// account they already have (keeping their history) and goes through admin
+// review, rather than opening a duplicate signup.
+function navLinks(isProvider: boolean, isSignedIn: boolean) {
+  if (isProvider) return PUBLIC_LINKS;
+  if (isSignedIn) return [...PUBLIC_LINKS, { href: '/become-a-provider', label: 'Become a provider' }];
+  return [...PUBLIC_LINKS, { href: '/register', label: 'Become a provider' }];
+}
+
+/**
+ * The site header.
+ *
+ * A light, frosted bar that sits above the page on every marketplace route —
+ * near-white over the near-white canvas, so the content below is the hero and
+ * the chrome stays out of the way. The brand green is the single call to
+ * action; everything else is a quiet neutral link. There is deliberately no
+ * dark variant to drift out of sync.
+ */
+export function SiteHeader() {
+  const pathname = usePathname();
+  const { user, logout } = useAuth();
+  const { isProvider, isAdmin } = useSession();
+  const [menuOpen, setMenuOpen] = useState(false);
+  // A back affordance appears once the user has moved within the app, so a
+  // shared link or a fresh tab doesn't offer to walk them out of the product.
+  const canGoBack = useCanGoBack();
+
+  const links = navLinks(isProvider, !!user);
+  const close = () => setMenuOpen(false);
+
+  // A link to the page you're already on shouldn't read as a nav item.
+  const isCurrent = (href: string) =>
+    href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
+
+  return (
+    <header className="sticky top-0 z-40 border-b border-ink-200/80 bg-white/80 backdrop-blur-xl">
+      <div className="page-shell flex h-16 items-center gap-4">
+        {canGoBack && (
+          <>
+            <BackButton variant="icon" label="Go back" className="-ml-1.5" />
+            <span aria-hidden="true" className="hidden h-5 w-px shrink-0 bg-ink-200 sm:block" />
+          </>
+        )}
+        <BrandMark />
+
+        <nav aria-label="Main" className="hidden items-center gap-1 lg:flex">
+          {links.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              aria-current={isCurrent(link.href) ? 'page' : undefined}
+              className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+                isCurrent(link.href)
+                  ? 'bg-ink-100 text-ink-950'
+                  : 'text-ink-600 hover:bg-ink-100/70 hover:text-ink-950'
+              }`}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="ml-auto flex items-center gap-2">
+          {user ? (
+            <>
+              <Link
+                href="/requests"
+                className="hidden text-sm font-semibold text-ink-600 transition hover:text-ink-950 md:inline"
+              >
+                My requests
+              </Link>
+              {/* Only providers have a workspace; sending a client here used to
+                  bounce them through onboarding into a 403. */}
+              {isProvider && (
+                <Link href="/dashboard" className="btn-secondary btn-sm hidden sm:inline-flex">
+                  <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
+                  Dashboard
+                </Link>
+              )}
+              {/* Moderators have no workspace, so they get no Dashboard link —
+                  but they need a way into the moderation queues from the
+                  marketplace chrome, not only via /admin. */}
+              {isAdmin && (
+                <Link href="/admin" className="btn-secondary btn-sm hidden sm:inline-flex">
+                  <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                  Admin
+                </Link>
+              )}
+              <Link
+                href="/account"
+                aria-current={pathname === '/account' ? 'page' : undefined}
+                className={`inline-flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-semibold transition ${
+                  pathname === '/account'
+                    ? 'bg-ink-100 text-ink-950'
+                    : 'text-ink-700 hover:bg-ink-100/70 hover:text-ink-950'
+                }`}
+              >
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-700 text-2xs font-bold uppercase text-white">
+                  {(user.firstName?.trim().charAt(0) || user.email.charAt(0) || 'U').toUpperCase()}
+                </span>
+                <span className="hidden sm:inline">Account</span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => void logout()}
+                className="hidden rounded-lg px-2.5 py-2 text-sm font-semibold text-ink-500 transition hover:bg-ink-100/70 hover:text-ink-950 md:block"
+              >
+                Log out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="hidden text-sm font-semibold text-ink-700 transition hover:text-ink-950 md:inline"
+              >
+                Log in
+              </Link>
+              <Link href="/register" className="btn-primary btn-sm sm:h-10 sm:px-4 sm:text-sm">
+                Get started
+              </Link>
+            </>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-expanded={menuOpen}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+            className="icon-btn lg:hidden"
+          >
+            {menuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile sheet. Rendered inside the header so it inherits the sticky
+          stacking context and the backdrop blur. */}
+      {menuOpen && (
+        <div className="animate-scale-in border-t border-ink-200/80 bg-white/95 backdrop-blur-xl lg:hidden">
+          <div className="page-shell py-4">
+            <nav aria-label="Mobile" className="space-y-1">
+              {links.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={close}
+                  aria-current={isCurrent(link.href) ? 'page' : undefined}
+                  className={`block rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+                    isCurrent(link.href)
+                      ? 'bg-ink-100 text-ink-950'
+                      : 'text-ink-700 hover:bg-ink-100/70 hover:text-ink-950'
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </nav>
+
+            <div className="mt-3 space-y-2 border-t border-ink-200/80 pt-4">
+              {user ? (
+                <>
+                  <Link href="/requests" onClick={close} className="btn-secondary w-full justify-start">
+                    My requests
+                  </Link>
+                  <Link href="/account" onClick={close} className="btn-secondary w-full justify-start">
+                    Account
+                  </Link>
+                  {isProvider && (
+                    <Link href="/dashboard" onClick={close} className="btn-primary w-full">
+                      <LayoutDashboard className="h-4 w-4" aria-hidden="true" /> Dashboard
+                    </Link>
+                  )}
+                  {isAdmin && (
+                    <Link href="/admin" onClick={close} className="btn-primary w-full">
+                      <ShieldCheck className="h-4 w-4" aria-hidden="true" /> Admin
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      close();
+                      void logout();
+                    }}
+                    className="btn-ghost w-full"
+                  >
+                    Log out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link href="/login" onClick={close} className="btn-secondary w-full">
+                    Log in
+                  </Link>
+                  <Link href="/register" onClick={close} className="btn-primary w-full">
+                    <Plus className="h-4 w-4" /> Get started
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}

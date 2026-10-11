@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# TypeScript build cache
+*.tsbuildinfo
+next-env.d.ts
+
+# Environment files — NEVER commit real secrets.
+# Keep the templates (*.env.example) tracked.
+**/.env
+**/.env.*
+!**/.env.example
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-error.log*
+
+# Test / coverage
+coverage/
+
+# Caches
+.turbo/
+.eslintcache
+.cache/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

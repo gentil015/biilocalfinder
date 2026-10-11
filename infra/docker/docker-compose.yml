@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  postgres:
+    build:
+      context: ../..
+      dockerfile: infra/docker/postgres.Dockerfile
+    image: bii-postgres-postgis-pgvector:16-3.4
+    container_name: bii-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bii
+      POSTGRES_PASSWORD: bii_password
+      POSTGRES_DB: bii_localfinder
+    ports:
+      - "5432:5432"
+    volumes:
+      - bii_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bii -d bii_localfinder"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: bii-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - bii_redis_data:/data
+
+  minio:
+    image: minio/minio:latest
+    container_name: bii-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: bii_minio_admin
+      MINIO_ROOT_PASSWORD: bii_minio_password
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Console
+    volumes:
+      - bii_minio_data:/data
+
+volumes:
+  bii_postgres_data:
+  bii_redis_data:
+  bii_minio_data:

@@ -1,0 +1,1690 @@
+// Bii Localfinder — core domain schema
+// Modular monolith, PostgreSQL + PostGIS via Prisma.
+// NOTE: Prisma has no native "geography" type, so geographic columns are
+// added via a raw SQL migration (see migrations/xxx_add_postgis) as
+// `geography(Point, 4326)` and kept in sync with lat/lng columns through
+// a trigger. Prisma models expose lat/lng directly; PostGIS queries are
+// issued with $queryRaw in the search module (Phase 3).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+
+enum UserRole {
+  CLIENT
+  PROVIDER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+  PENDING_VERIFICATION
+}
+
+// Used both for a provider's overall badge state (Provider.verificationStatus)
+// and for each individual VerificationRecord. EXPIRED = was VERIFIED, validity
+// window lapsed and hasn't been renewed.
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+  EXPIRED
+}
+
+enum VerificationType {
+  IDENTITY // the person behind the account (national ID / passport / licence)
+  BUSINESS // the registered business (registration, tax certificate)
+  SERVICE  // one specific ServiceOffering (professional licence, certificate)
+}
+
+enum VerificationDocumentType {
+  NATIONAL_ID
+  PASSPORT
+  DRIVING_LICENSE
+  BUSINESS_REGISTRATION
+  TAX_CERTIFICATE
+  PROFESSIONAL_LICENSE
+  CERTIFICATE
+  OTHER
+}
+
+enum ContactChannel {
+  EMAIL
+  PHONE
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  BUSY
+  UNAVAILABLE
+}
+
+enum ServiceRequestStatus {
+  OPEN
+  QUOTED
+  NEGOTIATING
+  ACCEPTED
+  BOOKED
+  CANCELLED
+  EXPIRED
+}
+
+enum QuoteStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum RevisionProposedBy {
+  CLIENT
+  PROVIDER
+}
+
+enum RevisionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  SUPERSEDED
+}
+
+enum BookingStatus {
+  REQUESTED
+  QUOTED
+  NEGOTIATING
+  ACCEPTED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  NEW_SERVICE_REQUEST
+  NEW_MESSAGE
+  NEW_QUOTE
+  QUOTE_ACCEPTED
+  QUOTE_REJECTED
+  QUOTE_UPDATED
+  BOOKING_CREATED
+  BOOKING_UPDATED
+  BOOKING_COMPLETED
+  // An upcoming booking is approaching (sent once, a fixed window before
+  // Booking.scheduledAt — see notifications/booking-reminder.processor.ts).
+  BOOKING_REMINDER
+  NEW_REVIEW
+  SUBSCRIPTION_EXPIRING
+  SUBSCRIPTION_EXPIRED
+  VERIFICATION_UPDATED
+  VERIFICATION_EXPIRING
+  REVIEW_RESPONSE
+  // A favorited provider's manual status just flipped to AVAILABLE.
+  FAVORITE_PROVIDER_AVAILABLE
+  // A newly matching provider appeared for one of the client's saved searches.
+  NEW_PROVIDER_MATCH
+  // Dispute lifecycle — spec §14. Grouped under the BOOKINGS category
+  // (every dispute is tied to a booking) rather than a new settings row.
+  DISPUTE_OPENED
+  DISPUTE_RESPONSE
+  DISPUTE_UNDER_REVIEW
+  DISPUTE_RESOLVED
+}
+
+// Groups NotificationType values for preference purposes — spec §10 asks
+// for per-*kind* control ("New quote received", "Booking reminder", …),
+// but one row per exact type would be a very long settings screen for
+// little real benefit. NOTIFICATION_TYPE_CATEGORY in
+// notifications/notification-categories.ts is the single source of truth
+// for which type falls in which category; this enum is just its value set.
+enum NotificationCategory {
+  QUOTES
+  MESSAGES
+  BOOKINGS
+  REVIEWS
+  TRUST
+  SUBSCRIPTION
+  DISCOVERY
+}
+
+enum ReportTargetType {
+  USER
+  PROVIDER
+  MESSAGE
+  BOOKING
+  REVIEW
+  SERVICE_OFFERING
+}
+
+enum ReportCategory {
+  FRAUD_OR_SCAM
+  FAKE_LISTING
+  IMPERSONATION
+  MISLEADING_PRICE
+  INAPPROPRIATE_CONTENT
+  HARASSMENT
+  FAKE_REVIEW
+  OTHER
+}
+
+enum ReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum ReviewStatus {
+  PUBLISHED
+  HIDDEN // moderated out by an admin; excluded from public lists and aggregates
+}
+
+// Client/provider → Report problem → Dispute (OPEN) → Evidence (either side,
+// while OPEN/RESPONDED) → Provider response (OPEN -> RESPONDED, or admin
+// pulls it in early) → Admin review (-> UNDER_REVIEW) → Resolution
+// (-> RESOLVED/REJECTED, terminal — see disputes/dispute-status.ts
+// canTransition for the exact graph).
+enum DisputeStatus {
+  OPEN
+  RESPONDED
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum DisputeCategory {
+  SERVICE_NOT_AS_DESCRIBED
+  NO_SHOW
+  DAMAGE_OR_LOSS
+  UNPROFESSIONAL_CONDUCT
+  PAYMENT_DISAGREEMENT
+  OTHER
+}
+
+// The platform never touches the underlying payment (spec §14: "don't act
+// as the payment processor"), so a resolution is a recorded, categorized
+// recommendation/action on the platform side — never an actual refund.
+enum DisputeResolutionType {
+  NO_ACTION
+  WARNING_ISSUED
+  REFUND_RECOMMENDED
+  PROVIDER_SUSPENDED
+  BOOKING_CANCELLED
+  OTHER
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  PAST_DUE
+  TRIALING
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+// ---------- Personalization (rule-based V1 — see src/personalization) ----------
+
+enum InteractionType {
+  SEARCH
+  VIEW_SERVICE
+  VIEW_PROVIDER
+  FAVORITE_PROVIDER
+  UNFAVORITE_PROVIDER
+  CREATE_SERVICE_REQUEST
+  VIEW_QUOTE
+  ACCEPT_QUOTE
+  CREATE_BOOKING
+  COMPLETE_BOOKING
+  CANCEL_BOOKING
+  VIEW_CATEGORY
+}
+
+enum InteractionEntityType {
+  SERVICE
+  SERVICE_CATEGORY
+  PROVIDER
+  BOOKING
+  SERVICE_REQUEST
+  QUOTE
+  // A specific provider's ServiceOffering, as opposed to SERVICE (the
+  // shared catalog entry). Used for VIEW_SERVICE on the service-offering
+  // detail page so views are attributable to one provider (spec §7 —
+  // per-provider "service views" and "most viewed service").
+  SERVICE_OFFERING
+}
+
+// ---------- Identity ----------
+
+model User {
+  id              String     @id @default(uuid())
+  email           String     @unique
+  phone           String?    @unique
+  passwordHash    String
+  firstName       String
+  lastName        String
+  avatarUrl       String?
+  role            UserRole
+  status          UserStatus @default(ACTIVE)
+  emailVerified   Boolean    @default(false)
+  phoneVerified   Boolean    @default(false)
+  // BCP-47 tag for the display language the user picked in
+  // /settings/languages. A plain String rather than a Prisma enum: the set of
+  // languages is product data (it has native names and a UI in
+  // apps/web/lib/locales.ts), not a closed database concern, and adding a
+  // language should not need a migration. Constrained to SUPPORTED_LOCALES in
+  // apps/api/src/common/locales.ts by UpdateLocaleDto.
+  locale          String     @default("en")
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  refreshTokens   RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
+  clientProfile   ClientProfile?
+  // A list, not Provider? — a user can now own more than one Provider
+  // (one per workspace they own). Nothing in the codebase read this as a
+  // singular relation before this change (confirmed by search); if new
+  // code needs "the provider for this request", use
+  // ProviderContextService.resolveForUser, not this relation directly.
+  providers       Provider[]
+  notifications   Notification[]
+  favorites       Favorite[]
+  sentMessages    Message[]        @relation("MessageSender")
+  reportsFiled    Report[]         @relation("ReportsFiledByUser")
+  auditLogs       AuditLog[]
+  disputesRaised     Dispute[]        @relation("DisputesRaised")
+  disputesAgainst    Dispute[]        @relation("DisputesAgainst")
+  disputesResolved   Dispute[]        @relation("DisputesResolved")
+  disputeMessages    DisputeMessage[] @relation("DisputeMessagesAuthored")
+  disputeEvidence    DisputeEvidence[] @relation("DisputeEvidenceUploaded")
+  contactCodes    ContactVerificationCode[]
+  notificationPreferences NotificationPreference[]
+  pushSubscriptions       PushSubscription[]
+  savedSearches           SavedSearch[]
+  ownedWorkspaces         Workspace[]
+  workspaceMemberships    WorkspaceMembership[]
+  // Two relations to the same model, hence the explicit names.
+  providerApplications    ProviderApplication[] @relation("ProviderApplicationApplicant")
+  providerApplicationsReviewed ProviderApplication[] @relation("ProviderApplicationReviewer")
+
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// Single-use password-reset tokens. Only a keyed hash is stored, exactly
+// like RefreshToken/ContactVerificationCode — a leaked database (or backup)
+// must not hand out working reset links.
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The lookup is by tokenHash alone, so it carries the index.
+  @@index([tokenHash])
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model ClientProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  bio       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceRequests  ServiceRequest[]
+  bookings         Booking[]
+  reviews          Review[]
+  conversations    ConversationParticipant[]
+
+  @@map("client_profiles")
+}
+
+// A client asking to trade on the marketplace, reviewed by an admin.
+//
+// This exists so "become a provider" is an *upgrade of the account the
+// person already has* rather than a second signup. The alternative (the
+// /account page linking to /register) produced duplicate accounts: two logins
+// for one human, with their request history, bookings and reviews stranded on
+// whichever one they registered with. Approving an application promotes the
+// existing user in place — see docs/BECOME_PROVIDER.md.
+//
+// The applied details are copied onto the Provider row at approval time so the
+// approved profile starts populated rather than blank; the ClientProfile is
+// deliberately left in place, because a provider can still hire other
+// providers and should keep their own request history.
+model ProviderApplication {
+  id                String                   @id @default(uuid())
+  userId            String
+  user              User                     @relation("ProviderApplicationApplicant", fields: [userId], references: [id], onDelete: Cascade)
+
+  // What they applied with. `providerType` seeds both the new Workspace.type
+  // and Provider.providerType at approval, so it is asked up front instead of
+  // re-asking during onboarding.
+  providerType      ProviderType
+  businessName      String
+  description       String?
+  phone             String?
+  yearsOfExperience Int?
+  // Free-text qualifications an admin can sanity-check before approving.
+  registrationNumber String?
+  idNumber          String?
+  websiteUrl        String?
+  // Category slugs, not ids: slugs survive a taxonomy edit (see
+  // manual-sql/010) and stay readable in the admin review UI.
+  categories        String[]                 @default([])
+
+  status            ProviderApplicationStatus @default(PENDING)
+  decisionNote      String?
+  reviewedAt        DateTime?
+  reviewedById      String?
+  reviewedBy        User?                    @relation("ProviderApplicationReviewer", fields: [reviewedById], references: [id])
+
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@index([reviewedById])
+  @@map("provider_applications")
+}
+
+// ---------- Provider domain ----------
+
+enum ProviderType {
+  INDIVIDUAL
+  TEAM
+  BUSINESS
+  AGENCY
+}
+
+// Provider onboarding progression (spec: "Provider Type Selection ... first
+// step of provider onboarding"). VERIFICATION is a checkpoint value only —
+// actual verification stays owned by the existing verification module
+// (VerificationRecord) and is never required to reach COMPLETED, per "Do
+// not automatically mark providers as verified."
+enum ProviderOnboardingStep {
+  TYPE_SELECTION
+  PROFILE_DETAILS
+  SERVICES_SETUP
+  VERIFICATION
+  COMPLETED
+}
+
+// "Become a provider" as an application + admin review, rather than a
+// second signup. See docs/BECOME_PROVIDER.md for why an existing client's
+// account is upgraded in place instead of re-registering.
+enum ProviderApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Provider {
+  id                  String              @id @default(uuid())
+  // No longer @unique (Phase "ownership" of the workspace project): a
+  // user can now own more than one Provider/Workspace. Provider.workspaceId
+  // is the real 1:1 identity key going forward — see ProviderContextService
+  // for how "the provider acting for this request" gets resolved now that
+  // this lookup is no longer unconditionally unambiguous.
+  userId              String
+  businessName        String
+  description         String?
+  bio                 String?
+  phone               String?
+  locationId          String?
+  serviceRadiusKm     Float               @default(10)
+  yearsOfExperience   Int                 @default(0)
+  // --- Provider Type Selection / onboarding (spec: "first step of
+  // provider onboarding") ---
+  // Null until the type_selection step is completed. Existing providers
+  // (present before this feature shipped) are backfilled to INDIVIDUAL by
+  // the migration — see manual-sql/007_provider_onboarding.sql — since
+  // that's what every pre-existing solo-provider profile actually is.
+  providerType        ProviderType?
+  onboardingStep      ProviderOnboardingStep @default(TYPE_SELECTION)
+  onboardingCompletedAt DateTime?
+  // TEAM/BUSINESS/AGENCY only — INDIVIDUAL reuses the user's own
+  // avatarUrl instead of duplicating a "profile photo" field here.
+  logoUrl             String?
+  // BUSINESS: optional registration number (spec: "optional if not
+  // legally required for initial registration").
+  registrationNumber  String?
+  // BUSINESS/AGENCY: the authorized representative's name. TEAM stores its
+  // leader/owner's name in the same field to avoid a near-duplicate column.
+  representativeName  String?
+  // TEAM: optional approximate headcount, informational only.
+  teamSize            Int?
+  // Overall badge state, DERIVED from VerificationRecord rows + the user's
+  // phone verification (see verification/verification-status.ts). Never set
+  // directly — it is denormalized so search can filter/rank in plain SQL.
+  verificationStatus  VerificationStatus  @default(UNVERIFIED)
+  identityVerified    Boolean             @default(false)
+  businessVerified    Boolean             @default(false)
+  verificationExpiresAt DateTime? // earliest expiry among the records backing the badge
+  rating              Decimal             @default(0) @db.Decimal(3, 2)
+  reviewCount         Int                 @default(0)
+  verifiedReviewCount Int                 @default(0)
+  responseRate        Decimal             @default(0) @db.Decimal(5, 2)
+  responseTimeMinutes Int?
+  availabilityStatus  AvailabilityStatus  @default(AVAILABLE)
+  subscriptionStatus  SubscriptionStatus  @default(EXPIRED)
+  // Phase 2 multi-provider workspace layer (see Workspace model docs).
+  // Every Provider is the profile of exactly one Workspace. Backfilled
+  // for pre-existing rows by manual-sql/008_workspaces.sql.
+  workspaceId         String              @unique
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  workspace        Workspace          @relation(fields: [workspaceId], references: [id])
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location         Location?          @relation(fields: [locationId], references: [id])
+  services         ServiceOffering[]
+  serviceAreas     ServiceArea[]
+  portfolios       Portfolio[]
+  availabilities   Availability[]
+  availabilityExceptions AvailabilityException[]
+  serviceRequests  ServiceRequest[]
+  quotes           Quote[]
+  bookings         Booking[]
+  reviews          Review[]
+  favoritedBy      Favorite[]
+  subscriptions    ProviderSubscription[]
+  conversations    ConversationParticipant[]
+  verifications    VerificationRecord[]
+  // TEAM: members added after onboarding (spec: "allow team members to be
+  // added later"). AGENCY: reuses the same table for providers it manages
+  // or has invited (spec: "manage or invite multiple providers later") —
+  // distinguished by whether linkedProviderId is set. See
+  // ProviderTeamMember for why one table covers both cases.
+  teamMembers      ProviderTeamMember[] @relation("ProviderTeam")
+  managedByLinks   ProviderTeamMember[] @relation("ManagedProviderLink")
+
+  @@index([verificationStatus])
+  @@index([subscriptionStatus])
+  @@index([providerType])
+  @@index([onboardingStep])
+  @@index([userId])
+  @@map("providers")
+}
+
+// One row per team member (TEAM) or managed/invited provider (AGENCY).
+// Deliberately one table for both rather than two near-identical ones:
+// spec §"TEAM/GROUP" ("allow team members to be added later") and
+// §"AGENCY" ("manage or invite multiple providers later") describe the
+// same shape — a roster the owning provider profile controls — differing
+// only in whether an entry ever becomes its own full Provider account
+// (linkedProviderId). A TEAM's entries are just named people; an AGENCY's
+// entries may additionally link to a real, separately-onboarded Provider
+// once that person/business registers and accepts.
+model ProviderTeamMember {
+  id               String            @id @default(uuid())
+  providerId       String
+  name             String?
+  email            String?
+  phone            String?
+  role             String?
+  // AGENCY only — set once an invited provider has their own account.
+  // Unique: a managed Provider can be linked to at most one agency roster
+  // entry, so it can't silently appear "managed" by two agencies at once.
+  linkedProviderId String?           @unique
+  status           TeamMemberStatus  @default(INVITED)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  provider       Provider  @relation("ProviderTeam", fields: [providerId], references: [id], onDelete: Cascade)
+  linkedProvider Provider? @relation("ManagedProviderLink", fields: [linkedProviderId], references: [id], onDelete: SetNull)
+
+  @@index([providerId])
+  @@map("provider_team_members")
+}
+
+enum TeamMemberStatus {
+  INVITED
+  ACTIVE
+}
+
+// ---------- Multi-provider workspace layer (Phase 2) ----------
+//
+// A Workspace is a provider's operating identity and dashboard context —
+// spec section 1 ("A workspace represents a provider's operating identity
+// and dashboard"). This is deliberately an ADDITIVE layer on top of the
+// existing Provider model (chosen over a full providerId -> workspaceId
+// re-key across every downstream table — see the Phase 1 report) rather
+// than a replacement for it: Provider still owns all profile/marketplace
+// data; Workspace + WorkspaceMembership own identity, membership, and
+// role.
+//
+// Current state (Phase 2): Workspace is 1:1 with Provider
+// (Provider.workspaceId is unique). A user CAN already belong to several
+// workspaces they don't own, with an enforced role — e.g. a business
+// owner inviting staff, or a team owner inviting members — via
+// WorkspaceMembership. What Phase 2 does NOT yet support: one user OWNING
+// two independent workspaces of different types (e.g. a plumber's
+// individual workspace and a separate cleaning-business workspace),
+// because Provider.userId is still @unique. Lifting that constraint and
+// moving the ~15 `provider.findUnique({ where: { userId } })` call sites
+// (bookings, quotes, reviews, services, portfolio, verification, etc.) to
+// resolve a provider via workspace context instead is tracked as Phase 3.
+model Workspace {
+  id     String       @id @default(uuid())
+  name   String
+  slug   String       @unique
+  type   ProviderType
+  ownerId String
+  status WorkspaceStatus @default(ACTIVE)
+  // Reuses the existing provider onboarding step enum — the same
+  // TYPE_SELECTION -> COMPLETED progression applies at the workspace
+  // level now that workspace, not provider, is the identity being
+  // onboarded.
+  onboardingStep        ProviderOnboardingStep @default(TYPE_SELECTION)
+  onboardingCompletedAt DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  owner       User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  memberships WorkspaceMembership[]
+  provider    Provider?
+
+  @@index([ownerId])
+  @@index([type])
+  @@index([status])
+  @@map("workspaces")
+}
+
+enum WorkspaceStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+// One row per user who can access a workspace, including the owner
+// (an OWNER membership is created for every workspace's owner — see
+// manual-sql/008_workspaces.sql — so "can this user access this
+// workspace" is always answerable with a single membership lookup rather
+// than a separate ownerId check).
+model WorkspaceMembership {
+  id          String                @id @default(uuid())
+  workspaceId String
+  userId      String
+  role        WorkspaceMemberRole   @default(MEMBER)
+  status      WorkspaceMemberStatus @default(ACTIVE)
+  // Set while status = INVITED and the invitee doesn't have an account
+  // (or hasn't accepted) yet.
+  invitedEmail String?
+  invitedAt    DateTime?
+  joinedAt     DateTime?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("workspace_memberships")
+}
+
+enum WorkspaceMemberRole {
+  OWNER
+  MANAGER
+  MEMBER
+}
+
+enum WorkspaceMemberStatus {
+  INVITED
+  ACTIVE
+  REMOVED
+}
+
+model Location {
+  id        String   @id @default(uuid())
+  label     String?
+  addressLine String?
+  city      String?
+  country   String?  @default("Rwanda")
+  latitude  Float
+  longitude Float
+  // geography(Point, 4326) column `geom` added via raw-SQL migration,
+  // kept in sync with latitude/longitude by trigger. See Phase 3.
+  createdAt DateTime @default(now())
+
+  providers        Provider[]
+  serviceRequests  ServiceRequest[]
+
+  @@index([latitude, longitude])
+  @@map("locations")
+}
+
+model ServiceArea {
+  id         String   @id @default(uuid())
+  providerId String
+  label      String
+  latitude   Float
+  longitude  Float
+  radiusKm   Float
+  createdAt  DateTime @default(now())
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId])
+  @@map("service_areas")
+}
+
+model ServiceCategory {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  parentId    String?
+  icon        String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  parent   ServiceCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children ServiceCategory[] @relation("CategoryHierarchy")
+  services Service[]
+  attributes CategoryAttribute[]
+  savedSearches SavedSearch[]
+
+  @@index([parentId])
+  @@map("service_categories")
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  categoryId  String
+  name        String
+  slug        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  category         ServiceCategory   @relation(fields: [categoryId], references: [id])
+  providerServices ServiceOffering[]
+  serviceRequests  ServiceRequest[]
+  portfolios       Portfolio[]
+  savedSearches    SavedSearch[]
+
+  @@unique([categoryId, slug])
+  @@index([categoryId])
+  @@map("services")
+}
+
+// A provider's specific, sellable version of a Service — this is the
+// entity category-specific attributes attach to (spec: "Provider -> Service
+// Offering -> Service -> Service Category -> Category Attributes"). This
+// model used to be the simpler `ProviderService` join table (provider +
+// service + a single starting price); it's extended in place rather than
+// duplicated, per the instruction to migrate overlapping structures
+// instead of creating a parallel concept.
+model ServiceOffering {
+  id          String            @id @default(uuid())
+  providerId  String
+  serviceId   String
+  title       String? // defaults to the Service's name in the UI when unset
+  description String?
+  basePrice   Decimal?          @db.Decimal(12, 2)
+  priceType   OfferingPriceType @default(FIXED)
+  duration    String? // free text, e.g. "2 hours", "half day" — durations vary too widely by category for a single typed field
+  currency    String            @default("RWF")
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  provider        Provider                       @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  service         Service                        @relation(fields: [serviceId], references: [id])
+  attributeValues ServiceOfferingAttributeValue[]
+  serviceRequests ServiceRequest[]
+  verifications   VerificationRecord[]
+
+  @@unique([providerId, serviceId])
+  @@index([serviceId])
+  @@map("service_offerings")
+}
+
+enum OfferingPriceType {
+  FIXED
+  HOURLY
+  PER_DAY
+  STARTING_FROM
+  CUSTOM_QUOTE
+}
+
+enum AttributeType {
+  TEXT
+  NUMBER
+  BOOLEAN
+  SELECT
+  MULTI_SELECT
+  PRICE
+}
+
+// Admin-defined, per-category form field definitions (spec §5) — this is
+// what lets a brand-new category (e.g. "DJ Services") get a fully working
+// provider form and search filters with zero schema or frontend changes.
+model CategoryAttribute {
+  id            String        @id @default(uuid())
+  categoryId    String
+  name          String
+  slug          String
+  description   String?
+  type          AttributeType
+  isRequired    Boolean       @default(false)
+  isFilterable  Boolean       @default(false)
+  isSearchable  Boolean       @default(false)
+  isPublic      Boolean       @default(true)
+  displayOrder  Int           @default(0)
+  options       Json? // string[] for SELECT/MULTI_SELECT; unused otherwise
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  category ServiceCategory                 @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  values   ServiceOfferingAttributeValue[]
+
+  @@unique([categoryId, slug])
+  @@index([categoryId])
+  @@index([categoryId, isFilterable])
+  @@map("category_attributes")
+}
+
+// One typed value per (offering, attribute). Only the column matching the
+// attribute's type is ever populated — enforced at the application layer
+// (spec §14/§25), never trusting whichever column the client happens to
+// send. MULTI_SELECT stores its array of chosen options in jsonValue.
+model ServiceOfferingAttributeValue {
+  id                  String   @id @default(uuid())
+  serviceOfferingId   String
+  categoryAttributeId String
+  textValue           String?
+  numberValue         Float?
+  booleanValue        Boolean?
+  jsonValue           Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  serviceOffering   ServiceOffering   @relation(fields: [serviceOfferingId], references: [id], onDelete: Cascade)
+  categoryAttribute CategoryAttribute @relation(fields: [categoryAttributeId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceOfferingId, categoryAttributeId])
+  @@index([serviceOfferingId])
+  @@index([categoryAttributeId])
+  @@map("service_offering_attribute_values")
+}
+
+// A frozen copy of the attribute values relevant to one service request,
+// taken at submission time (spec §21) — so the request stays meaningful
+// even after an admin later renames/removes/changes a category attribute.
+model RequestAttributeSnapshot {
+  id               String   @id @default(uuid())
+  serviceRequestId String
+  attributeName    String
+  attributeValue   String
+  createdAt        DateTime @default(now())
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+
+  @@index([serviceRequestId])
+  @@map("request_attribute_snapshots")
+}
+
+// A provider's portfolio "project" (spec §6): a titled unit of past work
+// that groups media together, optionally tagged to one of the provider's
+// own services so clients can filter the gallery by service.
+model Portfolio {
+  id          String    @id @default(uuid())
+  providerId  String
+  serviceId   String? // optional "Category" tag (spec §6) — must be one of
+  // the provider's own offered services; validated in PortfolioService,
+  // not enforced at the DB level since a provider may later remove the
+  // offering without invalidating the historical project.
+  title       String
+  description String?
+  projectDate DateTime? // "Date" (spec §6) — when the work was done, distinct
+  // from createdAt (when the portfolio entry was added to the platform)
+  createdAt   DateTime  @default(now())
+
+  provider Provider         @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  service  Service?         @relation(fields: [serviceId], references: [id])
+  images   PortfolioImage[]
+
+  @@index([providerId])
+  @@index([serviceId])
+  @@map("portfolios")
+}
+
+enum PortfolioMediaType {
+  IMAGE
+  VIDEO
+}
+
+enum BeforeAfterRole {
+  BEFORE
+  AFTER
+}
+
+model PortfolioImage {
+  id          String             @id @default(uuid())
+  portfolioId String
+  url         String
+  storageKey  String
+  mediaType   PortfolioMediaType @default(IMAGE)
+  // Pairs an IMAGE with another IMAGE in the same portfolio as a
+  // before/after set (spec §6). Both null on an ordinary photo/video.
+  beforeAfterRole  BeforeAfterRole?
+  beforeAfterGroup String? // shared key linking one BEFORE to its AFTER
+  position    Int                @default(0)
+  createdAt   DateTime           @default(now())
+
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@map("portfolio_images")
+}
+
+// One row per weekday (spec §3): "Monday 08:00-18:00", "Wednesday unavailable".
+// isActive = false (or the row missing) means unavailable that weekday.
+model Availability {
+  id         String   @id @default(uuid())
+  providerId String
+  dayOfWeek  Int      // 0=Sunday .. 6=Saturday
+  startTime  String   // "09:00"
+  endTime    String   // "17:00"
+  isActive   Boolean  @default(true)
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, dayOfWeek])
+  @@index([providerId])
+  @@map("availabilities")
+}
+
+// A specific-date override on top of the weekly pattern — a photographer
+// who's normally free Saturdays but is already booked for a wedding on one
+// particular Saturday, or one who wants to explicitly open up a normally-off
+// Wednesday. isAvailable=false blocks the date; isAvailable=true opens it.
+model AvailabilityException {
+  id         String   @id @default(uuid())
+  providerId String
+  date       DateTime @db.Date
+  isAvailable Boolean @default(false)
+  note       String?
+  createdAt  DateTime @default(now())
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, date])
+  @@index([providerId, date])
+  @@map("availability_exceptions")
+}
+
+// ---------- Service request / quoting / negotiation ----------
+
+model ServiceRequest {
+  id              String                @id @default(uuid())
+  clientId        String
+  providerId      String?
+  // Client opt-in to open a *direct* (pinned) request to the marketplace so
+  // other matching providers can also quote. False = private to the pinned
+  // provider. Broadcast requests (providerId null) are public by definition
+  // and ignore this flag. See manual-sql/014_open_service_requests.sql.
+  isPublic        Boolean               @default(false)
+  serviceId       String
+  serviceOfferingId String?
+  locationId      String?
+  title           String
+  description     String
+  preferredDate   DateTime?
+  preferredTime   String?
+  budgetMin        Decimal?             @db.Decimal(12, 2)
+  budgetMax        Decimal?             @db.Decimal(12, 2)
+  additionalNotes String?
+  status          ServiceRequestStatus  @default(OPEN)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  client   ClientProfile             @relation(fields: [clientId], references: [id])
+  provider Provider?                 @relation(fields: [providerId], references: [id])
+  service  Service                   @relation(fields: [serviceId], references: [id])
+  serviceOffering ServiceOffering?   @relation(fields: [serviceOfferingId], references: [id])
+  location Location?                 @relation(fields: [locationId], references: [id])
+  images   ServiceRequestImage[]
+  attributeSnapshots RequestAttributeSnapshot[]
+  quotes   Quote[]
+  booking  Booking?
+  conversation Conversation?
+
+  @@index([clientId])
+  @@index([providerId])
+  @@index([status])
+  @@map("service_requests")
+}
+
+model ServiceRequestImage {
+  id               String   @id @default(uuid())
+  serviceRequestId String
+  url              String
+  storageKey       String
+  createdAt        DateTime @default(now())
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+
+  @@index([serviceRequestId])
+  @@map("service_request_images")
+}
+
+model Quote {
+  id                String      @id @default(uuid())
+  requestId         String
+  providerId        String
+  price             Decimal     @db.Decimal(12, 2)
+  currency          String      @default("RWF")
+  estimatedDuration String?
+  proposedDate      DateTime?
+  description       String?
+  // What the client is paying for, spelled out so quotes are comparable
+  // apples-to-apples instead of a bare number (spec item 4).
+  materials         String?  // "Paint and brushes included", "Client provides parts", etc.
+  includedItems     String[] @default([])
+  excludedItems     String[] @default([])
+  status            QuoteStatus @default(PENDING)
+  expiresAt         DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  request     ServiceRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  provider    Provider          @relation(fields: [providerId], references: [id])
+  revisions   QuoteRevision[]
+  attachments QuoteAttachment[]
+  booking     Booking?
+
+  @@index([requestId])
+  @@index([providerId])
+  @@index([status])
+  @@map("quotes")
+}
+
+// A reference photo, sample, or spec sheet attached to a quote — e.g. a
+// sample photography package PDF, or a photo of the replacement part a
+// mechanic is quoting for.
+model QuoteAttachment {
+  id         String   @id @default(uuid())
+  quoteId    String
+  url        String
+  storageKey String
+  fileName   String?
+  mimeType   String?
+  createdAt  DateTime @default(now())
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
+  @@map("quote_attachments")
+}
+
+model QuoteRevision {
+  id          String              @id @default(uuid())
+  quoteId     String
+  proposedBy  RevisionProposedBy
+  price       Decimal             @db.Decimal(12, 2)
+  message     String?
+  status      RevisionStatus      @default(PENDING)
+  createdAt   DateTime            @default(now())
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
+  @@map("quote_revisions")
+}
+
+// ---------- Messaging ----------
+
+model Conversation {
+  id               String   @id @default(uuid())
+  serviceRequestId String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  serviceRequest ServiceRequest?           @relation(fields: [serviceRequestId], references: [id])
+  participants   ConversationParticipant[]
+  messages       Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String   @id @default(uuid())
+  conversationId String
+  clientId       String?
+  providerId     String?
+  lastReadAt     DateTime?
+
+  conversation Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  client       ClientProfile? @relation(fields: [clientId], references: [id])
+  provider     Provider?      @relation(fields: [providerId], references: [id])
+
+  @@unique([conversationId, clientId, providerId])
+  @@index([conversationId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String
+  senderId       String
+  body           String?
+  createdAt      DateTime @default(now())
+  readAt         DateTime?
+
+  conversation Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User                @relation("MessageSender", fields: [senderId], references: [id])
+  attachments  MessageAttachment[]
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model MessageAttachment {
+  id         String   @id @default(uuid())
+  messageId  String
+  url        String
+  storageKey String
+  mimeType   String
+  sizeBytes  Int
+  createdAt  DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("message_attachments")
+}
+
+// ---------- Booking ----------
+
+model Booking {
+  id                     String        @id @default(uuid())
+  serviceRequestId       String        @unique
+  quoteId                String        @unique
+  clientId               String
+  providerId             String
+  status                 BookingStatus @default(REQUESTED)
+  agreedPrice            Decimal       @db.Decimal(12, 2)
+  currency               String        @default("RWF")
+  paymentArrangementNote String        @default("Payment for this service is handled directly between you and the service provider.")
+  scheduledAt            DateTime?
+  // Guards BookingReminderProcessor against sending the reminder twice if
+  // two sweep runs overlap.
+  reminderSentAt         DateTime?
+  completedAt            DateTime?
+  cancelledAt            DateTime?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+
+  serviceRequest ServiceRequest         @relation(fields: [serviceRequestId], references: [id])
+  quote          Quote                  @relation(fields: [quoteId], references: [id])
+  client         ClientProfile          @relation(fields: [clientId], references: [id])
+  provider       Provider               @relation(fields: [providerId], references: [id])
+  statusHistory  BookingStatusHistory[]
+  review         Review?
+  disputes       Dispute[]
+
+  @@index([clientId])
+  @@index([providerId])
+  @@index([status])
+  @@map("bookings")
+}
+
+model BookingStatusHistory {
+  id        String        @id @default(uuid())
+  bookingId String
+  fromStatus BookingStatus?
+  toStatus  BookingStatus
+  note      String?
+  createdAt DateTime      @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("booking_status_history")
+}
+
+// ---------- Reviews / Favorites ----------
+
+model Review {
+  id         String   @id @default(uuid())
+  bookingId  String   @unique
+  clientId   String
+  providerId String
+
+  // Overall rating drives Provider.rating; the four dimension ratings are
+  // optional and only ever averaged over the reviews that filled them in.
+  rating              Int
+  qualityRating       Int?
+  communicationRating Int?
+  professionalismRating Int?
+  valueRating         Int?
+  comment    String?
+
+  // "Strong" verified signal: true only when the review came from a COMPLETED
+  // platform booking AND the reviewer has a verified email or phone. Snapshot
+  // taken at creation time. integrityFlags are admin-only signals
+  // (NEW_ACCOUNT, UNVERIFIED_CONTACT, FAST_COMPLETION) — never sent to clients.
+  verifiedBooking Boolean  @default(false)
+  integrityFlags  String[] @default([])
+
+  status       ReviewStatus @default(PUBLISHED)
+  hiddenReason String?
+  hiddenAt     DateTime?
+  hiddenById   String?
+
+  providerResponse     String?
+  providerRespondedAt  DateTime?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  booking  Booking       @relation(fields: [bookingId], references: [id])
+  client   ClientProfile @relation(fields: [clientId], references: [id])
+  provider Provider      @relation(fields: [providerId], references: [id])
+  images   ReviewImage[]
+
+  @@index([providerId, status, createdAt])
+  @@index([status, verifiedBooking])
+  @@map("reviews")
+}
+
+model ReviewImage {
+  id         String   @id @default(uuid())
+  reviewId   String
+  url        String
+  storageKey String
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@map("review_images")
+}
+
+model Favorite {
+  id         String   @id @default(uuid())
+  userId     String
+  providerId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, providerId])
+  @@index([providerId])
+  @@map("favorites")
+}
+
+// ---------- Notifications ----------
+
+// Per-user, per-category channel toggles. A missing row means "use the
+// defaults" (see notifications/notification-categories.ts
+// DEFAULT_PREFERENCE) rather than every user needing a full set of rows
+// created at signup. inApp=false means the category is muted from the
+// notification center entirely (spec: "Don't implement every channel
+// immediately" — SMS has no toggle yet because it has no sender at all).
+model NotificationPreference {
+  id       String               @id @default(uuid())
+  userId   String
+  category NotificationCategory
+  inApp    Boolean              @default(true)
+  push     Boolean              @default(true)
+  email    Boolean              @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, category])
+  @@map("notification_preferences")
+}
+
+// A browser's Web Push subscription (spec §10 "Push notifications"). One
+// device/browser = one row; a user can have several (phone + laptop).
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+// A client's standing search criteria (spec §10 "New provider matching
+// saved search"). SavedSearchSweepProcessor checks these against newly
+// eligible providers on a schedule — see
+// src/discovery/saved-search-sweep.processor.ts.
+model SavedSearch {
+  id             String    @id @default(uuid())
+  userId         String
+  name           String
+  serviceId      String?
+  categoryId     String?
+  city           String?
+  verifiedOnly   Boolean   @default(false)
+  maxPrice       Decimal?  @db.Decimal(12, 2)
+  isActive       Boolean   @default(true)
+  lastNotifiedAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  service  Service?         @relation(fields: [serviceId], references: [id])
+  category ServiceCategory? @relation(fields: [categoryId], references: [id])
+
+  @@index([userId])
+  @@index([isActive])
+  @@map("saved_searches")
+}
+
+model Notification {
+  id        String            @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String?
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime          @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@map("notifications")
+}
+
+// ---------- Reports / Disputes ----------
+
+model Report {
+  id             String           @id @default(uuid())
+  reporterId     String
+  targetType     ReportTargetType
+  targetId       String
+  category       ReportCategory   @default(OTHER)
+  reason         String
+  details        String?
+  status         ReportStatus     @default(OPEN)
+  resolution     String?
+  resolvedById   String?
+  resolvedAt     DateTime?
+  createdAt      DateTime         @default(now())
+
+  reporter User @relation("ReportsFiledByUser", fields: [reporterId], references: [id])
+
+  @@index([targetType, targetId])
+  @@index([status, createdAt])
+  @@map("reports")
+}
+
+model Dispute {
+  id             String                 @id @default(uuid())
+  bookingId      String
+  raisedById     String
+  respondentId   String
+  category       DisputeCategory        @default(OTHER)
+  status         DisputeStatus          @default(OPEN)
+  reason         String
+  details        String?
+  resolutionType DisputeResolutionType?
+  resolution     String?
+  resolvedById   String?
+  resolvedAt     DateTime?
+  respondedAt    DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  booking    Booking           @relation(fields: [bookingId], references: [id])
+  raisedBy   User              @relation("DisputesRaised", fields: [raisedById], references: [id])
+  respondent User              @relation("DisputesAgainst", fields: [respondentId], references: [id])
+  resolvedBy User?             @relation("DisputesResolved", fields: [resolvedById], references: [id])
+  messages   DisputeMessage[]
+  evidence   DisputeEvidence[]
+
+  @@index([status])
+  @@index([bookingId])
+  @@index([raisedById])
+  @@index([respondentId])
+  @@map("disputes")
+}
+
+// The structured back-and-forth (spec §14's "Provider response" step, plus
+// any admin questions once UNDER_REVIEW) — a thread, not a single field, so
+// either side can reply more than once before an admin picks it up.
+model DisputeMessage {
+  id        String   @id @default(uuid())
+  disputeId String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  dispute Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  author  User    @relation("DisputeMessagesAuthored", fields: [authorId], references: [id])
+
+  @@index([disputeId])
+  @@map("dispute_messages")
+}
+
+// Private storage, same pattern as verification documents — only the two
+// participants and admins ever get a signed URL to one.
+model DisputeEvidence {
+  id          String   @id @default(uuid())
+  disputeId   String
+  uploaderId  String
+  storageKey  String
+  mimeType    String
+  sizeBytes   Int
+  description String?
+  createdAt   DateTime @default(now())
+
+  dispute  Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  uploader User    @relation("DisputeEvidenceUploaded", fields: [uploaderId], references: [id])
+
+  @@index([disputeId])
+  @@map("dispute_evidence")
+}
+
+// ---------- Trust & verification ----------
+
+// One submission for one thing being verified. A provider's badge is derived
+// from the set of these (see verification/verification-status.ts), so history
+// (rejections, expiries, renewals) is preserved instead of overwritten.
+// At most one PENDING record per (provider, type, offering) — enforced by the
+// partial unique index in prisma/manual-sql/002_trust_and_reviews.sql.
+model VerificationRecord {
+  id                String             @id @default(uuid())
+  providerId        String
+  type              VerificationType
+  serviceOfferingId String? // set only when type = SERVICE
+  status            VerificationStatus @default(PENDING)
+  legalName         String? // name as it appears on the document / registration
+  referenceNumber   String? // business reg. no., licence no., etc. (not a government ID number for IDENTITY)
+  submitterNote     String?
+  decisionNote      String? // rejection / suspension reason, shown to the provider
+  submittedAt       DateTime           @default(now())
+  reviewedAt        DateTime?
+  reviewedById      String?
+  verifiedAt        DateTime?
+  expiresAt         DateTime?
+  expiryReminderSentAt DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  provider        Provider         @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  serviceOffering ServiceOffering? @relation(fields: [serviceOfferingId], references: [id], onDelete: Cascade)
+  documents       VerificationDocument[]
+
+  @@index([providerId, type])
+  @@index([status, submittedAt])
+  @@index([status, expiresAt])
+  @@map("verification_records")
+}
+
+// Documents are PRIVATE: stored without a public ACL and only ever handed out
+// as short-lived signed URLs to admins. No `url` column on purpose.
+model VerificationDocument {
+  id             String                   @id @default(uuid())
+  verificationId String
+  documentType   VerificationDocumentType
+  storageKey     String
+  mimeType       String
+  sizeBytes      Int
+  originalName   String?
+  createdAt      DateTime                 @default(now())
+
+  verification VerificationRecord @relation(fields: [verificationId], references: [id], onDelete: Cascade)
+
+  @@index([verificationId])
+  @@map("verification_documents")
+}
+
+// One-time codes for email/phone ownership checks. Only a keyed hash of the
+// code is stored.
+model ContactVerificationCode {
+  id         String         @id @default(uuid())
+  userId     String
+  channel    ContactChannel
+  target     String // the email/phone the code was sent to, at send time
+  codeHash   String
+  attempts   Int            @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, channel, createdAt])
+  @@map("contact_verification_codes")
+}
+
+// ---------- Subscriptions (the ONLY payment surface) ----------
+
+// Type-specific subscription plans (spec §7): every plan targets exactly
+// one workspace type, so a plan meant for AGENCY can never be assigned to
+// an INDIVIDUAL workspace (enforced in SubscriptionsService.subscribe,
+// not just hidden in the UI). `name` is scoped per type rather than
+// globally unique so every type can have its own "FREE"/"STANDARD"/"PRO".
+model SubscriptionPlan {
+  id                  String          @id @default(uuid())
+  workspaceType       ProviderType
+  name                String // FREE | STANDARD | PRO (configurable, not a hard enum)
+  price               Decimal         @db.Decimal(12, 2)
+  currency            String          @default("RWF")
+  billingInterval     BillingInterval
+  maxServices         Int?
+  maxPortfolioImages  Int?
+  maxMonthlyRequests  Int?
+  // TEAM/BUSINESS: caps active WorkspaceMembership rows (spec §7 "Maximum
+  // team members"). Null on other types / unlimited.
+  maxTeamMembers      Int?
+  // AGENCY: caps the represented-provider roster (spec §7 "Maximum
+  // managed providers") — the existing ProviderTeamMember roster, not
+  // WorkspaceMembership (see docs/WORKSPACES.md on the two rosters).
+  maxManagedProviders Int?
+  features            Json?
+  isActive            Boolean         @default(true)
+  createdAt           DateTime        @default(now())
+
+  subscriptions ProviderSubscription[]
+
+  @@unique([workspaceType, name])
+  @@index([workspaceType])
+  @@map("subscription_plans")
+}
+
+model ProviderSubscription {
+  id            String              @id @default(uuid())
+  providerId    String
+  planId        String
+  status        SubscriptionStatus  @default(ACTIVE)
+  startDate     DateTime            @default(now())
+  endDate       DateTime?
+  renewalDate   DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  provider     Provider                 @relation(fields: [providerId], references: [id])
+  plan         SubscriptionPlan         @relation(fields: [planId], references: [id])
+  transactions SubscriptionTransaction[]
+
+  @@index([providerId])
+  @@index([status])
+  @@map("provider_subscriptions")
+}
+
+model SubscriptionTransaction {
+  id                  String        @id @default(uuid())
+  subscriptionId      String
+  amount              Decimal       @db.Decimal(12, 2)
+  currency            String        @default("RWF")
+  paymentProvider     String        // "mtn_momo" | "airtel_money" | "card" | "mock" | ...
+  transactionReference String?
+  paymentStatus       PaymentStatus @default(PENDING)
+  createdAt           DateTime      @default(now())
+
+  subscription ProviderSubscription @relation(fields: [subscriptionId], references: [id])
+
+  @@index([subscriptionId])
+  @@map("subscription_transactions")
+}
+
+// ---------- Audit ----------
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
+
+// UserInteraction/UserInterest/UserPreference/RecommendationCache are
+// deliberately NOT given formal relations to User: this is soft, derived
+// signal data for the personalization module (kept separate from core
+// business modules per its own spec), not core business data — a plain
+// indexed userId is enough and avoids growing User's relation list for a
+// module that should stay swappable/removable independently.
+
+model UserInteraction {
+  id         String                  @id @default(uuid())
+  userId     String
+  type       InteractionType
+  entityType InteractionEntityType?
+  entityId   String?
+  metadata   Json?
+  createdAt  DateTime                @default(now())
+
+  @@index([userId])
+  @@index([userId, type])
+  @@index([createdAt])
+  @@map("user_interactions")
+}
+
+// One row per (userId, categoryId) for category-level interest, and one
+// row per (userId, categoryId, serviceId) for service-level interest (the
+// category is denormalized onto the service row too, so "top categories"
+// can be computed with a single group-by). `score` is the raw accumulated
+// weighted sum — decay is applied at read time from `lastInteractionAt`,
+// not baked into the stored value (see recommendation/recommendation.constants.ts).
+model UserInterest {
+  id                String   @id @default(uuid())
+  userId            String
+  categoryId        String?
+  serviceId         String?
+  score             Float    @default(0)
+  interactionCount  Int      @default(0)
+  lastInteractionAt DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, categoryId, serviceId])
+  @@index([userId])
+  @@index([userId, score])
+  @@index([userId, serviceId])
+  @@index([userId, categoryId])
+  @@index([lastInteractionAt])
+  @@map("user_interests")
+}
+
+model UserPreference {
+  id                      String    @id @default(uuid())
+  userId                  String    @unique
+  preferredCategories     String[]  @default([])
+  preferredServices       String[]  @default([])
+  preferredPriceMin       Decimal?  @db.Decimal(12, 2)
+  preferredPriceMax       Decimal?  @db.Decimal(12, 2)
+  preferredSearchRadiusKm Float?
+  personalizationEnabled  Boolean   @default(true)
+  locationBasedEnabled    Boolean   @default(true)
+  recentlyViewedEnabled   Boolean   @default(true)
+  updatedAt               DateTime  @updatedAt
+
+  @@map("user_preferences")
+}
+
+// A lightweight, inspectable record of the last recommendation set
+// computed for a user — Redis (see RECOMMENDATION_CACHE_PREFIX) is the
+// live, fast lookup used on the hot path; this table exists so "what did
+// we last recommend and why" survives a cache flush and stays queryable.
+model RecommendationCache {
+  id          String   @id @default(uuid())
+  userId      String
+  type        String // "providers" | "services"
+  entityIds   String[]
+  generatedAt DateTime @default(now())
+  expiresAt   DateTime
+
+  @@unique([userId, type])
+  @@map("recommendation_cache")
+}
+
+// Admin-configurable ranking weights (spec §34) — a single row, edited
+// through the admin API, never requiring a code deploy to retune.
+model RankingConfig {
+  id        String   @id @default(uuid())
+  weights   Json
+  updatedAt DateTime @updatedAt
+
+  @@map("ranking_config")
+}

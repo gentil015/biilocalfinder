@@ -1,0 +1,588 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   Tokens
+   Mirrors tailwind.config.ts. Anything that needs a raw CSS value (gradients,
+   focus rings, scrollbar tinting) reads from here rather than hardcoding hex.
+   ========================================================================== */
+:root {
+  --background: 245 246 248;
+  --foreground: 18 22 29;
+
+  --brand: 15 71 63;
+  --brand-strong: 12 58 52;
+
+  --ring: 15 71 63;
+  --radius: 0.875rem;
+
+  --header-height: 4rem;
+}
+
+@layer base {
+  * {
+    @apply border-ink-200;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-canvas text-ink-900 antialiased;
+    font-feature-settings: 'cv02' 1, 'cv03' 1, 'cv04' 1, 'ss01' 1;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display text-ink-950;
+    /* Headings get the tighter tracking the display face was drawn for — the
+       same -0.03em the landing hero uses, so a page title and a hero line
+       are set from one decision. */
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    @apply bg-brand-700 text-white;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand-500/60 ring-offset-2 ring-offset-canvas;
+  }
+
+  /* Numeric UI — prices, ratings, counts, coordinates — has to align in
+     columns and not jitter when a value updates. */
+  .tabular,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  /* ------------------------------------------------------------------------
+     Form controls
+     A single base rule for every control, so a bare <input> dropped into a
+     form is never unstyled. Specificity is kept low on purpose: components
+     override with utility classes, and `!` is never needed.
+     ------------------------------------------------------------------------ */
+  input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='hidden']):not([type='range']),
+  textarea,
+  select {
+    @apply block w-full rounded-xl border border-ink-200 bg-white px-3.5 py-2.5 text-sm font-medium text-ink-900 shadow-xs transition
+      placeholder:font-normal placeholder:text-ink-400
+      hover:border-ink-300
+      focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10
+      disabled:cursor-not-allowed disabled:bg-ink-50 disabled:text-ink-400;
+  }
+
+  textarea {
+    @apply min-h-[96px] resize-y leading-relaxed;
+  }
+
+  select {
+    @apply cursor-pointer appearance-none bg-[length:16px] bg-[right_1rem_center] bg-no-repeat pr-10;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%23606879'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='m19.5 8.25-7.5 7.5-7.5-7.5'/%3e%3c/svg%3e");
+  }
+
+  /* Taller select for primary pickers (a service chooser is the single most
+     important control on a request form, so it gets a bigger target). */
+  select.select-lg,
+  .select-lg {
+    @apply py-3 text-base font-semibold;
+  }
+
+  /* Range inputs get a real track and thumb instead of the UA default. */
+  input[type='range'] {
+    @apply h-1.5 w-full cursor-pointer appearance-none rounded-full bg-ink-200 accent-brand-600;
+  }
+
+  input[type='range']::-webkit-slider-thumb {
+    @apply h-4 w-4 appearance-none rounded-full border-2 border-white bg-brand-600 shadow-sm;
+  }
+
+  input[type='range']::-moz-range-thumb {
+    @apply h-4 w-4 rounded-full border-2 border-white bg-brand-600 shadow-sm;
+  }
+
+  /* Checkbox and radio keep their native hit target and look but get a brand
+     accent and a visible ring when focused by keyboard. */
+  input[type='checkbox'],
+  input[type='radio'] {
+    @apply h-4 w-4 cursor-pointer rounded border-ink-300 text-brand-600 accent-brand-600 transition
+      focus:outline-none focus:ring-4 focus:ring-brand-500/15;
+  }
+
+  input[type='radio'] {
+    @apply rounded-full;
+  }
+
+  input[type='checkbox']:checked {
+    @apply border-brand-600 bg-brand-600;
+  }
+
+  /* Opt-out for controls that live inside another surface (hero search bar,
+     filter rows) where the white fill would break the composition. */
+  input.bare-input,
+  .bare-input {
+    @apply w-full rounded-none border-0 bg-transparent p-0 font-medium shadow-none
+      focus:border-0 focus:ring-0;
+  }
+
+  input.bare-input:focus,
+  .bare-input:focus {
+    @apply border-0 shadow-none ring-0;
+  }
+
+  /* Scrollbars: present, but quiet. */
+  ::-webkit-scrollbar {
+    @apply h-2 w-2;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-ink-300;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-ink-400;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+}
+
+@layer components {
+  /* ==========================================================================
+     Layout
+     ========================================================================== */
+  .page-shell {
+    @apply mx-auto w-full max-w-7xl px-5 sm:px-6 lg:px-8;
+  }
+
+  /* Reading-width variant for prose, auth and long-form detail pages. */
+  .page-narrow {
+    @apply mx-auto w-full max-w-3xl px-5 sm:px-6 lg:px-8;
+  }
+
+  /* Dashboard / workspace content column. */
+  .page-workspace {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-6 lg:px-8;
+  }
+
+  /* ==========================================================================
+     Surfaces
+     `border` is doing the work; shadows only lift things off the page.
+     A card in /search and a card on / are the same object: a hairline border
+     over white, with the shallow `card` elevation.
+     ========================================================================== */
+  .surface-card {
+    @apply rounded-2xl border border-ink-200 bg-white shadow-card;
+  }
+
+  /* Interactive card. Pair with a single <a>/<button> inside, or make the
+     whole thing a link — never nest an anchor inside an anchor. */
+  .surface-card-interactive {
+    @apply surface-card transition duration-200 ease-out hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg focus-within:border-brand-400 focus-within:ring-4 focus-within:ring-brand-500/10;
+  }
+
+  .surface-panel {
+    @apply rounded-2xl border border-ink-200 bg-ink-50/70;
+  }
+
+  /* Inverted surface for hero / CTA bands. */
+  .surface-dark {
+    @apply rounded-3xl bg-home-night text-white;
+  }
+
+  .section-divider {
+    @apply h-px w-full bg-ink-200;
+  }
+
+  /* ==========================================================================
+     Buttons
+     One base + variants + sizes. Every button in the product is one of these
+     so height, radius and focus behaviour never drift between screens.
+
+     `.btn-primary` is solid brand green with white text — the single confident
+     action colour. Gold is the *highlight* accent (`.btn-accent`, `.btn-on-dark`)
+     and is only used where it sits on a dark surface.
+     ========================================================================== */
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-xl
+      text-sm font-semibold leading-none transition duration-150 ease-out
+      focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20
+      disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-md {
+    @apply h-10 px-4;
+  }
+
+  .btn-sm {
+    @apply h-8 px-3 text-[13px];
+  }
+
+  .btn-lg {
+    @apply h-12 px-6 text-[15px];
+  }
+
+  .btn-primary {
+    @apply btn btn-md bg-brand-700 text-white shadow-sm
+      hover:bg-brand-800 active:bg-brand-900;
+  }
+
+  .btn-secondary {
+    @apply btn btn-md border border-ink-200 bg-white text-ink-800 shadow-xs
+      hover:border-ink-300 hover:bg-ink-50 hover:text-ink-950 active:bg-ink-100;
+  }
+
+  .btn-ghost {
+    @apply btn btn-md text-ink-600 hover:bg-ink-900/5 hover:text-ink-950;
+  }
+
+  .btn-danger {
+    @apply btn btn-md bg-danger-600 text-white shadow-sm hover:bg-danger-700 active:bg-danger-700;
+  }
+
+  /* Gold highlight button — the strong call to action on light surfaces where
+     it should out-shout a green primary (e.g. the landing hero). */
+  .btn-accent {
+    @apply btn btn-md bg-home-gold text-home-night shadow-sm
+      hover:bg-[#EDC27E] active:bg-[#D9A857];
+  }
+
+  .btn-link {
+    @apply inline-flex items-center gap-1 font-semibold text-brand-700 underline-offset-4 hover:text-brand-800 hover:underline;
+  }
+
+  /* Filled-inverted button, for use on `surface-dark` backgrounds. */
+  .btn-on-dark {
+    @apply btn btn-md bg-home-gold text-home-night shadow-sm hover:bg-[#EDC27E];
+  }
+
+  .btn-on-dark-ghost {
+    @apply btn btn-md border border-white/20 bg-white/5 text-white hover:bg-white/10;
+  }
+
+  /* Square icon-only button (header actions, card affordances). */
+  .icon-btn {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-xl text-ink-500 transition duration-150
+      hover:bg-ink-900/5 hover:text-ink-900
+      focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20;
+  }
+
+  /* ==========================================================================
+     Chips, badges, pills
+     ========================================================================== */
+  .chip {
+    @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-600 transition;
+  }
+
+  .chip-interactive {
+    @apply chip hover:border-brand-300 hover:bg-ink-50 hover:text-ink-900;
+  }
+
+  .chip-active {
+    @apply border-brand-700 bg-brand-700 text-white hover:bg-brand-800 hover:text-white;
+  }
+
+  /* Status badge — a dot plus a tinted label reads faster than a filled pill
+     when a list has a dozen of them. */
+  .badge {
+    @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-bold uppercase tracking-wide;
+  }
+
+  .badge-neutral {
+    @apply bg-ink-100 text-ink-600;
+  }
+
+  .badge-brand {
+    @apply bg-brand-50 text-brand-800;
+  }
+
+  .badge-success {
+    @apply bg-success-50 text-success-700;
+  }
+
+  .badge-warning {
+    @apply bg-warning-50 text-warning-800;
+  }
+
+  .badge-danger {
+    @apply bg-danger-50 text-danger-700;
+  }
+
+  .badge-info {
+    @apply bg-info-50 text-info-800;
+  }
+
+  /* Filter counter that rides on top of a button. */
+  .count-pill {
+    @apply inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-700 px-1.5 text-2xs font-bold text-white;
+  }
+
+  /* ==========================================================================
+     Typography helpers
+     ========================================================================== */
+  .eyebrow {
+    @apply text-2xs font-bold uppercase tracking-[0.16em] text-brand-700;
+  }
+
+  .eyebrow-muted {
+    @apply eyebrow text-ink-400;
+  }
+
+  .page-title {
+    @apply font-display text-[26px] font-extrabold leading-[1.08] tracking-[-0.03em] text-ink-950 sm:text-[32px];
+  }
+
+  .section-title {
+    @apply font-display text-xl font-extrabold tracking-[-0.03em] text-ink-950 sm:text-2xl;
+  }
+
+  .card-title {
+    @apply font-display text-base font-extrabold tracking-[-0.02em] text-ink-950;
+  }
+
+  .prose-copy {
+    @apply text-sm leading-relaxed text-ink-600;
+  }
+
+  .text-link {
+    @apply font-semibold text-brand-700 underline-offset-4 hover:text-brand-800 hover:underline;
+  }
+
+  /* Back affordance above a page title. */
+  .back-link {
+    @apply inline-flex items-center gap-1.5 text-sm font-semibold text-ink-500 transition
+      hover:text-ink-950;
+  }
+
+  /* ==========================================================================
+     Form layout
+     ========================================================================== */
+  .field {
+    @apply block;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-semibold text-ink-800;
+  }
+
+  .hint {
+    @apply mt-1.5 text-xs leading-relaxed text-ink-500;
+  }
+
+  .error-text {
+    @apply mt-1.5 flex items-start gap-1.5 text-xs font-semibold text-danger-600;
+  }
+
+  /* Bordered block wrapping a labelled control, used in long forms. */
+  .field-card {
+    @apply rounded-2xl border border-ink-200 bg-white p-5 shadow-card;
+  }
+
+  /* Checkbox / toggle row. */
+  .check-row {
+    @apply flex cursor-pointer items-start gap-2.5 rounded-xl px-1 py-1.5 text-sm text-ink-700 transition hover:text-ink-950;
+  }
+
+  /* ==========================================================================
+     Data display
+     ========================================================================== */
+  .stat-label {
+    @apply text-xs font-semibold text-ink-500;
+  }
+
+  .stat-value {
+    @apply font-display text-2xl font-extrabold tabular tracking-tight text-ink-950;
+  }
+
+  .table-wrap {
+    @apply w-full overflow-x-auto;
+  }
+
+  .table {
+    @apply w-full min-w-full border-collapse text-left text-sm;
+  }
+
+  .table thead th {
+    @apply whitespace-nowrap border-b border-ink-200 bg-ink-50/80 px-4 py-3 text-2xs font-bold uppercase tracking-wider text-ink-500;
+  }
+
+  .table tbody td {
+    @apply border-b border-ink-100 px-4 py-3.5 align-middle text-ink-700;
+  }
+
+  .table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .table tbody tr {
+    @apply transition-colors hover:bg-ink-50/70;
+  }
+
+  /* Definition list used across every detail page. */
+  .detail-list {
+    @apply divide-y divide-ink-100;
+  }
+
+  .detail-row {
+    @apply flex items-baseline justify-between gap-6 py-3;
+  }
+
+  .detail-key {
+    @apply shrink-0 text-sm text-ink-500;
+  }
+
+  .detail-value {
+    @apply text-right text-sm font-bold text-ink-900;
+  }
+
+  /* ==========================================================================
+     Navigation
+     ========================================================================== */
+  .nav-pill {
+    @apply inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-ink-600 transition hover:bg-ink-900/5 hover:text-ink-950;
+  }
+
+  .nav-pill-active {
+    @apply bg-brand-50 text-brand-800 hover:bg-brand-50 hover:text-brand-800;
+  }
+
+  .nav-link {
+    @apply relative text-sm font-semibold text-ink-600 transition hover:text-ink-950;
+  }
+
+  /* ==========================================================================
+     States
+     ========================================================================== */
+  .alert {
+    @apply flex gap-3 rounded-xl border p-4 text-sm;
+  }
+
+  .alert-error {
+    @apply border-danger-100 bg-danger-50 text-danger-700;
+  }
+
+  .alert-success {
+    @apply border-success-100 bg-success-50 text-success-700;
+  }
+
+  .alert-warning {
+    @apply border-warning-100 bg-warning-50 text-warning-800;
+  }
+
+  .alert-info {
+    @apply border-info-100 bg-info-50 text-info-800;
+  }
+
+  .empty-state {
+    @apply flex flex-col items-center justify-center rounded-2xl border border-dashed border-ink-300 bg-white/60 px-6 py-14 text-center;
+  }
+
+  .skeleton {
+    @apply relative overflow-hidden rounded-lg bg-ink-200/70;
+  }
+
+  .skeleton::after {
+    @apply absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent;
+    content: '';
+    animation: shimmer 1.6s infinite;
+  }
+
+  /* Scrollable region that shouldn't push the page layout wider. */
+  .scroll-x {
+    @apply overflow-x-auto;
+    scrollbar-width: none;
+  }
+
+  .scroll-x::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* "Ask BII Assistant" chat sheet. */
+  @keyframes slideUpSheet {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-up-sheet {
+    animation: slideUpSheet 180ms ease-out both;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Utilities
+   -------------------------------------------------------------------------- */
+
+/* Skip link: off-screen until focused, then pinned top-left. */
+.skip-link {
+  @apply absolute left-4 top-4 z-[100] -translate-y-24 rounded-xl bg-home-night px-4 py-2.5 text-sm font-bold text-white shadow-xl transition focus:translate-y-0;
+}
+
+/* Fine grid used behind dark hero surfaces. */
+.hero-grid {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.04) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 30%, transparent 78%);
+}
+
+/* Landing: architectural grain + diagonal hatch. The hatch is light and very
+   subtle so it reads as paper texture on the near-white canvas. */
+.home-grain::before {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+}
+
+.home-hatch {
+  background-image: repeating-linear-gradient(
+    -18deg,
+    rgb(10 14 19 / 0.025) 0 1px,
+    transparent 1px 14px
+  );
+}
+
+/* Reduced-motion: kill transforms and shimmer, keep opacity so nothing that
+   relies on animation to become visible stays invisible. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .skeleton::after {
+    display: none;
+  }
+
+  .animate-marquee,
+  .animate-float {
+    animation: none !important;
+  }
+}

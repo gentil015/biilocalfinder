@@ -24,7 +24,7 @@ cp .env.example .env.production
 
 Edit `.env.production` and set real values for at minimum:
 
-- `POSTGRES_PASSWORD`, `DATABASE_URL` (matching the same password)
+- `DATABASE_URL` and `DIRECT_URL` (see the database options below)
 - `JWT_SECRET`, `JWT_REFRESH_SECRET` — long random strings, never reused
   from `.env.example`
 - `S3_ACCESS_KEY`, `S3_SECRET_KEY` (MinIO root credentials, or real S3 IAM
@@ -41,6 +41,36 @@ Edit `.env.production` and set real values for at minimum:
 
 Never commit `.env.production`.
 
+### Using Supabase Postgres
+
+In the Supabase dashboard, open **Connect** and copy the connection strings
+for your project. Set `DATABASE_URL` to the **Transaction pooler** URI for
+the API's runtime connection, and `DIRECT_URL` to the **Direct connection**
+URI for Prisma migrations and administrative SQL. If the deployment host
+does not support IPv6, use the Supavisor **Session pooler** URI for
+`DIRECT_URL` instead. Keep the database password in `.env.production`; do
+not substitute the Supabase publishable or secret API key for it.
+
+For Prisma's transaction-pooler URL, retain Supabase's SSL option and add
+`pgbouncer=true&connection_limit=1` to its query parameters (use `&` if the
+URI already has query parameters). `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`,
+and `SUPABASE_SECRET_KEY` are not used for Prisma database connections; keep
+the secret API key server-side if another feature later needs it.
+
+This repository currently has no committed Prisma migrations. To initialize
+a **new, empty** Supabase database, run `npx prisma migrate dev --name init`
+from `apps/api` with both URLs configured; review and commit the generated
+migration. Then apply the required scripts from
+`apps/api/prisma/manual-sql` using `DIRECT_URL`, following the ordering and
+notes in `apps/api/prisma/migrations_notes/README.md`. Enable the `postgis`
+and `vector` extensions in Supabase before running the scripts that use them.
+Do not run the initialization command against a database containing data.
+Once migrations are committed, deploy schema changes with
+`npx prisma migrate deploy`.
+
+The production Compose file still starts its local Postgres service, but the
+API will use the Supabase endpoint configured by `DATABASE_URL`.
+
 ## 4. Build and start the stack
 
 ```bash
@@ -52,12 +82,18 @@ This starts: `postgres` (with PostGIS), `redis`, `minio`, the `api`
 
 ## 5. Run migrations and enable PostGIS
 
+Run this only after the Prisma migration files have been generated and
+committed:
+
 ```bash
 docker compose -f infra/docker/docker-compose.prod.yml exec api npx prisma migrate deploy
-docker compose -f infra/docker/docker-compose.prod.yml exec postgres \
-  psql -U bii -d bii_localfinder -f /dev/stdin < apps/api/prisma/manual-sql/001_add_postgis.sql
 docker compose -f infra/docker/docker-compose.prod.yml exec api npx prisma db seed
 ```
+
+For Supabase, run the required manual SQL scripts against the database using
+its direct or session-pooler connection; do not send administrative SQL
+through the transaction pooler. For the bundled Postgres service, apply the
+scripts through the `postgres` container as described by the project setup.
 
 ## 6. TLS (Let's Encrypt / certbot)
 

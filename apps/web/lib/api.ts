@@ -233,8 +233,127 @@ export interface AdminDashboardStats {
   pendingProviderApplications: number;
 }
 
+export interface AdminUser {
+  id: string;
+  email: string;
+  phone: string | null;
+  firstName: string;
+  lastName: string;
+  role: 'CLIENT' | 'PROVIDER' | 'ADMIN';
+  status: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | 'PENDING_VERIFICATION';
+  createdAt: string;
+}
+
+export interface AdminUsersPage {
+  items: AdminUser[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface AdminAuditLog {
+  id: string;
+  action: string;
+  entity: string;
+  entityId: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  actor: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
+}
+
+export interface AdminAuditLogsPage {
+  items: AdminAuditLog[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface AdminSubscription {
+  id: string;
+  status: 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'PAST_DUE' | 'TRIALING';
+  startDate: string;
+  renewalDate: string | null;
+  endDate: string | null;
+  createdAt: string;
+  provider: {
+    id: string;
+    businessName: string;
+    providerType: ProviderType | null;
+    subscriptionStatus: 'ACTIVE' | 'EXPIRED' | 'CANCELLED' | 'PAST_DUE' | 'TRIALING';
+    user: { firstName: string; lastName: string; email: string };
+  };
+  plan: {
+    id: string;
+    name: string;
+    workspaceType: ProviderType;
+    price: string | number;
+    currency: string;
+    billingInterval: 'MONTHLY' | 'YEARLY';
+  };
+  transactions: {
+    id: string;
+    amount: string | number;
+    currency: string;
+    paymentProvider: string;
+    paymentStatus: 'PENDING' | 'SUCCEEDED' | 'FAILED' | 'REFUNDED';
+    createdAt: string;
+  }[];
+}
+
+export interface AdminSubscriptionsPage {
+  items: AdminSubscription[];
+  total: number;
+  page: number;
+  limit: number;
+  stats: {
+    active: number;
+    pastDue: number;
+    expiringSoon: number;
+    billingIssues: number;
+  };
+}
+
 export const adminApi = {
   dashboard: () => authRequest<AdminDashboardStats>('/admin/dashboard'),
+  users: (params: { search?: string; role?: AdminUser['role']; status?: AdminUser['status']; page?: number }) => {
+    const query = new URLSearchParams();
+    if (params.search) query.set('search', params.search);
+    if (params.role) query.set('role', params.role);
+    if (params.status) query.set('status', params.status);
+    if (params.page) query.set('page', String(params.page));
+    return authRequest<AdminUsersPage>(`/admin/users?${query.toString()}`);
+  },
+  setUserStatus: (id: string, status: 'ACTIVE' | 'SUSPENDED') =>
+    authRequest<AdminUser>(`/admin/users/${id}/${status === 'SUSPENDED' ? 'suspend' : 'activate'}`, {
+      method: 'PATCH',
+    }),
+  auditLogs: (params: { search?: string; action?: string; entity?: string; page?: number }) => {
+    const query = new URLSearchParams();
+    if (params.search) query.set('search', params.search);
+    if (params.action) query.set('action', params.action);
+    if (params.entity) query.set('entity', params.entity);
+    if (params.page) query.set('page', String(params.page));
+    return authRequest<AdminAuditLogsPage>(`/admin/audit-logs?${query.toString()}`);
+  },
+  subscriptions: (params: {
+    search?: string;
+    status?: AdminSubscription['status'];
+    providerType?: ProviderType;
+    billingIssues?: boolean;
+    page?: number;
+  }) => {
+    const query = new URLSearchParams();
+    if (params.search) query.set('search', params.search);
+    if (params.status) query.set('status', params.status);
+    if (params.providerType) query.set('providerType', params.providerType);
+    if (params.billingIssues) query.set('billingIssues', 'true');
+    if (params.page) query.set('page', String(params.page));
+    return authRequest<AdminSubscriptionsPage>(`/admin/subscriptions?${query.toString()}`);
+  },
 };
 
 /**

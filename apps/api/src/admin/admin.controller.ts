@@ -6,6 +6,8 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AdminService } from './admin.service';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
+import { ListAuditLogsQueryDto } from './dto/list-audit-logs-query.dto';
+import { ListSubscriptionsQueryDto } from './dto/list-subscriptions-query.dto';
 
 // Everything here is admin-only — categories/services/subscription plans/
 // provider verification/reports/disputes each have their own admin-gated
@@ -41,7 +43,12 @@ export class AdminController {
   }
 
   @Get('audit-logs')
-  auditLogs(@Query('page') page?: string) {
-    return this.adminService.auditLogs(Number(page) || 1);
+  auditLogs(@Query() query: ListAuditLogsQueryDto) {
+    return this.adminService.auditLogs(query);
+  }
+
+  @Get('subscriptions')
+  subscriptions(@Query() query: ListSubscriptionsQueryDto) {
+    return this.adminService.listSubscriptions(query);
   }
 }

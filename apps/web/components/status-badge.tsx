@@ -28,6 +28,7 @@ const STYLES: Record<string, string> = {
   COMPLETED: 'bg-success-50 text-success-700',
   // Terminal negatives.
   CANCELLED: 'bg-danger-50 text-danger-700',
+  FAILED: 'bg-danger-50 text-danger-700',
   REJECTED: 'bg-danger-50 text-danger-700',
   DISPUTED: 'bg-danger-50 text-danger-700',
   // Quiet / historical.

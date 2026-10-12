@@ -13,6 +13,9 @@ import {
   LogOut,
   Menu,
   X,
+  Users,
+  History,
+  CreditCard,
   type LucideIcon,
 } from 'lucide-react';
 import { RequireAdmin } from '@/components/require-admin';
@@ -29,6 +32,9 @@ import { useAuth } from '@/components/auth-provider';
  * supplies that chrome, scoped to moderation only.
  */
 const ADMIN_NAV: { label: string; href: string; icon: LucideIcon }[] = [
+  { label: 'Users', href: '/admin/users', icon: Users },
+  { label: 'Audit logs', href: '/admin/audit-logs', icon: History },
+  { label: 'Subscriptions', href: '/admin/subscriptions', icon: CreditCard },
   { label: 'Categories', href: '/admin/categories', icon: FolderTree },
   { label: 'Verifications', href: '/admin/verifications', icon: ShieldCheck },
   { label: 'Disputes', href: '/admin/disputes', icon: Scale },

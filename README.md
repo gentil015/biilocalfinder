@@ -499,6 +499,10 @@ Design notes:
   blocked for admin accounts), all logged via a shared `AuditLogService`.
 - Reports and Disputes modules (file → admin reviews → resolves), plus an
   admin audit-log endpoint to see the trail those actions leave.
+- Admin subscription oversight lists provider subscription plans, renewal/end
+  dates and latest platform billing outcomes, with filters for status, provider
+  type and billing issues. It does not manage or process client-to-provider
+  service payments.
 
 **Phase 9 — Testing, security, performance**
 - Fixed a real gap: `ThrottlerModule` was registered but its guard was

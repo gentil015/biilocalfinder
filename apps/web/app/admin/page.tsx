@@ -5,8 +5,10 @@ import { useEffect, useState } from 'react';
 import {
   ArrowRight,
   ClipboardList,
+  CreditCard,
   Flag,
   FolderTree,
+  History,
   Scale,
   ShieldCheck,
   SlidersHorizontal,
@@ -18,6 +20,24 @@ import { adminApi, type AdminDashboardStats } from '@/lib/api';
 import { PageHeader, Panel, StatCard, Skeleton, EmptyState } from '@/components/ui/page';
 
 const QUEUES: { href: string; label: string; description: string; icon: LucideIcon; stat?: keyof AdminDashboardStats }[] = [
+  {
+    href: '/admin/audit-logs',
+    label: 'Audit logs',
+    description: 'Review administrative actions and changes made across the platform.',
+    icon: History,
+  },
+  {
+    href: '/admin/subscriptions',
+    label: 'Subscriptions',
+    description: 'Monitor provider plans, renewals, expirations and billing issues.',
+    icon: CreditCard,
+  },
+  {
+    href: '/admin/users',
+    label: 'User management',
+    description: 'Search accounts, review account status and manage access to the platform.',
+    icon: Users,
+  },
   {
     href: '/admin/provider-applications',
     label: 'Provider applications',

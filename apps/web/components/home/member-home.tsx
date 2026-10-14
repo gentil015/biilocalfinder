@@ -298,7 +298,7 @@ export function MemberHome() {
               provider={{
                 id: p.id,
                 businessName: p.businessName,
-                avatarUrl: p.user?.avatarUrl ?? null,
+                avatarUrl: p.logoUrl ?? p.user?.avatarUrl ?? null,
                 rating: Number(p.rating),
                 reviewCount: p.reviewCount,
                 verificationStatus: p.verificationStatus,

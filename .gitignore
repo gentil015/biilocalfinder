@@ -31,6 +31,9 @@ coverage/
 .eslintcache
 .cache/
 
+# Local disk storage fallback (when no S3/MinIO is reachable)
+.local-storage/
+
 # Editor / OS
 .DS_Store
 Thumbs.db

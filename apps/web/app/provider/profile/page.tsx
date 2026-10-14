@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { CheckCircle2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { CheckCircle2, Images, ImagePlus, X } from 'lucide-react';
 import { providersApi, ApiError } from '@/lib/api';
 import { PageHeader, Panel, LoadingBlock } from '@/components/ui/page';
 
@@ -21,11 +22,15 @@ const AVAILABILITY_OPTIONS = [
  * step is COMPLETED, which used to leave these fields frozen permanently.
  */
 export default function ProviderProfilePage() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [providerType, setProviderType] = useState<string | null>(null);
+  // The account avatar shown when no logo is set (individuals especially).
+  const [fallbackAvatarUrl, setFallbackAvatarUrl] = useState<string | null>(null);
   const [form, setForm] = useState({
     businessName: '',
     description: '',
@@ -34,6 +39,7 @@ export default function ProviderProfilePage() {
     yearsOfExperience: '',
     serviceRadiusKm: '',
     availabilityStatus: 'AVAILABLE' as 'AVAILABLE' | 'BUSY' | 'UNAVAILABLE',
+    logoUrl: '',
   });
 
   useEffect(() => {
@@ -49,7 +55,9 @@ export default function ProviderProfilePage() {
           yearsOfExperience: p.yearsOfExperience != null ? String(p.yearsOfExperience) : '',
           serviceRadiusKm: p.serviceRadiusKm != null ? String(p.serviceRadiusKm) : '',
           availabilityStatus: p.availabilityStatus ?? 'AVAILABLE',
+          logoUrl: p.logoUrl ?? '',
         });
+        setFallbackAvatarUrl(p.user?.avatarUrl ?? null);
       })
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Could not load your profile'))
       .finally(() => setLoading(false));
@@ -60,9 +68,38 @@ export default function ProviderProfilePage() {
     setForm((f) => ({ ...f, [key]: value }));
   }
 
+  async function onLogoSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    // Reset so picking the same file again still fires onChange.
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setError('That image is too large (max 5 MB)');
+      return;
+    }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setError('Only JPEG, PNG or WEBP images are allowed');
+      return;
+    }
+    setUploadingLogo(true);
+    setError(null);
+    try {
+      const result = await providersApi.uploadLogo(file);
+      set('logoUrl', result.url);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not upload that image');
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
+
   const nameLabel = providerType === 'INDIVIDUAL' ? 'Full name' : 'Business name';
+  const logoLabel = providerType === 'INDIVIDUAL' ? 'Profile photo' : 'Logo';
+  // What the public profile actually shows: the logo, else the account avatar.
+  const previewLogoUrl = form.logoUrl || fallbackAvatarUrl || '';
 
   const checklist = [
+    { label: logoLabel, done: !!form.logoUrl.trim() },
     { label: 'Business description', done: !!form.description.trim() },
     { label: 'Contact phone', done: !!form.phone.trim() },
     { label: 'Service radius', done: form.serviceRadiusKm.trim() !== '' },
@@ -97,6 +134,8 @@ export default function ProviderProfilePage() {
         yearsOfExperience: form.yearsOfExperience.trim() ? Number(form.yearsOfExperience) : undefined,
         serviceRadiusKm: form.serviceRadiusKm.trim() ? Number(form.serviceRadiusKm) : undefined,
         availabilityStatus: form.availabilityStatus,
+        // Always sent: an empty string clears the logo server-side.
+        logoUrl: form.logoUrl.trim(),
       });
       setSaved(true);
     } catch (err) {
@@ -120,10 +159,70 @@ export default function ProviderProfilePage() {
         eyebrow="Provider"
         title="Profile"
         description="This is what clients see on your public profile. Changes go live as soon as you save."
+        actions={
+          <Link href="/provider/portfolio" className="btn-secondary">
+            <Images className="h-4 w-4" aria-hidden="true" />
+            Manage portfolio
+          </Link>
+        }
       />
 
       <form onSubmit={onSubmit} className="grid gap-5 lg:grid-cols-[1fr_18rem] lg:items-start">
         <div className="space-y-5">
+          <Panel title={logoLabel} description="Shown on your public profile, in search results and next to your messages.">
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingLogo}
+                className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-ink-300 bg-ink-50 text-ink-400 transition hover:border-brand-400 hover:text-brand-600 disabled:opacity-60"
+                aria-label={previewLogoUrl ? `Change ${logoLabel.toLowerCase()}` : `Upload ${logoLabel.toLowerCase()}`}
+              >
+                {previewLogoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={previewLogoUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <ImagePlus className="h-7 w-7" aria-hidden="true" />
+                )}
+              </button>
+
+              <div className="min-w-0 space-y-2 text-sm">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingLogo}
+                    className="btn-secondary"
+                  >
+                    {uploadingLogo ? 'Uploading…' : previewLogoUrl ? 'Change' : 'Upload image'}
+                  </button>
+                  {form.logoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => set('logoUrl', '')}
+                      disabled={uploadingLogo}
+                      className="btn-ghost text-danger-600 hover:text-danger-700"
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" /> Remove
+                    </button>
+                  )}
+                </div>
+                <p className="text-2xs leading-relaxed text-ink-400">
+                  JPEG, PNG or WEBP, up to 5 MB.
+                  {!form.logoUrl && previewLogoUrl ? ' Until you add one, your account photo is used.' : ''}
+                </p>
+              </div>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={onLogoSelected}
+              />
+            </div>
+          </Panel>
+
           <Panel title="Basics" description="How your business appears in search results and on your profile page.">
             <div className="space-y-4">
               <div className="field">
@@ -297,7 +396,11 @@ export default function ProviderProfilePage() {
             ))}
           </ul>
           <p className="mt-4 text-2xs leading-relaxed text-ink-400">
-            Services, pricing, portfolio photos and phone verification are managed on their own pages.
+            Services, pricing,{' '}
+            <Link href="/provider/portfolio" className="font-semibold text-brand-700 underline">
+              portfolio photos
+            </Link>{' '}
+            and phone verification are managed on their own pages.
           </p>
         </Panel>
       </form>

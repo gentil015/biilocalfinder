@@ -128,6 +128,7 @@ export class ProvidersService {
       select: {
         id: true,
         businessName: true,
+        logoUrl: true,
         rating: true,
         reviewCount: true,
         verifiedReviewCount: true,
@@ -158,7 +159,7 @@ export class ProvidersService {
       return {
         id: p.id,
         businessName: p.businessName,
-        avatarUrl: p.user.avatarUrl,
+        avatarUrl: p.logoUrl ?? p.user.avatarUrl,
         city: p.location?.city ?? null,
         rating: Number(p.rating),
         reviewCount: p.reviewCount,
@@ -178,7 +179,11 @@ export class ProvidersService {
     const provider = await this.getByUserId(userId);
     return this.prisma.provider.update({
       where: { id: provider.id },
-      data: dto,
+      data: {
+        ...dto,
+        // An empty logo means "clear it", not "store an empty string".
+        ...(dto.logoUrl !== undefined ? { logoUrl: dto.logoUrl.trim() || null } : {}),
+      },
     });
   }
 

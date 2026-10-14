@@ -372,7 +372,7 @@ export class PostgresProviderSearchService implements ProviderSearchService {
       SELECT
         p.id,
         p."businessName",
-        u."avatarUrl",
+        COALESCE(p."logoUrl", u."avatarUrl") AS "avatarUrl",
         p.rating,
         p."reviewCount",
         p."verifiedReviewCount",

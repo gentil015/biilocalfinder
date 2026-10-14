@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEnum, IsInt, IsOptional, IsString, IsUrl, Max, Min, ValidateIf } from 'class-validator';
 import { AvailabilityStatus } from '@prisma/client';
 
 export class UpdateProviderProfileDto {
@@ -41,4 +41,13 @@ export class UpdateProviderProfileDto {
   @IsOptional()
   @IsEnum(AvailabilityStatus)
   availabilityStatus?: AvailabilityStatus;
+
+  // Logo/photo URL returned by POST /files/upload. An empty string clears it
+  // (falls back to the account avatar on the public profile), so it is
+  // exempted from URL validation in that one case.
+  @ApiPropertyOptional({ description: 'Logo URL from POST /files/upload; empty string clears it' })
+  @IsOptional()
+  @ValidateIf((o) => o.logoUrl !== '')
+  @IsUrl({ require_tld: false }) // allow localhost/MinIO URLs in dev
+  logoUrl?: string;
 }

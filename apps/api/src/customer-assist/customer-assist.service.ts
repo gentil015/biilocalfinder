@@ -3,23 +3,55 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ServicesService } from '../services/services.service';
 import { CustomerAssistDto } from './dto/customer-assist.dto';
 import {
+  CUSTOMER_ASSIST_LINK_KINDS,
   CUSTOMER_ASSIST_PROVIDER,
+  CustomerAssistAction,
   CustomerAssistCatalogEntry,
   CustomerAssistLanguage,
+  CustomerAssistLinkKind,
   CustomerAssistMessage,
   CustomerAssistOutput,
   CustomerAssistProvider,
   CustomerAssistProviderRow,
   CustomerAssistResult,
   DEFAULT_CUSTOMER_ASSIST_LANGUAGE,
+  MAX_CUSTOMER_ASSIST_ACTIONS,
   MAX_CUSTOMER_ASSIST_CATEGORIES,
   MAX_CUSTOMER_ASSIST_PROVIDERS,
   MAX_CUSTOMER_ASSIST_QUESTIONS,
+  MAX_CUSTOMER_ASSIST_SEARCH_QUERY,
   MAX_CUSTOMER_ASSIST_SERVICES,
   isCustomerAssistLanguage,
 } from './customer-assist.interface';
 
 const REPLY_MAX = 1200;
+
+// The fixed page shortcuts the assistant may offer, with their real routes
+// and a label per supported language. Kept server-side (never model output)
+// so an action can only ever point at a route that exists.
+const LINK_HREFS: Record<CustomerAssistLinkKind, string> = {
+  'become-provider': '/become-a-provider',
+  bookings: '/bookings',
+  messages: '/messages',
+  'saved-searches': '/saved-searches',
+  disputes: '/disputes',
+  account: '/account',
+};
+
+const LINK_LABELS: Record<CustomerAssistLinkKind, Record<CustomerAssistLanguage, string>> = {
+  'become-provider': { en: 'Become a provider', rw: 'Ba umutanga serivisi', fr: 'Devenir prestataire' },
+  bookings: { en: 'My bookings', rw: 'Ibyo nateganyije', fr: 'Mes réservations' },
+  messages: { en: 'My messages', rw: 'Ubutumwa bwanjye', fr: 'Mes messages' },
+  'saved-searches': { en: 'Saved searches', rw: 'Ibyo nashakishije', fr: 'Recherches enregistrées' },
+  disputes: { en: 'Report a problem', rw: 'Tanga ikirego', fr: 'Signaler un problème' },
+  account: { en: 'My account', rw: 'Konti yanjye', fr: 'Mon compte' },
+};
+
+const SEARCH_LABELS: Record<CustomerAssistLanguage, string> = {
+  en: 'Search providers',
+  rw: 'Shakisha abatanga serivisi',
+  fr: 'Rechercher des prestataires',
+};
 
 @Injectable()
 export class CustomerAssistService {
@@ -101,7 +133,55 @@ export class CustomerAssistService {
       language,
       questions: this.validateQuestions(output.questions),
       suggestions: { services, providers },
+      actions: this.buildActions(output, language),
     };
+  }
+
+  // Deep links the assistant may offer, built entirely server-side from a
+  // validated kind plus a sanitized search sentence — the model never hands
+  // us a URL, so it cannot point a client anywhere it should not.
+  private buildActions(output: CustomerAssistOutput, language: CustomerAssistLanguage): CustomerAssistAction[] {
+    const actions: CustomerAssistAction[] = [];
+
+    const searchQuery =
+      typeof output.searchQuery === 'string' ? this.sanitizeSearchQuery(output.searchQuery) : '';
+    if (searchQuery) {
+      const params = new URLSearchParams({ q: searchQuery, ai: '1' });
+      actions.push({
+        kind: 'search',
+        label: SEARCH_LABELS[language],
+        href: `/search?${params.toString()}`,
+      });
+    }
+
+    if (Array.isArray(output.links)) {
+      const seen = new Set<CustomerAssistLinkKind>();
+      for (const raw of output.links) {
+        if (actions.length >= MAX_CUSTOMER_ASSIST_ACTIONS) break;
+        if (typeof raw !== 'string') continue;
+        const kind = raw.trim() as CustomerAssistLinkKind;
+        if (!(CUSTOMER_ASSIST_LINK_KINDS as readonly string[]).includes(kind)) continue;
+        if (seen.has(kind)) continue;
+        seen.add(kind);
+        actions.push({ kind, label: LINK_LABELS[kind][language], href: LINK_HREFS[kind] });
+      }
+    }
+
+    return actions.slice(0, MAX_CUSTOMER_ASSIST_ACTIONS);
+  }
+
+  // A search sentence becomes the search page's `q` (and is re-interpreted
+  // into filters there). Strip control characters, collapse whitespace, and
+  // cap the length so it can never smuggle markup or an oversized query.
+  private sanitizeSearchQuery(value: string): string {
+    const cleaned = value
+      .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!cleaned) return '';
+    return cleaned.length > MAX_CUSTOMER_ASSIST_SEARCH_QUERY
+      ? cleaned.slice(0, MAX_CUSTOMER_ASSIST_SEARCH_QUERY).trim()
+      : cleaned;
   }
 
   // Real providers, straight from the database: the assistant routes, it

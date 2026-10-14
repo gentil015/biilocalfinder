@@ -22,7 +22,7 @@ export class ClientsService {
   async updateMyProfile(userId: string, dto: UpdateClientProfileDto) {
     await this.getMyProfile(userId);
 
-    const [profile] = await this.prisma.$transaction([
+    await this.prisma.$transaction([
       this.prisma.clientProfile.update({ where: { userId }, data: { bio: dto.bio } }),
       this.prisma.user.update({
         where: { id: userId },
@@ -33,6 +33,10 @@ export class ClientsService {
         },
       }),
     ]);
-    return profile;
+
+    // Re-read rather than returning the bare update result: the caller needs
+    // the joined user (firstName/lastName/avatarUrl) to refresh the session
+    // copy without a second round-trip.
+    return this.getMyProfile(userId);
   }
 }

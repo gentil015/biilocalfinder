@@ -14,6 +14,7 @@ import {
   MessagesSquare,
   ShieldCheck,
   Sparkles,
+  UserRound,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth, useSession } from '@/components/auth-provider';
@@ -35,6 +36,15 @@ const ROLE_TONE: Record<string, string> = {
 };
 
 type AccountLink = { href: string; labelKey: MessageKey; descriptionKey: MessageKey; icon: LucideIcon };
+
+// Client-only: the only surface that writes client_profiles.bio and the
+// account's name/avatar. Providers edit their business on /provider/profile.
+const CLIENT_PROFILE_LINK: AccountLink = {
+  href: '/account/profile',
+  labelKey: 'account.linkProfile',
+  descriptionKey: 'account.linkProfileBody',
+  icon: UserRound,
+};
 
 const ACTIVITY_LINKS: AccountLink[] = [
   {
@@ -108,7 +118,7 @@ export default function AccountPage() {
   const { t } = useI18n();
   const router = useRouter();
   const { user, loading, logout } = useAuth();
-  const { isProvider, isAdmin } = useSession();
+  const { isProvider, isAdmin, isClient } = useSession();
 
   if (loading) {
     return (
@@ -218,6 +228,11 @@ export default function AccountPage() {
               <span className="text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">{t('account.activityMeta')}</span>
             </div>
             <ul className="divide-y divide-ink-100 p-2">
+              {isClient && (
+                <li>
+                  <AccountLinkRow link={CLIENT_PROFILE_LINK} />
+                </li>
+              )}
               {ACTIVITY_LINKS.map((link) => (
                 <li key={link.href}>
                   <AccountLinkRow link={link} />

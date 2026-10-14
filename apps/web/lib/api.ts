@@ -77,6 +77,10 @@ async function request<T>(path: string, init?: RequestInit, auth = false): Promi
   const send = (token?: string): Promise<Response> =>
     fetch(`${API_URL}/api${path}`, {
       ...init,
+      // Always read live data. Without this, server components (e.g. the
+      // public provider page) get Next's Data Cache, which can serve a
+      // stale response — so a logo/profile change wouldn't show up.
+      cache: 'no-store',
       headers: {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
         ...(auth && !token ? authHeader() : {}),
@@ -508,6 +512,38 @@ export const usersApi = {
     }),
 };
 
+export interface ClientProfile {
+  id: string;
+  userId: string;
+  bio: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: {
+    id: string;
+    email: string;
+    phone: string | null;
+    firstName: string;
+    lastName: string;
+    avatarUrl: string | null;
+  };
+}
+
+// A client's own profile (spec §3). Mirrors ClientsController 1:1 — GET/PATCH
+// /clients/me, CLIENT role only. `updateMe` sends only the fields it means to
+// change so a partial save can never blank a field the caller didn't touch.
+export const clientsApi = {
+  getMe: () => authRequest<ClientProfile>('/clients/me'),
+  updateMe: (data: { firstName?: string; lastName?: string; bio?: string; avatarUrl?: string }) =>
+    authRequest<ClientProfile>('/clients/me', { method: 'PATCH', body: JSON.stringify(data) }),
+  // Reuses the general upload endpoint every other image uses (portfolio,
+  // review photos) — no client-specific upload path.
+  uploadAvatar: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return authRequest<{ key: string; url: string }>('/files/upload', { method: 'POST', body: form });
+  },
+};
+
 export const providersApi = {
   // Uses request's optional-auth mode: OptionalJwtAuthGuard records a
   // VIEW_PROVIDER interaction server-side when the viewer is logged in
@@ -526,7 +562,13 @@ export const providersApi = {
     yearsOfExperience?: number;
     serviceRadiusKm?: number;
     availabilityStatus?: 'AVAILABLE' | 'BUSY' | 'UNAVAILABLE';
+    logoUrl?: string;
   }) => authRequest<any>('/providers/me/profile', { method: 'PATCH', body: JSON.stringify(data) }),
+  uploadLogo: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return authRequest<{ key: string; url: string }>('/files/upload', { method: 'POST', body: form, headers: {} as any });
+  },
   setLocation: (data: { latitude: number; longitude: number; addressLine?: string; city?: string; label?: string }) =>
     authRequest<any>('/providers/me/location', { method: 'PATCH', body: JSON.stringify(data) }),
   addServiceArea: (data: { label: string; latitude: number; longitude: number; radiusKm: number }) =>
@@ -919,6 +961,21 @@ export interface CustomerAssistProviderSuggestion {
   avatarUrl: string | null;
 }
 
+export type CustomerAssistActionKind =
+  | 'search'
+  | 'become-provider'
+  | 'bookings'
+  | 'messages'
+  | 'saved-searches'
+  | 'disputes'
+  | 'account';
+
+export interface CustomerAssistAction {
+  kind: CustomerAssistActionKind;
+  label: string;
+  href: string;
+}
+
 export interface CustomerAssistResult {
   reply: string;
   language: 'en' | 'rw' | 'fr';
@@ -927,6 +984,7 @@ export interface CustomerAssistResult {
     services: CustomerAssistServiceSuggestion[];
     providers: CustomerAssistProviderSuggestion[];
   };
+  actions: CustomerAssistAction[];
 }
 
 /**

@@ -30,6 +30,10 @@ export class MockCustomerAssistProvider implements CustomerAssistProvider {
       serviceKeys: matched.map((s) => s.key),
       categoryKeys: [],
       questions: [],
+      // A concrete search sentence so the offline mock still offers the
+      // "search providers" action the real providers produce.
+      searchQuery: matched.length > 0 ? matched[0].name : undefined,
+      links: [],
     });
   }
 

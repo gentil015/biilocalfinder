@@ -4,13 +4,25 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowUp,
+  Bookmark,
+  CalendarDays,
   ChevronRight,
+  Flag,
   MapPin,
+  MessageSquare,
+  Search,
   Sparkles,
   Star,
+  Store,
+  UserCog,
   X,
 } from 'lucide-react';
-import { customerAssistApi, type CustomerAssistResult } from '@/lib/api';
+import {
+  customerAssistApi,
+  type CustomerAssistAction,
+  type CustomerAssistActionKind,
+  type CustomerAssistResult,
+} from '@/lib/api';
 
 interface Turn {
   role: 'user' | 'assistant';
@@ -21,13 +33,23 @@ interface Turn {
 const QUICK_STARTS = [
   'Ni nde nakoresha mu gutunganya laptop yanjye?',
   'I need someone to clean my house tomorrow.',
-  'Ndashaka isuku ejo mu rugo.',
-  'Find a DJ for my wedding.',
+  'Find a plumber in Kigali available today.',
+  'How does BII Localfinder work?',
 ];
+
+const ACTION_ICONS: Record<CustomerAssistActionKind, typeof Search> = {
+  search: Search,
+  'become-provider': Store,
+  bookings: CalendarDays,
+  messages: MessageSquare,
+  'saved-searches': Bookmark,
+  disputes: Flag,
+  account: UserCog,
+};
 
 /** Fanned out on chat prompts to test routing. */
 const WELCOME =
-  "Bite? I'm BII Assistant, your guide around the marketplace. Tell me in English or Kinyarwanda what you need to do, hire, or find — I'll point you to the right service and providers.";
+  "Bite? I'm BII Assistant, your guide around the marketplace. Ask me to find a service or provider, or ask how BII Localfinder works — I can search, filter and point you to the right page. English, Kinyarwanda or Français.";
 
 export function CustomerAssistWidget() {
   const router = useRouter();
@@ -256,10 +278,19 @@ function AssistantTurn({
   const services = result?.suggestions.services ?? [];
   const providers = result?.suggestions.providers ?? [];
   const questions = result?.questions ?? [];
+  const actions = result?.actions ?? [];
 
   return (
     <div className="space-y-2">
       <AssistantBubble text={text} />
+
+      {actions.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pl-9">
+          {actions.map((a) => (
+            <ActionButton key={a.kind} action={a} onGo={onGo} />
+          ))}
+        </div>
+      )}
 
       {services.length > 0 && (
         <div className="pl-9">
@@ -348,5 +379,29 @@ function AssistantTurn({
         </div>
       )}
     </div>
+  );
+}
+
+/** One deep link the assistant offered. The "search" action is the primary
+ *  call to action (it opens the search page with the sentence pre-filled and
+ *  AI filter parsing on); the rest are quiet page shortcuts. Both label and
+ *  href are built server-side, so this only renders what it is given. */
+function ActionButton({ action, onGo }: { action: CustomerAssistAction; onGo: (href: string) => void }) {
+  const Icon = ACTION_ICONS[action.kind] ?? ChevronRight;
+  const primary = action.kind === 'search';
+  return (
+    <button
+      type="button"
+      onClick={() => onGo(action.href)}
+      className={
+        primary
+          ? 'inline-flex items-center gap-1.5 rounded-full bg-brand-700 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/25'
+          : 'inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 shadow-sm transition hover:border-brand-300 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20'
+      }
+    >
+      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+      {action.label}
+      {primary && <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />}
+    </button>
   );
 }

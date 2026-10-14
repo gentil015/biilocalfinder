@@ -247,7 +247,7 @@ export function LandingPage() {
               Rwanda · local work, no middleman
             </p>
 
-            <h1 className="font-display text-[34px] font-extrabold leading-[1.04] tracking-[-0.03em] sm:text-5xl sm:leading-[0.98] lg:text-[56px] xl:text-[64px]">
+            <h1 className="font-display text-[34px] font-extrabold leading-[1.04] tracking-[-0.03em] text-white sm:text-5xl sm:leading-[0.98] lg:text-[56px] xl:text-[64px]">
               Hire a verified local pro{' '}
               <span className="bg-gradient-to-r from-home-mint via-home-gold to-home-gold bg-clip-text text-transparent">
                 in one search.
@@ -612,7 +612,7 @@ export function LandingPage() {
             <div className="grid gap-10 lg:grid-cols-12 lg:items-end">
               <div className="lg:col-span-5">
                 <p className="text-2xs font-bold uppercase tracking-[0.16em] text-home-mint">Trust layer</p>
-                <h2 className="mt-3 font-display text-[32px] font-extrabold leading-[1.05] tracking-[-0.03em] sm:text-5xl">
+                <h2 className="mt-3 font-display text-[32px] font-extrabold leading-[1.05] tracking-[-0.03em] text-white sm:text-5xl">
                   Built on verification, not promises.
                 </h2>
                 <p className="mt-4 max-w-md text-sm leading-relaxed text-white/60">
@@ -717,7 +717,7 @@ export function LandingPage() {
                 <MapPin className="mr-1 inline h-3.5 w-3.5 text-home-mint" aria-hidden="true" />
                 Free for clients, always
               </p>
-              <h2 className="mt-3 font-display text-[32px] font-extrabold leading-[1.05] tracking-[-0.03em] sm:text-5xl">
+              <h2 className="mt-3 font-display text-[32px] font-extrabold leading-[1.05] tracking-[-0.03em] text-white sm:text-5xl">
                 Your neighbourhood&apos;s pros are one search away.
               </h2>
               <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-white/60">

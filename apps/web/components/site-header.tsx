@@ -8,23 +8,30 @@ import { BrandMark } from '@/components/brand-mark';
 import { BackButton, useCanGoBack } from '@/components/back-button';
 import { useAuth, useSession } from '@/components/auth-provider';
 
-const PUBLIC_LINKS = [
+type NavLink = { href: string; label: string; description?: string };
+
+// Visitors get the marketing nav: the pitch, how it works, and the
+// "Become a provider" acquisition CTA (which opens the public /register form).
+const GUEST_LINKS: NavLink[] = [
   { href: '/search', label: 'Find providers' },
   { href: '/requests/new', label: 'Post a request' },
   { href: '/#how-it-works', label: 'How it works' },
+  { href: '/register', label: 'Become a provider' },
 ];
 
-// "Become a provider" is an acquisition CTA for people who aren't one yet.
-// Showing it to a signed-in provider sent them to the public /register form
-// to create a *second* account, which is never what the link implies.
-//
-// A signed-in CLIENT is sent to the application form instead: that upgrades the
-// account they already have (keeping their history) and goes through admin
-// review, rather than opening a duplicate signup.
-function navLinks(isProvider: boolean, isSignedIn: boolean) {
-  if (isProvider) return PUBLIC_LINKS;
-  if (isSignedIn) return [...PUBLIC_LINKS, { href: '/become-a-provider', label: 'Become a provider' }];
-  return [...PUBLIC_LINKS, { href: '/register', label: 'Become a provider' }];
+// Signed-in users are past the pitch, so "How it works" and "Become a
+// provider" give way to the two things they actually come back for — their
+// bookings and their conversations. "Become a provider" still lives in the
+// footer and on /account for clients who want to upgrade.
+const MEMBER_LINKS: NavLink[] = [
+  { href: '/search', label: 'Find providers' },
+  { href: '/requests/new', label: 'Post a request' },
+  { href: '/bookings', label: 'Bookings', description: 'Scheduled, active and completed work.' },
+  { href: '/messages', label: 'Messages', description: 'Conversations with providers and clients.' },
+];
+
+function navLinks(isSignedIn: boolean) {
+  return isSignedIn ? MEMBER_LINKS : GUEST_LINKS;
 }
 
 /**
@@ -45,7 +52,7 @@ export function SiteHeader() {
   // shared link or a fresh tab doesn't offer to walk them out of the product.
   const canGoBack = useCanGoBack();
 
-  const links = navLinks(isProvider, !!user);
+  const links = navLinks(!!user);
   const close = () => setMenuOpen(false);
 
   // A link to the page you're already on shouldn't read as a nav item.
@@ -68,6 +75,7 @@ export function SiteHeader() {
             <Link
               key={link.href}
               href={link.href}
+              title={link.description}
               aria-current={isCurrent(link.href) ? 'page' : undefined}
               className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
                 isCurrent(link.href)
@@ -172,7 +180,12 @@ export function SiteHeader() {
                       : 'text-ink-700 hover:bg-ink-100/70 hover:text-ink-950'
                   }`}
                 >
-                  {link.label}
+                  <span className="block">{link.label}</span>
+                  {link.description && (
+                    <span className="mt-0.5 block text-xs font-normal text-ink-500">
+                      {link.description}
+                    </span>
+                  )}
                 </Link>
               ))}
             </nav>

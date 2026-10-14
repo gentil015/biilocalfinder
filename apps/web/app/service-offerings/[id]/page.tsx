@@ -27,6 +27,7 @@ export default async function ServiceOfferingPage({ params }: { params: { id: st
   }
 
   const provider = offering.provider;
+  const providerImage = provider.logoUrl ?? provider.user?.avatarUrl ?? null;
   const verified = provider.verificationStatus === 'VERIFIED';
   const requestHref = `/requests/new?providerId=${provider.id}&serviceOfferingId=${offering.id}&serviceId=${offering.service.id}`;
 
@@ -40,10 +41,10 @@ export default async function ServiceOfferingPage({ params }: { params: { id: st
           specific provider rather than a generic listing. */}
       <Link href={`/providers/${provider.id}`} className="group flex items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ink-200 text-sm font-bold text-ink-500">
-          {provider.user?.avatarUrl ? (
+          {providerImage ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={provider.user.avatarUrl}
+              src={providerImage}
               alt=""
               className="h-full w-full object-cover"
             />

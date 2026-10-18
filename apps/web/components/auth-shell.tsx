@@ -4,6 +4,7 @@ import { Quote, BadgeCheck, Wallet, MessageCircle, type LucideIcon } from 'lucid
 import { BrandMark } from '@/components/brand-mark';
 import { BackButton, useCanGoBack } from '@/components/back-button';
 import { useI18n } from '@/components/locale-provider';
+import { ThemeToggle } from '@/components/theme-toggle';
 import type { MessageKey } from '@/lib/locales';
 
 /**
@@ -34,7 +35,7 @@ export function AuthShell({
 
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
-      <aside className="relative hidden overflow-hidden bg-ink-950 text-white lg:flex">
+      <aside className="relative hidden overflow-hidden bg-home-night text-white lg:flex">
         <div className="hero-grid pointer-events-none absolute inset-0" aria-hidden="true" />
         <div className="bg-mesh pointer-events-none absolute inset-0 opacity-90" aria-hidden="true" />
 
@@ -66,7 +67,11 @@ export function AuthShell({
         </div>
       </aside>
 
-      <section className="flex flex-col justify-center px-5 py-12 sm:px-8">
+      {/* AppChrome hides the site header on auth routes, so the theme switch
+          lives in the corner of the form column — a signed-out visitor has no
+          other chrome to reach it from. */}
+      <section className="relative flex flex-col justify-center px-5 py-12 sm:px-8">
+        <ThemeToggle className="absolute right-4 top-4 sm:right-7 sm:top-7" />
         <div className="mx-auto w-full max-w-sm">
           {canGoBack && (
             <div className="mb-6">

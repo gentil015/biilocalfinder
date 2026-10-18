@@ -23,7 +23,7 @@ const STYLES: Record<string, string> = {
   ACCEPTED: 'bg-brand-50 text-brand-700',
   BOOKED: 'bg-brand-50 text-brand-700',
   CONFIRMED: 'bg-brand-50 text-brand-700',
-  IN_PROGRESS: 'bg-brand-700 text-white',
+  IN_PROGRESS: 'bg-brand-700 text-white dark:text-home-night',
   // Finished successfully.
   COMPLETED: 'bg-success-50 text-success-700',
   // Terminal negatives.

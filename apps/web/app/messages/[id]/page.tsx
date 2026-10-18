@@ -202,7 +202,7 @@ export default function ConversationThreadPage() {
                         <div
                           className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${
                             mine
-                              ? 'rounded-br-md bg-brand-600 text-white'
+                              ? 'rounded-br-md bg-brand-600 text-white dark:text-home-night'
                               : 'rounded-bl-md bg-ink-100 text-ink-900'
                           }`}
                         >

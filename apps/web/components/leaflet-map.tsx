@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useTheme } from '@/components/theme-provider';
 
 // Leaflet's default marker icon references image files via relative URLs
 // that don't resolve correctly through a bundler — this is the standard
@@ -57,6 +58,7 @@ export function LeafletMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
+  const { resolvedTheme } = useTheme();
 
   // Map instance: created once, torn down on unmount.
   useEffect(() => {
@@ -92,15 +94,24 @@ export function LeafletMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Redraw markers/circles/center whenever the data changes.
+  // Redraw markers/circles/center whenever the data — or the theme — changes.
+  // Service-area strokes and the "your location" dot are brand greens tuned
+  // per theme: the light values (#1F7163/#14594F) sink into the hue-rotated
+  // dark tiles, and the dark values glare on the light tiles. In dark they
+  // are the warm sage-teal accent family (#8FC9B5/#A6D9C7) so the map reads
+  // as part of the charcoal theme, not a neon overlay. The map itself
+  // (tiles, control chrome) follows the theme via CSS in globals.css.
   useEffect(() => {
     const map = mapRef.current;
     const group = layerGroupRef.current;
     if (!map || !group) return;
     group.clearLayers();
 
+    const stroke = resolvedTheme === 'dark' ? '#8FC9B5' : '#1F7163';
+    const dot = resolvedTheme === 'dark' ? '#A6D9C7' : '#14594F';
+
     for (const c of circles) {
-      L.circle([c.lat, c.lng], { radius: c.radiusKm * 1000, color: c.color ?? '#1F7163', fillOpacity: 0.08 }).addTo(group);
+      L.circle([c.lat, c.lng], { radius: c.radiusKm * 1000, color: c.color ?? stroke, fillOpacity: 0.08 }).addTo(group);
     }
 
     for (const m of markers) {
@@ -112,8 +123,8 @@ export function LeafletMap({
     if (userMarker) {
       L.circleMarker([userMarker.lat, userMarker.lng], {
         radius: 8,
-        color: '#14594F',
-        fillColor: '#14594F',
+        color: dot,
+        fillColor: dot,
         fillOpacity: 0.9,
       })
         .bindTooltip('Your location')
@@ -142,7 +153,7 @@ export function LeafletMap({
     } else if (points.length === 1) {
       map.setView(points[0], zoom);
     }
-  }, [markers, circles, center, userMarker, draggableCenter, onCenterChange, zoom]);
+  }, [markers, circles, center, userMarker, draggableCenter, onCenterChange, zoom, resolvedTheme]);
 
   return <div ref={containerRef} style={{ height, width: '100%' }} className="overflow-hidden rounded-2xl" />;
 }

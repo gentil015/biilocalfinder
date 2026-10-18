@@ -23,7 +23,7 @@ export function SiteFooter() {
   const { isProvider } = useSession();
 
   return (
-    <footer className="mt-8 border-t border-ink-200 bg-white">
+    <footer className="mt-8 border-t border-ink-200 bg-surface">
       <div className="border-b border-ink-100">
         <div className="page-shell grid grid-cols-2 gap-x-6 gap-y-4 py-6 lg:grid-cols-4">
           {TRUST.map(({ icon: Icon, label }) => (

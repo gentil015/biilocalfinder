@@ -128,6 +128,11 @@ export default function NotificationSettingsPage() {
                       }`}
                     >
                       <span
+                        /* The knob stays solid white in both themes — a switch
+                           knob has to read as *raised* against its track, and
+                           the dark surface token would sink into the off-track
+                           grey. White works on both the grey off-track and the
+                           green on-track. */
                         className={`block h-5 w-5 translate-x-0.5 rounded-full bg-white shadow transition-transform ${
                           p[key] ? 'translate-x-[22px]' : ''
                         }`}

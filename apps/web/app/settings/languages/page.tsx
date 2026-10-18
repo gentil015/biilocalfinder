@@ -86,7 +86,7 @@ export default function LanguageSettingsPage() {
                 />
                 <span
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
-                    active ? 'bg-brand-600 text-white' : 'bg-ink-100 text-ink-500'
+                    active ? 'bg-brand-600 text-white dark:text-home-night' : 'bg-ink-100 text-ink-500'
                   }`}
                   aria-hidden="true"
                 >

@@ -237,7 +237,7 @@ export function BookingProgress({
           const done = cancelled ? i <= reachedIndex : i < currentIndex;
           const active = !cancelled && i === currentIndex;
           const circleClass = active
-            ? 'bg-brand-700 text-white ring-4 ring-brand-100'
+            ? 'bg-brand-700 text-white dark:text-home-night ring-4 ring-brand-100 dark:ring-brand-300'
             : done
               ? 'bg-brand-50 text-brand-700'
               : 'bg-ink-100 text-ink-400';

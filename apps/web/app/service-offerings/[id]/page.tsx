@@ -99,7 +99,7 @@ export default async function ServiceOfferingPage({ params }: { params: { id: st
       </div>
 
       {offering.basePrice != null && (
-        <div className="mt-6 rounded-xl border border-ink-200 bg-white p-5 shadow-xs">
+        <div className="mt-6 rounded-xl border border-ink-200 bg-surface p-5 shadow-xs">
           <p className="eyebrow-muted">
             {offering.priceType === 'STARTING_FROM' ? 'Starting from' : 'Price'}
           </p>
@@ -145,7 +145,7 @@ export default async function ServiceOfferingPage({ params }: { params: { id: st
       </div>
 
       {/* Mobile keeps the primary action pinned in reach at all times. */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-200 bg-white/95 p-3 backdrop-blur-xl md:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-200 bg-surface/90 p-3 backdrop-blur-xl md:hidden">
         <Link href={requestHref} className="btn-primary btn-lg w-full">
           Request this service
         </Link>

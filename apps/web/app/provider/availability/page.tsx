@@ -148,7 +148,7 @@ export default function ProviderAvailabilityPage() {
               onClick={() => changeStatus(s)}
               aria-pressed={status === s}
               className={`rounded-lg py-2 text-sm font-semibold transition ${
-                status === s ? 'bg-white text-ink-950 shadow-xs' : 'text-ink-500 hover:text-ink-900'
+                status === s ? 'bg-surface text-ink-950 shadow-xs' : 'text-ink-500 hover:text-ink-900'
               }`}
             >
               {STATUS_LABEL[s]}

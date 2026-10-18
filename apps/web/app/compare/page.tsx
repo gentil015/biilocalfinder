@@ -178,7 +178,7 @@ function CompareContent() {
         {providers.length} providers. The strongest figure in each row is highlighted.
       </p>
 
-      <div className="table-wrap mt-6 overflow-hidden rounded-xl border border-ink-200 bg-white shadow-xs">
+      <div className="table-wrap mt-6 overflow-hidden rounded-xl border border-ink-200 bg-surface shadow-xs">
         <table className="table min-w-[640px] table-fixed">
           <caption className="sr-only">Comparison of selected providers</caption>
           <thead>
@@ -196,7 +196,7 @@ function CompareContent() {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={p.avatarUrl} alt="" className="h-full w-full object-cover" />
                         ) : (
-                          <span className="flex h-full w-full items-center justify-center font-display text-lg font-extrabold text-white">
+                          <span className="flex h-full w-full items-center justify-center font-display text-lg font-extrabold text-white dark:text-home-night">
                             {initial}
                           </span>
                         )}

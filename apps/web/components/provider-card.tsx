@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Scale, Star, MessageSquareQuote, Tag } from 'lucide-react';
+import { MapPin, Scale, Star, MessageSquareQuote, Tag, Clock3, Award } from 'lucide-react';
 import type { ProviderSearchItem } from '@/lib/api';
 import { VerificationBadge } from '@/components/verification-badge';
 import { AvailabilityBadge } from '@/components/availability-badge';
@@ -39,7 +39,7 @@ export function ProviderCard({ provider, compare }: { provider: ProviderSearchIt
             // eslint-disable-next-line @next/next/no-img-element
             <img src={provider.avatarUrl} alt="" className="h-full w-full object-cover" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center font-display text-2xl font-extrabold text-white">
+            <div className="flex h-full w-full items-center justify-center font-display text-2xl font-extrabold text-white dark:text-home-night">
               {initial}
             </div>
           )}
@@ -77,6 +77,20 @@ export function ProviderCard({ provider, compare }: { provider: ProviderSearchIt
             {provider.servesArea && (
               <span className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2 py-0.5 font-semibold text-brand-700">
                 {t('providerCard.servesArea')}
+              </span>
+            )}
+            {provider.responseTimeMinutes != null && provider.responseTimeMinutes > 0 && (
+              <span className="inline-flex items-center gap-1 font-medium" title={t('providerCard.repliesIn', { minutes: provider.responseTimeMinutes })}>
+                <Clock3 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                {provider.responseTimeMinutes < 60
+                  ? t('providerCard.repliesIn', { minutes: provider.responseTimeMinutes })
+                  : t('providerCard.repliesInHours', { hours: Math.round(provider.responseTimeMinutes / 60) })}
+              </span>
+            )}
+            {!!provider.yearsOfExperience && provider.yearsOfExperience > 0 && (
+              <span className="inline-flex items-center gap-1 font-medium">
+                <Award className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                {t('providerCard.yearsExperience', { count: provider.yearsOfExperience })}
               </span>
             )}
             <AvailabilityBadge availability={provider.availability} />
@@ -119,8 +133,8 @@ export function ProviderCard({ provider, compare }: { provider: ProviderSearchIt
           }
           className={`absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-lg border transition disabled:opacity-30 ${
             selected
-              ? 'border-brand-600 bg-brand-600 text-white'
-              : 'border-ink-200 bg-white/90 text-ink-400 backdrop-blur hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700'
+              ? 'border-brand-600 bg-brand-600 text-white dark:text-home-night'
+              : 'border-ink-200 bg-surface/90 text-ink-400 backdrop-blur hover:border-brand-300 hover:bg-brand-50 hover:text-brand-700'
           }`}
         >
           <Scale className="h-3.5 w-3.5" />

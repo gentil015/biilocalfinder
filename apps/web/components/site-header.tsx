@@ -7,6 +7,7 @@ import { Menu, X, Plus, LayoutDashboard, ShieldCheck } from 'lucide-react';
 import { BrandMark } from '@/components/brand-mark';
 import { BackButton, useCanGoBack } from '@/components/back-button';
 import { useAuth, useSession } from '@/components/auth-provider';
+import { ThemeSegmentedControl, ThemeToggle } from '@/components/theme-toggle';
 
 type NavLink = { href: string; label: string; description?: string };
 
@@ -37,11 +38,13 @@ function navLinks(isSignedIn: boolean) {
 /**
  * The site header.
  *
- * A light, frosted bar that sits above the page on every marketplace route —
- * near-white over the near-white canvas, so the content below is the hero and
+ * A frosted bar that sits above the page on every marketplace route —
+ * translucent surface over the near-white canvas (near-black in dark mode,
+ * since the fill is the `surface` token), so the content below is the hero and
  * the chrome stays out of the way. The brand green is the single call to
- * action; everything else is a quiet neutral link. There is deliberately no
- * dark variant to drift out of sync.
+ * action; everything else is a quiet neutral link. The theme switcher lives
+ * here because it is chrome-level: available on every route, for guests and
+ * members alike, in the same place.
  */
 export function SiteHeader() {
   const pathname = usePathname();
@@ -60,7 +63,7 @@ export function SiteHeader() {
     href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-ink-200/80 bg-white/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-40 border-b border-ink-200/80 bg-surface/80 backdrop-blur-xl">
       <div className="page-shell flex h-16 items-center gap-4">
         {canGoBack && (
           <>
@@ -123,7 +126,7 @@ export function SiteHeader() {
                     : 'text-ink-700 hover:bg-ink-100/70 hover:text-ink-950'
                 }`}
               >
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-700 text-2xs font-bold uppercase text-white">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-700 text-2xs font-bold uppercase text-white dark:text-home-night">
                   {(user.firstName?.trim().charAt(0) || user.email.charAt(0) || 'U').toUpperCase()}
                 </span>
                 <span className="hidden sm:inline">Account</span>
@@ -150,6 +153,10 @@ export function SiteHeader() {
             </>
           )}
 
+          {/* Theme first on small screens too: it sits left of the menu
+              button, so it is reachable whether or not the sheet is open. */}
+          <ThemeToggle />
+
           <button
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
@@ -165,7 +172,7 @@ export function SiteHeader() {
       {/* Mobile sheet. Rendered inside the header so it inherits the sticky
           stacking context and the backdrop blur. */}
       {menuOpen && (
-        <div className="animate-scale-in border-t border-ink-200/80 bg-white/95 backdrop-blur-xl lg:hidden">
+        <div className="animate-scale-in border-t border-ink-200/80 bg-surface/95 backdrop-blur-xl lg:hidden">
           <div className="page-shell py-4">
             <nav aria-label="Mobile" className="space-y-1">
               {links.map((link) => (
@@ -189,6 +196,12 @@ export function SiteHeader() {
                 </Link>
               ))}
             </nav>
+
+            {/* Theme, as a segmented control: the sheet is a full-width list,
+                so three visible options beat a popover inside a popover. */}
+            <div className="mt-3 border-t border-ink-200/80 pt-4">
+              <ThemeSegmentedControl />
+            </div>
 
             <div className="mt-3 space-y-2 border-t border-ink-200/80 pt-4">
               {user ? (

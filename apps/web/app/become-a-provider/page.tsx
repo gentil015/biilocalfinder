@@ -371,7 +371,7 @@ export default function ApplyToBecomeProviderPage() {
                               aria-pressed={active}
                               className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
                                 active
-                                  ? 'border-brand-500 bg-brand-600 text-white'
+                                  ? 'border-brand-500 bg-brand-600 text-white dark:text-home-night'
                                   : 'border-ink-200 text-ink-700 hover:bg-ink-50'
                               }`}
                             >

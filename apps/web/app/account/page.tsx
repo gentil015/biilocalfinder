@@ -30,9 +30,9 @@ const ROLE_LABEL: Record<string, MessageKey> = {
 };
 
 const ROLE_TONE: Record<string, string> = {
-  CLIENT: 'from-brand-500 to-brand-700',
-  PROVIDER: 'from-home-forest to-emerald-900',
-  ADMIN: 'from-home-gold to-amber-700',
+  CLIENT: 'from-[#1F7163] to-[#0F473F]',
+  PROVIDER: 'from-home-forest to-[#064E3B]',
+  ADMIN: 'from-home-gold to-[#B45309]',
 };
 
 type AccountLink = { href: string; labelKey: MessageKey; descriptionKey: MessageKey; icon: LucideIcon };
@@ -151,7 +151,7 @@ export default function AccountPage() {
   return (
     <main className="page-workspace py-6 md:py-10">
       {/* Profile hero */}
-      <section className="overflow-hidden rounded-3xl border border-ink-900/10 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-3xl border border-ink-900/10 bg-surface shadow-sm">
         <div className="relative h-24 overflow-hidden bg-home-forest sm:h-28">
           <div className="absolute inset-0 opacity-40">
             <div className="absolute -left-10 -top-16 h-48 w-48 rounded-full bg-home-mint/30 blur-3xl" aria-hidden="true" />
@@ -176,7 +176,7 @@ export default function AccountPage() {
           <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex items-end gap-4">
               <span
-                className={`flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br ${ROLE_TONE[user.role] ?? ROLE_TONE.CLIENT} font-display text-2xl font-extrabold text-white shadow-lg ring-4 ring-white`}
+                className={`flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br ${ROLE_TONE[user.role] ?? ROLE_TONE.CLIENT} font-display text-2xl font-extrabold text-white shadow-lg ring-4 ring-surface`}
               >
                 {user.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -329,7 +329,7 @@ export default function AccountPage() {
                 <button
                   type="button"
                   onClick={() => void logout()}
-                  className="btn-secondary btn-sm w-full border-ink-200 text-ink-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                  className="btn-secondary btn-sm w-full border-ink-200 text-ink-700 hover:border-danger-200 hover:bg-danger-50 hover:text-danger-700"
                 >
                   <LogOut className="h-4 w-4" aria-hidden="true" /> {t('account.logOut')}
                 </button>

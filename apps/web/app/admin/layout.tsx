@@ -22,6 +22,7 @@ import { RequireAdmin } from '@/components/require-admin';
 import { BrandMark } from '@/components/brand-mark';
 import { BackButton, useCanGoBack } from '@/components/back-button';
 import { useAuth } from '@/components/auth-provider';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 /**
  * Admin shell.
@@ -85,7 +86,7 @@ function AdminChrome({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-canvas">
-      <header className="sticky top-0 z-40 border-b border-ink-200/80 bg-white/85 text-ink-900 backdrop-blur-xl">
+      <header className="sticky top-0 z-40 border-b border-ink-200/80 bg-surface/85 text-ink-900 backdrop-blur-xl">
         <div className="page-workspace">
           <div className="flex h-14 items-center gap-4">
             {canGoBack && (
@@ -109,6 +110,7 @@ function AdminChrome({ children }: { children: React.ReactNode }) {
               >
                 Marketplace
               </Link>
+              <ThemeToggle />
               <button
                 type="button"
                 onClick={() => void logout()}

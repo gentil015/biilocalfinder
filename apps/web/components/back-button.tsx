@@ -108,7 +108,7 @@ export function BackButton({
       <button
         type="button"
         onClick={goBack}
-        className={`inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-white/90 px-3.5 py-2 text-sm font-semibold text-ink-700 shadow-card backdrop-blur transition hover:border-ink-300 hover:text-ink-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20 ${className}`}
+        className={`inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-surface/90 px-3.5 py-2 text-sm font-semibold text-ink-700 shadow-card backdrop-blur transition hover:border-ink-300 hover:text-ink-950 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20 ${className}`}
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         {label}

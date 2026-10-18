@@ -3,6 +3,7 @@ import localFont from 'next/font/local';
 import { AppChrome } from '@/components/app-chrome';
 import { AuthProvider } from '@/components/auth-provider';
 import { LocaleProvider } from '@/components/locale-provider';
+import { ThemeProvider } from '@/components/theme-provider';
 import './globals.css';
 
 /**
@@ -70,10 +71,41 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#F5F6F8',
+  // The media-pair below is the server-rendered baseline; ThemeProvider
+  // appends its own unmediated tag after these once the real preference is
+  // known (the browser uses the last match), so a light-theme user on a dark
+  // OS still gets a light chrome. Never mutate or delete these tags from
+  // client code — they are React-owned hoistables.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#F5F6F8' },
+    { media: '(prefers-color-scheme: dark)', color: '#202321' },
+  ],
   width: 'device-width',
   initialScale: 1,
 };
+
+/**
+ * Theme bootstrap — must run before first paint, before React hydrates.
+ *
+ * Mirrors readStoredPreference/applyTheme in components/theme-provider.tsx
+ * (localStorage `bii-theme`; "system" or anything invalid → OS preference).
+ * The server always renders the light default, so this script is what prevents
+ * a white flash on load for dark-theme users. It is deliberately inline rather
+ * than a module: a `next/script` file would load too late, and this has no
+ * dependencies to keep it under a hundred bytes. Keep in sync with the
+ * provider — if one changes storage keys or class names, both must.
+ */
+const THEME_BOOTSTRAP = `
+(function () {
+  try {
+    var t = localStorage.getItem('bii-theme');
+    var dark = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+    var root = document.documentElement;
+    if (dark) root.classList.add('dark');
+    root.style.colorScheme = dark ? 'dark' : 'light';
+  } catch (e) {}
+})();
+`;
 
 /**
  * `lang="en"` below is the server-rendered default, not a decision about the
@@ -83,11 +115,18 @@ export const viewport: Viewport = {
  */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${sans.variable} ${display.variable}`}>
+    <html lang="en" className={`${sans.variable} ${display.variable}`} suppressHydrationWarning>
+      <head>
+        {/* suppressHydrationWarning on <html> covers the class/style this
+            script writes during parsing. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+      </head>
       <body className="min-h-screen bg-canvas font-sans text-ink-900 antialiased">
         <AuthProvider>
           <LocaleProvider>
-            <AppChrome>{children}</AppChrome>
+            <ThemeProvider>
+              <AppChrome>{children}</AppChrome>
+            </ThemeProvider>
           </LocaleProvider>
         </AuthProvider>
       </body>

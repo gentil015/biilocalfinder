@@ -74,10 +74,11 @@ export class MessagingGateway implements OnGatewayInit, OnGatewayConnection, OnG
   }
 
   @SubscribeMessage('typing')
-  onTyping(
+  async onTyping(
     @ConnectedSocket() socket: AuthedSocket,
     @MessageBody() payload: { conversationId: string; isTyping: boolean },
   ) {
+    await this.messagingService.assertParticipant(payload.conversationId, socket.data.userId);
     socket
       .to(SocketServerRegistry.conversationRoom(payload.conversationId))
       .emit('typing', { userId: socket.data.userId, isTyping: payload.isTyping });
@@ -88,6 +89,9 @@ export class MessagingGateway implements OnGatewayInit, OnGatewayConnection, OnG
     @ConnectedSocket() socket: AuthedSocket,
     @MessageBody() payload: { conversationId: string; body: string },
   ) {
+    if (typeof payload.body !== 'string' || payload.body.trim().length === 0 || payload.body.length > 5000) {
+      throw new Error('Invalid message body');
+    }
     const message = await this.messagingService.sendMessage(payload.conversationId, socket.data.userId, payload.body);
     this.registry.emitToRoom(SocketServerRegistry.conversationRoom(payload.conversationId), 'message:new', message);
 

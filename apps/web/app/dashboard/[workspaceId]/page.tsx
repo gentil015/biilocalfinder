@@ -262,7 +262,7 @@ function RosterCard({
 }) {
   return (
     <Link href={href} className={`surface-card-interactive group flex items-center gap-4 p-5 ${className}`}>
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-ink-950 text-accent-400">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-home-night text-accent-400">
         <Icon className="h-5 w-5" aria-hidden="true" />
       </span>
       <div className="min-w-0 flex-1">

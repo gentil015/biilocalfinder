@@ -131,7 +131,7 @@ export function MemberHome() {
 
               <div className="mt-6 flex flex-wrap gap-2">
                 {actionSummary.map((s) => (
-                  <span key={s} className="chip bg-white">{s}</span>
+                  <span key={s} className="chip bg-surface">{s}</span>
                 ))}
               </div>
 
@@ -176,7 +176,7 @@ export function MemberHome() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {quickActions.map(({ icon: Icon, title, body, href }) => (
             <Link key={title} href={href} className="surface-card-interactive group flex items-start gap-4 p-5">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-home-mist text-home-forest transition group-hover:bg-home-forest group-hover:text-home-mint">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-home-mist text-brand-700 transition group-hover:bg-home-forest group-hover:text-home-mint">
                 <Icon className="h-5 w-5" aria-hidden="true" />
               </span>
               <div className="min-w-0">

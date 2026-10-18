@@ -21,9 +21,14 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.use(helmet());
+  const corsOrigin = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',')
+        .map((o) => o.trim())
+        .filter(Boolean)
+    : undefined;
   app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') ?? true,
-    credentials: true,
+    origin: corsOrigin ?? (process.env.NODE_ENV === 'production' ? false : true),
+    credentials: !!corsOrigin,
   });
 
   app.useGlobalPipes(

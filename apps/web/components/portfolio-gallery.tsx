@@ -101,7 +101,7 @@ export function PortfolioGallery({ projects }: { projects: PortfolioProject[] })
                       decoding="async"
                       className="h-full w-full object-cover"
                     />
-                    <span className="absolute left-1.5 top-1.5 rounded bg-ink-950/70 px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wide text-white backdrop-blur-sm">
+                    <span className="absolute left-1.5 top-1.5 rounded bg-home-night/70 px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wide text-white backdrop-blur-sm">
                       Before
                     </span>
                   </div>
@@ -114,7 +114,7 @@ export function PortfolioGallery({ projects }: { projects: PortfolioProject[] })
                       decoding="async"
                       className="h-full w-full object-cover"
                     />
-                    <span className="absolute left-1.5 top-1.5 rounded bg-ink-950/70 px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wide text-white backdrop-blur-sm">
+                    <span className="absolute left-1.5 top-1.5 rounded bg-home-night/70 px-1.5 py-0.5 text-2xs font-bold uppercase tracking-wide text-white backdrop-blur-sm">
                       After
                     </span>
                   </div>
@@ -124,7 +124,7 @@ export function PortfolioGallery({ projects }: { projects: PortfolioProject[] })
                 img.mediaType === 'VIDEO' ? (
                   <div
                     key={img.id}
-                    className="relative aspect-square overflow-hidden rounded-xl bg-ink-950 ring-1 ring-inset ring-ink-200"
+                    className="relative aspect-square overflow-hidden rounded-xl bg-home-night ring-1 ring-inset ring-ink-200"
                   >
                     <video
                       src={img.url}
@@ -134,7 +134,7 @@ export function PortfolioGallery({ projects }: { projects: PortfolioProject[] })
                       preload="metadata"
                       aria-label={`${project.title} video`}
                     />
-                    <span className="pointer-events-none absolute right-1.5 top-1.5 rounded bg-ink-950/70 p-1 text-white backdrop-blur-sm">
+                    <span className="pointer-events-none absolute right-1.5 top-1.5 rounded bg-home-night/70 p-1 text-white backdrop-blur-sm">
                       <Film className="h-3 w-3" aria-hidden="true" />
                     </span>
                   </div>

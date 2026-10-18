@@ -58,7 +58,7 @@ export function NotificationBell() {
           <Bell className="h-[18px] w-[18px]" aria-hidden="true" />
         )}
         {unreadCount > 0 && (
-          <span className="tabular absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-600 px-1 text-[10px] font-bold text-white ring-2 ring-white">
+          <span className="tabular absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger-600 px-1 text-[10px] font-bold text-white dark:text-home-night ring-2 ring-surface">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -69,7 +69,7 @@ export function NotificationBell() {
           role="dialog"
           aria-modal="false"
           aria-label="Notifications"
-          className="animate-scale-in absolute right-0 z-40 mt-2 w-[20rem] origin-top-right overflow-hidden rounded-xl border border-ink-200 bg-white shadow-xl"
+          className="animate-scale-in absolute right-0 z-40 mt-2 w-[20rem] origin-top-right overflow-hidden rounded-xl border border-ink-200 bg-surface shadow-xl"
         >
           <div className="flex items-center justify-between gap-3 border-b border-ink-200 px-4 py-3">
             <p className="eyebrow-muted">Notifications</p>

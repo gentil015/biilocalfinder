@@ -6,7 +6,7 @@
  */
 export function ProviderCardSkeleton() {
   return (
-    <div className="flex flex-col rounded-xl border border-ink-200 bg-white p-4 shadow-xs sm:p-5">
+    <div className="flex flex-col rounded-xl border border-ink-200 bg-surface p-4 shadow-xs sm:p-5">
       <div className="flex gap-4 sm:gap-5">
         <div className="skeleton h-16 w-16 shrink-0 rounded-xl sm:h-[72px] sm:w-[72px]" />
         <div className="min-w-0 flex-1 space-y-2.5">

@@ -19,7 +19,6 @@ const REQUEST_INCLUDE = {
   images: true,
   location: true,
   client: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
-  quotes: true,
   attributeSnapshots: true,
 } as const;
 

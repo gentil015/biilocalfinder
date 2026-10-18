@@ -102,7 +102,7 @@ export default function RegisterPage() {
               onClick={() => setRole(value)}
               className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
                 active
-                  ? 'bg-white text-ink-950 shadow-sm ring-1 ring-ink-200'
+                  ? 'bg-surface text-ink-950 shadow-sm ring-1 ring-ink-200'
                   : 'text-ink-500 hover:text-ink-800'
               }`}
             >

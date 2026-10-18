@@ -103,7 +103,7 @@ export function ReviewForm({ bookingId, onSubmitted }: { bookingId: string; onSu
 
       <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {DIMENSIONS.map((d) => (
-          <div key={d.key} className="rounded-xl border border-ink-200 bg-white p-3 shadow-xs">
+          <div key={d.key} className="rounded-xl border border-ink-200 bg-surface p-3 shadow-xs">
             <p id={`review-dim-${d.key}`} className="mb-1 flex items-center justify-between gap-2 text-xs font-semibold text-ink-700">
               {d.label}
               <span className="tabular text-ink-400">{dims[d.key] ? `${dims[d.key]}/5` : '—'}</span>
@@ -145,7 +145,7 @@ export function ReviewForm({ bookingId, onSubmitted }: { bookingId: string; onSu
                 type="button"
                 onClick={() => setPhotos((prev) => prev.filter((x) => x.storageKey !== p.storageKey))}
                 aria-label="Remove photo"
-                className="absolute right-0.5 top-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-ink-950/70 text-white backdrop-blur transition hover:bg-ink-950 focus-visible:ring-white"
+                className="absolute right-0.5 top-0.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-home-night/70 text-white backdrop-blur transition hover:bg-home-night focus-visible:ring-white"
               >
                 <X className="h-3 w-3" aria-hidden="true" />
               </button>

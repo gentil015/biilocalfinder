@@ -61,7 +61,7 @@ type Translate = (key: MessageKey, values?: Record<string, string | number>) => 
  *  attribute name, and only the urgency label itself is translated here. */
 function AiChip({ chip, t }: { chip: SearchChip; t: Translate }) {
   const base =
-    'inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-white px-2.5 py-1 text-xs font-semibold text-brand-800';
+    'inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-surface px-2.5 py-1 text-xs font-semibold text-brand-800';
   switch (chip.key) {
     case 'service':
       return (
@@ -352,7 +352,7 @@ function SearchResults() {
           className={`btn btn-sm w-full ${
             userLocation
               ? 'border border-success-100 bg-success-50 text-success-700'
-              : 'border border-ink-200 bg-white text-ink-700 shadow-xs hover:bg-ink-50'
+              : 'border border-ink-200 bg-surface text-ink-700 shadow-xs hover:bg-ink-50'
           }`}
         >
           <LocateFixed className="h-3.5 w-3.5" aria-hidden="true" />
@@ -544,9 +544,23 @@ function SearchResults() {
                 </>
               )}
             </p>
-            <p className="hidden shrink-0 text-xs text-ink-400 sm:block">
-              {SORTS.find((s) => s.value === sort)?.hint}
-            </p>
+            {/* Sort stays reachable from the results themselves — the left
+                panel's radios share this same state, so the two never drift. */}
+            <label className="flex shrink-0 items-center gap-2 text-xs text-ink-500">
+              <span className="hidden font-medium sm:inline">Sort</span>
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as SortOption)}
+                aria-label="Sort results"
+                className="rounded-lg border border-ink-200 bg-surface px-2.5 py-1.5 text-xs font-semibold text-ink-800 shadow-xs transition hover:border-ink-300 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/15"
+              >
+                {SORTS.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
 
           {error && <div className="alert alert-error">{error}</div>}
@@ -596,7 +610,7 @@ function SearchResults() {
       {/* Mobile map button — sits above the mobile tab bar. */}
       <button
         onClick={() => setMapOpen(true)}
-        className="btn btn-md fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-1/2 z-20 -translate-x-1/2 border border-ink-200 bg-white text-ink-900 shadow-xl hover:bg-ink-50 lg:hidden"
+        className="btn btn-md fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-1/2 z-20 -translate-x-1/2 border border-ink-200 bg-surface text-ink-900 shadow-xl hover:bg-ink-50 lg:hidden"
       >
         <MapIcon className="h-4 w-4" aria-hidden="true" /> Map
       </button>
@@ -604,14 +618,14 @@ function SearchResults() {
       {/* Mobile filters bottom sheet */}
       {filtersOpen && (
         <div
-          className="fixed inset-0 z-40 flex items-end bg-ink-950/40 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 flex items-end bg-home-night/40 backdrop-blur-sm lg:hidden"
           role="dialog"
           aria-modal="true"
           aria-label="Filters"
           onClick={() => setFiltersOpen(false)}
         >
           <div
-            className="animate-slide-up-sheet max-h-[85vh] w-full overflow-y-auto rounded-t-2xl bg-white p-5"
+            className="animate-slide-up-sheet max-h-[85vh] w-full overflow-y-auto rounded-t-2xl bg-surface p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-ink-200" />
@@ -632,14 +646,14 @@ function SearchResults() {
       {/* Mobile map bottom sheet */}
       {mapOpen && (
         <div
-          className="fixed inset-0 z-40 flex items-end bg-ink-950/40 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 flex items-end bg-home-night/40 backdrop-blur-sm lg:hidden"
           role="dialog"
           aria-modal="true"
           aria-label="Map"
           onClick={() => setMapOpen(false)}
         >
           <div
-            className="animate-slide-up-sheet h-[80vh] w-full overflow-hidden rounded-t-2xl bg-white p-4"
+            className="animate-slide-up-sheet h-[80vh] w-full overflow-hidden rounded-t-2xl bg-surface p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-ink-200" />

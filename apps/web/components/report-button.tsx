@@ -70,12 +70,12 @@ export function ReportButton({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/50 backdrop-blur-sm md:items-center md:p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-home-night/50 backdrop-blur-sm md:items-center md:p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
-            className="max-h-[92vh] w-full max-w-sm overflow-y-auto rounded-t-2xl bg-white p-5 shadow-xl md:rounded-2xl md:p-6"
+            className="max-h-[92vh] w-full max-w-sm overflow-y-auto rounded-t-2xl bg-surface p-5 shadow-xl md:rounded-2xl md:p-6"
           >
             {done ? (
               <div className="flex flex-col items-center py-6 text-center">

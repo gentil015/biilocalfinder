@@ -90,7 +90,7 @@ export function BookingAssistant({
   return (
     <div className="rounded-xl border border-brand-300 bg-brand-50/40 p-4">
       <div className="mb-1 flex items-center gap-2">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white">
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand-600 text-white dark:text-home-night">
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
         </span>
         <h2 className="text-sm font-semibold text-ink-900">{t('reqAssist.title')}</h2>
@@ -100,15 +100,15 @@ export function BookingAssistant({
       {messages.length > 0 && (
         <div
           ref={scrollRef}
-          className="mb-3 max-h-72 space-y-2 overflow-y-auto rounded-xl border border-ink-100 bg-white/70 p-3"
+          className="mb-3 max-h-72 space-y-2 overflow-y-auto rounded-xl border border-ink-100 bg-surface/90 p-3"
         >
           {messages.map((m, i) => (
             <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
               <div
                 className={
                   m.role === 'user'
-                    ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-brand-600 px-3 py-2 text-sm text-white'
-                    : 'max-w-[85%] rounded-2xl rounded-bl-sm border border-ink-100 bg-white px-3 py-2 text-sm text-ink-800'
+                    ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-brand-600 px-3 py-2 text-sm text-white dark:text-home-night'
+                    : 'max-w-[85%] rounded-2xl rounded-bl-sm border border-ink-100 bg-surface px-3 py-2 text-sm text-ink-800'
                 }
               >
                 <p className="whitespace-pre-wrap">{m.text}</p>
@@ -128,7 +128,7 @@ export function BookingAssistant({
                     {m.missing.map((label) => (
                       <span
                         key={label}
-                        className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800"
+                        className="rounded-full bg-warning-100 px-2 py-0.5 text-[11px] font-semibold text-warning-800"
                       >
                         {t(label)}
                       </span>
@@ -140,7 +140,7 @@ export function BookingAssistant({
           ))}
           {loading && (
             <div className="flex justify-start">
-              <div className="rounded-2xl rounded-bl-sm border border-ink-100 bg-white px-3 py-2 text-xs text-ink-400">
+              <div className="rounded-2xl rounded-bl-sm border border-ink-100 bg-surface px-3 py-2 text-xs text-ink-400">
                 {t('reqAssist.thinking')}
               </div>
             </div>
@@ -152,7 +152,7 @@ export function BookingAssistant({
         <textarea
           rows={2}
           placeholder={t('reqAssist.inputPlaceholder')}
-          className="min-w-0 flex-1 rounded-xl border border-ink-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-brand-500"
+          className="min-w-0 flex-1 rounded-xl border border-ink-200 bg-surface px-3 py-2.5 text-sm outline-none focus:border-brand-500"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           maxLength={1500}
@@ -162,7 +162,7 @@ export function BookingAssistant({
           type="submit"
           disabled={loading || !input.trim()}
           aria-label={t('reqAssist.sendAria')}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white dark:text-home-night hover:bg-brand-700 disabled:opacity-50"
         >
           <ArrowUp className="h-4 w-4" aria-hidden="true" />
         </button>

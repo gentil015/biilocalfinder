@@ -24,7 +24,7 @@ export function InterestSection({ interests }: { interests: Interest[] }) {
       {interests.map((i, idx) => (
         <li
           key={`${i.categoryId ?? ''}-${i.serviceId ?? idx}`}
-          className="flex items-center justify-between gap-3 rounded-lg border border-ink-200 bg-white px-3.5 py-2.5"
+          className="flex items-center justify-between gap-3 rounded-lg border border-ink-200 bg-surface px-3.5 py-2.5"
         >
           <span className="truncate text-sm font-medium text-ink-800">{i.serviceName ?? i.categoryName}</span>
           <span className="shrink-0 text-sm tracking-[0.1em] text-rating-400" aria-label={`Interest level ${starsFor(i.effectiveScore)} of 5`}>

@@ -177,7 +177,7 @@ export default function NewServiceOfferingPage() {
 
         {/* Sticky submit — stays within reach while the category attributes
             grow the form well past a screenful. */}
-        <div className="sticky bottom-[calc(3.25rem+env(safe-area-inset-bottom))] z-10 rounded-xl border border-ink-200 bg-white/95 p-3 shadow-xs backdrop-blur-xl md:bottom-0">
+        <div className="sticky bottom-[calc(3.25rem+env(safe-area-inset-bottom))] z-10 rounded-xl border border-ink-200 bg-surface/90 p-3 shadow-xs backdrop-blur-xl md:bottom-0">
           {error && (
             <p className="error-text mb-3" role="alert">
               {error}

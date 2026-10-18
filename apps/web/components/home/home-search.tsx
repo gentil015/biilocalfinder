@@ -56,17 +56,20 @@ export function HomeSearch({
         className={
           dark
             ? 'rounded-[22px] border border-white/10 bg-white/[0.06] p-2 shadow-xl backdrop-blur-2xl'
-            : 'rounded-[22px] border border-ink-900/10 bg-white p-2 shadow-lg'
+            : 'rounded-[22px] border border-ink-900/10 bg-surface p-2 shadow-lg'
         }
       >
         <div className="flex flex-col gap-2">
           <div className="flex items-stretch gap-2">
             <label
               className={`flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-4 py-3.5 text-ink-900 ${
+                /* `dark` here means "the search sits on the always-dark hero band",
+                   not the theme: the solid white field is the emphasis treatment for
+                   that band and must stay white in both themes. */
                 dark ? 'bg-white' : 'bg-home-mist'
               }`}
             >
-              <Search className="h-4 w-4 shrink-0 text-home-forest" aria-hidden="true" />
+              <Search className="h-4 w-4 shrink-0 text-brand-700" aria-hidden="true" />
               <span className="sr-only">{t('homeSearch.serviceLabel')}</span>
               <input
                 className="bare-input text-[15px]"
@@ -85,7 +88,7 @@ export function HomeSearch({
                   ? 'bg-home-gold text-home-night shadow-sm'
                   : dark
                     ? 'border border-white/15 bg-white/5 text-white/70 hover:border-home-gold/50 hover:text-white'
-                    : 'border border-ink-200 bg-white text-ink-500 hover:border-ink-300 hover:text-ink-700'
+                    : 'border border-ink-200 bg-surface text-ink-500 hover:border-ink-300 hover:text-ink-700'
               }`}
             >
               <Sparkles className="h-4 w-4" aria-hidden="true" />

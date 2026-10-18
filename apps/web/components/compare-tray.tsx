@@ -38,7 +38,7 @@ export function CompareTray({ compare }: { compare: CompareSelection }) {
 
   return (
     <div className="fixed inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 md:inset-x-auto md:bottom-6 md:left-1/2 md:w-auto md:max-w-lg md:-translate-x-1/2">
-      <div className="animate-fade-up rounded-xl border border-ink-800 bg-ink-950 p-2.5 text-white shadow-xl">
+      <div className="animate-fade-up rounded-xl border border-ink-800 bg-home-night p-2.5 text-white shadow-xl">
         <div className="flex items-center gap-2.5">
           <div className="hidden shrink-0 items-center gap-1.5 pl-1.5 pr-1 text-xs font-bold uppercase tracking-wider text-white/50 sm:flex">
             <Scale className="h-3.5 w-3.5" aria-hidden="true" />
@@ -67,7 +67,7 @@ export function CompareTray({ compare }: { compare: CompareSelection }) {
             onClick={() => router.push(`/compare?ids=${compare.ids.join(',')}`)}
             disabled={compare.ids.length < 2}
             title={compare.ids.length < 2 ? 'Select at least two providers' : undefined}
-            className="btn btn-sm shrink-0 bg-white text-ink-950 hover:bg-ink-100 disabled:opacity-40"
+            className="btn btn-sm shrink-0 bg-home-gold text-home-night shadow-sm transition hover:bg-[#EDC27E] disabled:opacity-40"
           >
             Compare ({compare.ids.length})
           </button>

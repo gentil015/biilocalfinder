@@ -117,7 +117,7 @@ export function CustomerAssistWidget() {
         >
           <Sparkles className="h-5 w-5" aria-hidden="true" />
           <span className="hidden text-sm sm:inline">Ask BII Assistant</span>
-          <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-gold ring-2 ring-white" aria-hidden="true" />
+          <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-home-gold ring-2 ring-white" aria-hidden="true" />
         </button>
       )}
 
@@ -126,7 +126,7 @@ export function CustomerAssistWidget() {
           role="dialog"
           aria-modal="true"
           aria-label="BII Assistant"
-          className="fixed inset-x-0 bottom-0 z-[60] flex h-[min(660px, 92dvh)] flex-col overflow-hidden border-t border-ink-200 bg-white shadow-2xl shadow-ink-950/20 animate-slide-up-sheet sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[600px] sm:w-[400px] sm:rounded-2xl sm:border"
+          className="fixed inset-x-0 bottom-0 z-[60] flex h-[min(660px, 92dvh)] flex-col overflow-hidden border-t border-ink-200 bg-surface shadow-2xl shadow-ink-950/20 animate-slide-up-sheet sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[600px] sm:w-[400px] sm:rounded-2xl sm:border"
         >
           {/* Header */}
           <header className="relative flex items-center gap-3 bg-brand-gradient px-4 py-3.5 text-white">
@@ -184,7 +184,7 @@ export function CustomerAssistWidget() {
             {busy && (
               <div className="flex items-end gap-2">
                 <AssistantAvatar />
-                <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-sm border border-ink-200 bg-white px-4 py-3 shadow-sm">
+                <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-sm border border-ink-200 bg-surface px-4 py-3 shadow-sm">
                   <span className="h-2 w-2 animate-bounce rounded-full bg-brand-500" />
                   <span className="h-2 w-2 animate-bounce rounded-full bg-brand-500 [animation-delay:120ms]" />
                   <span className="h-2 w-2 animate-bounce rounded-full bg-brand-500 [animation-delay:240ms]" />
@@ -205,20 +205,20 @@ export function CustomerAssistWidget() {
               e.preventDefault();
               send(input);
             }}
-            className="flex items-center gap-2 border-t border-ink-200 bg-white px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-3"
+            className="flex items-center gap-2 border-t border-ink-200 bg-surface px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-3"
           >
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask in English or Kinyarwanda…"
               aria-label="Message BII Assistant"
-              className="min-w-0 flex-1 rounded-xl border border-ink-200 bg-ink-50/50 px-3.5 py-2.5 text-sm outline-none transition focus:border-brand-400 focus:bg-white"
+              className="min-w-0 flex-1 rounded-xl border border-ink-200 bg-ink-50/50 px-3.5 py-2.5 text-sm outline-none transition focus:border-brand-400 focus:bg-surface"
             />
             <button
               type="submit"
               disabled={busy || !input.trim()}
               aria-label="Send"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-700 text-white shadow-sm transition hover:bg-brand-800 disabled:opacity-40"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-700 text-white dark:text-home-night shadow-sm transition hover:bg-brand-800 disabled:opacity-40"
             >
               <ArrowUp className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -248,7 +248,7 @@ function AssistantBubble({ text, avatar }: { text: string; avatar?: React.ReactN
         <AssistantAvatar />
       )}
       <div className="min-w-0 max-w-[85%]">
-        <p className="whitespace-pre-line rounded-2xl rounded-bl-sm border border-ink-200 bg-white px-3.5 py-2.5 text-sm leading-relaxed text-ink-800 shadow-sm">
+        <p className="whitespace-pre-line rounded-2xl rounded-bl-sm border border-ink-200 bg-surface px-3.5 py-2.5 text-sm leading-relaxed text-ink-800 shadow-sm">
           {text}
         </p>
       </div>
@@ -259,7 +259,7 @@ function AssistantBubble({ text, avatar }: { text: string; avatar?: React.ReactN
 function UserBubble({ text }: { text: string }) {
   return (
     <div className="flex justify-end">
-      <p className="max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-sm bg-brand-700 px-3.5 py-2.5 text-sm leading-relaxed text-white shadow-sm">
+      <p className="max-w-[85%] whitespace-pre-line rounded-2xl rounded-br-sm bg-brand-700 px-3.5 py-2.5 text-sm leading-relaxed text-white dark:text-home-night shadow-sm">
         {text}
       </p>
     </div>
@@ -328,7 +328,7 @@ function AssistantTurn({
                 key={p.id}
                 type="button"
                 onClick={() => onGo(`/providers/${p.id}`)}
-                className="flex w-full items-center gap-3 rounded-xl border border-ink-200 bg-white p-2.5 text-left shadow-sm transition hover:border-brand-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20"
+                className="flex w-full items-center gap-3 rounded-xl border border-ink-200 bg-surface p-2.5 text-left shadow-sm transition hover:border-brand-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20"
               >
                 {p.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -395,8 +395,8 @@ function ActionButton({ action, onGo }: { action: CustomerAssistAction; onGo: (h
       onClick={() => onGo(action.href)}
       className={
         primary
-          ? 'inline-flex items-center gap-1.5 rounded-full bg-brand-700 px-3.5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/25'
-          : 'inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-700 shadow-sm transition hover:border-brand-300 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20'
+          ? 'inline-flex items-center gap-1.5 rounded-full bg-brand-700 px-3.5 py-2 text-xs font-bold text-white dark:text-home-night shadow-sm transition hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/25'
+          : 'inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-surface px-3 py-1.5 text-xs font-semibold text-ink-700 shadow-sm transition hover:border-brand-300 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20'
       }
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />

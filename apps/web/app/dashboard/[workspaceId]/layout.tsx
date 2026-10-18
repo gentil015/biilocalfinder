@@ -132,7 +132,7 @@ export default function WorkspaceDashboardLayout({
       }
     >
       {workspace.provider && (
-        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-ink-200 bg-white px-4 py-3">
+        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-ink-200 bg-surface px-4 py-3">
           <VerificationBadge status={workspace.provider.verificationStatus} />
           <p className="text-sm text-ink-600">
             {workspace.provider.verificationStatus === 'VERIFIED'

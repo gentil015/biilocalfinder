@@ -9,6 +9,7 @@ import { WORKSPACE_TYPE_LABEL } from '@/lib/workspace-nav';
 import { BrandMark } from '@/components/brand-mark';
 import { BackButton, useCanGoBack } from '@/components/back-button';
 import { useAuth } from '@/components/auth-provider';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 // spec §1: "A user may own or belong to multiple workspaces and switch
 // between them without creating multiple login accounts." Today that's
@@ -87,7 +88,7 @@ export function WorkspaceSwitcher({
         <div
           role="listbox"
           aria-label="Switch workspace"
-          className="animate-scale-in absolute left-0 z-50 mt-1.5 w-72 origin-top-left overflow-hidden rounded-xl border border-ink-200 bg-white p-1.5 shadow-xl"
+          className="animate-scale-in absolute left-0 z-50 mt-1.5 w-72 origin-top-left overflow-hidden rounded-xl border border-ink-200 bg-surface p-1.5 shadow-xl"
         >
           <p className="eyebrow-muted px-2.5 py-2">Switch workspace</p>
           {switchable.map((m) => (
@@ -125,7 +126,7 @@ export function WorkspaceSwitcher({
 function WorkspaceAvatar({ name }: { name: string }) {
   const initial = name.trim().charAt(0).toUpperCase() || '?';
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 font-display text-sm font-extrabold text-white">
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 font-display text-sm font-extrabold text-white dark:text-home-night">
       {initial}
     </span>
   );
@@ -198,6 +199,12 @@ export function WorkspaceShell({
 
   const shellFooter = (
     <div className="space-y-0.5 border-t border-ink-200 pt-3">
+      {/* Theme sits in the shell footer so a provider working in the workspace
+          all day can flip it without going back to the marketplace chrome. */}
+      <div className="flex items-center justify-between rounded-xl px-3 py-1.5">
+        <span className="text-sm font-semibold text-ink-600">Theme</span>
+        <ThemeToggle className="-mr-1.5" />
+      </div>
       <Link
         href="/"
         className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-ink-600 transition hover:bg-ink-100/70 hover:text-ink-950"
@@ -219,7 +226,7 @@ export function WorkspaceShell({
   return (
     <div className="min-h-screen bg-canvas">
       {/* Mobile top bar */}
-      <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-ink-200/80 bg-white/90 px-4 backdrop-blur-xl lg:hidden">
+      <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-ink-200/80 bg-surface/90 px-4 backdrop-blur-xl lg:hidden">
         <button
           type="button"
           onClick={() => setNavOpen(true)}
@@ -231,6 +238,7 @@ export function WorkspaceShell({
         </button>
         {canGoBack && <BackButton variant="icon" label="Go back" className="-ml-1" />}
         <div className="min-w-0 flex-1">{identity}</div>
+        <ThemeToggle className="shrink-0" />
         <Link
           href="/account"
           className="btn-secondary btn-sm shrink-0"
@@ -245,10 +253,10 @@ export function WorkspaceShell({
           <button
             type="button"
             aria-label="Close navigation"
-            className="absolute inset-0 bg-ink-950/50 backdrop-blur-sm"
+            className="absolute inset-0 bg-home-night/50 backdrop-blur-sm"
             onClick={() => setNavOpen(false)}
           />
-          <div className="animate-fade-in absolute inset-y-0 left-0 flex w-[84%] max-w-xs flex-col bg-white p-4 shadow-2xl">
+          <div className="animate-fade-in absolute inset-y-0 left-0 flex w-[84%] max-w-xs flex-col bg-surface p-4 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
               <BrandMark />
               <button
@@ -271,7 +279,7 @@ export function WorkspaceShell({
 
       {/* Desktop sidebar */}
       <div className="lg:flex">
-        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-ink-200 bg-white p-4 lg:flex">
+        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-ink-200 bg-surface p-4 lg:flex">
           <div className="mb-5">
             <BrandMark />
           </div>

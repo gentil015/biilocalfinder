@@ -24,13 +24,13 @@ export function ProviderTypeCard({
       onClick={onSelect}
       className={`flex w-full items-start gap-4 rounded-xl border p-4 text-left transition duration-200 ease-out sm:p-5 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20 ${
         selected
-          ? 'border-ink-950 bg-ink-950 text-white shadow-sm'
-          : 'border-ink-200 bg-white shadow-xs hover:border-ink-300 hover:shadow-md'
+          ? 'border-ink-950 bg-home-night text-white shadow-sm'
+          : 'border-ink-200 bg-surface shadow-xs hover:border-ink-300 hover:shadow-md'
       }`}
     >
       <span
         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition ${
-          selected ? 'bg-accent-400 text-ink-950' : 'bg-ink-100 text-ink-500'
+          selected ? 'bg-accent-400 text-home-night' : 'bg-ink-100 text-ink-500'
         }`}
       >
         <Icon className="h-5 w-5" aria-hidden="true" />
@@ -44,10 +44,10 @@ export function ProviderTypeCard({
           <span
             aria-hidden="true"
             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${
-              selected ? 'border-accent-400 bg-accent-400' : 'border-ink-300 bg-white'
+              selected ? 'border-accent-400 bg-accent-400' : 'border-ink-300 bg-surface'
             }`}
           >
-            {selected && <Check className="h-3.5 w-3.5 text-ink-950" strokeWidth={3} />}
+            {selected && <Check className="h-3.5 w-3.5 text-home-night" strokeWidth={3} />}
           </span>
         </span>
 

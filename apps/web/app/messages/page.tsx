@@ -54,7 +54,7 @@ export default function ConversationsPage() {
                 href={`/messages/${c.id}`}
                 className="flex items-center gap-3.5 p-4 transition hover:bg-ink-50/70 sm:px-5"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 font-display text-sm font-extrabold text-white">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 font-display text-sm font-extrabold text-white dark:text-home-night">
                   {initial}
                 </span>
 

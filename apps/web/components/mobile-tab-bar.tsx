@@ -24,7 +24,7 @@ export function MobileTabBar() {
       aria-label="Primary"
       // env(safe-area-inset-bottom) keeps the bar clear of the iOS home
       // indicator; the AppChrome wrapper reserves the matching padding.
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-ink-200 bg-white/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-ink-200 bg-surface/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden"
     >
       <div className="mx-auto flex max-w-lg items-stretch justify-around px-1.5">
         {TABS.map((tab) => {

@@ -37,24 +37,56 @@ import type { Config } from 'tailwindcss';
  * they carry status meaning, not surface meaning, and a "red" that drifts warm
  * stops reading as an error.
  *
+ * DARK MODE — every surface, text, border, brand and status ramp step is
+ * backed by a CSS custom property (RGB triplets in globals.css) that is
+ * re-defined under `.dark` on <html>. Class names never change between
+ * themes: `text-ink-900` is near-black on light cards and soft ivory on
+ * dark ones, `bg-surface` is white in light and warm charcoal (#2C322E) in
+ * dark. The dark theme is its own hand-tuned ladder in a warm-charcoal /
+ * ivory family — not a blue-black inversion — with a restrained sage-teal
+ * accent (brand-700 #8FC9B5) replacing the old neon mint. Marketing bands
+ * (hero, footer, trust sections) stay their static dark in both themes and
+ * gain warmth from softened aurora washes under .dark.
+ *
+ * Deliberately NOT variable-backed (they must look the same in both themes):
+ *   - home/night, home/forest, home/mint, home/gold — the marketing identity.
+ *     Dark bands (hero, footer, trust sections) stay dark in dark mode; that
+ *     is what gives the dark theme depth instead of a flat grey wash.
+ *   - `white` itself — `text-white` on brand fills must stay white. Card
+ *     surfaces use the separate `surface` token instead.
+ *
+ * PRIMARY BUTTON polarity flips in dark mode: light = brand-700 fill + white
+ * text; dark = brand-700 (sage-teal accent #8FC9B5) fill + ink-night text,
+ * hovering to brand-800 (#A6D9C7). That keeps the primary action the most
+ * present element on a charcoal screen — the same deep green that reads as
+ * confident on white reads as a black hole on warm charcoal.
+ *
  * Contrast is pinned, not assumed: `ink-500` is the muted-text token and clears
- * 4.5:1 on both white cards and the near-white canvas; `ink-400` clears 3:1 on
- * both and is therefore large/decorative text only.
+ * 4.5:1 on both white cards and the near-white canvas (and its dark flip
+ * clears 4.5:1 on dark surfaces); `ink-400` clears 3:1 on both and is
+ * therefore large/decorative text only.
  */
 const config: Config = {
+  darkMode: ['class'],
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        // Page background. A clean near-white — the product is mostly white
-        // cards, and a slightly grey page is what makes them read as surfaces.
-        canvas: '#F5F6F8',
+        // Page background. A clean near-white in light; home-night in dark.
+        canvas: 'rgb(var(--canvas) / <alpha-value>)',
+
+        // Cards, panels, dropdowns and every "raised" surface. White in light,
+        // deep charcoal in dark. Never use raw `bg-white` for a surface —
+        // `text-white` (on brand fills) stays literal white in both themes.
+        surface: 'rgb(var(--surface) / <alpha-value>)',
 
         // The brand palette. These are the anchors for every token below.
+        // night/forest/mint/gold are static: the marketing identity must not
+        // shift between themes. mist/sand are page-band fills and flip.
         home: {
           night: '#0A0E13',
-          mist: '#F5F6F8',
-          sand: '#ECEEF3',
+          mist: 'rgb(var(--home-mist) / <alpha-value>)',
+          sand: 'rgb(var(--home-sand) / <alpha-value>)',
           gold: '#E4B56A',
           mint: '#5EEAD4',
           forest: '#0F2E28',
@@ -63,113 +95,120 @@ const config: Config = {
         // The single neutral ramp for the whole product. Cool grey, evenly
         // spaced, with a deliberate gap at 400/500 so secondary text carries
         // real contrast instead of fading out.
-        // `ink.950` is home-night and is what every "dark" surface resolves to.
+        // Variable-backed: the ramp flips in dark mode (see header comment).
         ink: {
-          25: '#FCFCFD',
-          50: '#F5F6F8',
-          100: '#EDEFF3',
-          200: '#E1E4EA',
-          300: '#C9CFD8',
-          400: '#8B93A1',
-          500: '#5F6878',
-          600: '#454D5C',
-          700: '#333A46',
-          800: '#21262F',
-          900: '#12161D',
-          950: '#0A0E13',
+          25: 'rgb(var(--ink-25) / <alpha-value>)',
+          50: 'rgb(var(--ink-50) / <alpha-value>)',
+          100: 'rgb(var(--ink-100) / <alpha-value>)',
+          200: 'rgb(var(--ink-200) / <alpha-value>)',
+          300: 'rgb(var(--ink-300) / <alpha-value>)',
+          400: 'rgb(var(--ink-400) / <alpha-value>)',
+          500: 'rgb(var(--ink-500) / <alpha-value>)',
+          600: 'rgb(var(--ink-600) / <alpha-value>)',
+          700: 'rgb(var(--ink-700) / <alpha-value>)',
+          800: 'rgb(var(--ink-800) / <alpha-value>)',
+          900: 'rgb(var(--ink-900) / <alpha-value>)',
+          950: 'rgb(var(--ink-950) / <alpha-value>)',
         },
 
         // Primary action colour, anchored on home-forest #0F2E28. Deep enough
-        // that white text clears 4.5:1 from 500 upward, so `bg-brand-*` +
-        // `text-white` is always legible. This is the fill for the primary
-        // button (see globals.css .btn-primary); gold is the hero/highlight
+        // that white text clears 4.5:1 from 500 upward in light mode, so
+        // `bg-brand-*` + `text-white` is always legible. In dark mode the ramp
+        // flips to bright mint-teal and buttons invert to night text (see the
+        // dark-mode note in the file header). Gold is the hero/highlight
         // accent, used where it sits on a dark surface.
         brand: {
-          50: '#EAF4F1',
-          100: '#CFE7E0',
-          200: '#A0CFC2',
-          300: '#6BB0A0',
-          400: '#3D8C7D',
-          500: '#1F7163',
-          600: '#14594F',
-          700: '#0F473F',
-          800: '#0C3A34',
-          900: '#0F2E28',
+          50: 'rgb(var(--brand-50) / <alpha-value>)',
+          100: 'rgb(var(--brand-100) / <alpha-value>)',
+          200: 'rgb(var(--brand-200) / <alpha-value>)',
+          300: 'rgb(var(--brand-300) / <alpha-value>)',
+          400: 'rgb(var(--brand-400) / <alpha-value>)',
+          500: 'rgb(var(--brand-500) / <alpha-value>)',
+          600: 'rgb(var(--brand-600) / <alpha-value>)',
+          700: 'rgb(var(--brand-700) / <alpha-value>)',
+          800: 'rgb(var(--brand-800) / <alpha-value>)',
+          900: 'rgb(var(--brand-900) / <alpha-value>)',
           950: '#061A16',
         },
 
-        // Highlight, anchored on home-mint. It is only ever used on dark
-        // surfaces (13.5:1 on night) — mint on white is unreadable by design,
-        // so it is never a light-mode text colour.
+        // Highlight, anchored on home-mint but deliberately softened: this
+        // ramp only ever sits on the static dark marketing bands (auth aside
+        // eyebrow, selected provider-type chip), so it is a restrained
+        // sage-teal rather than the neon mint it once was — the same family
+        // as the dark-mode brand accent (#8FC9B5). Mint on white is
+        // unreadable by design, so it is never a light-mode text colour.
         accent: {
           50: '#E6FBF6',
           100: '#C2F5EB',
-          200: '#8DEEDD',
-          300: '#5EEAD4',
-          400: '#34D3BA',
-          500: '#14B39C',
+          200: '#A5E5D4',
+          300: '#8FD4C0',
+          400: '#7FC4B0',
+          500: '#5AAE98',
           600: '#0C8F7E',
           700: '#0B7164',
         },
 
         // Semantic status ramp. Defined here (rather than leaning on Tailwind's
-        // stock green/red) so every state reads as one family.
+        // stock green/red) so every state reads as one family. The soft 50-200
+        // steps (badge and alert backgrounds) become deep status tints in dark
+        // mode; the 600-800 text steps become bright enough to clear AA on
+        // those dark tints.
         success: {
-          50: '#F0FDF4',
-          100: '#DCFCE7',
-          200: '#BBF7D0',
+          50: 'rgb(var(--success-50) / <alpha-value>)',
+          100: 'rgb(var(--success-100) / <alpha-value>)',
+          200: 'rgb(var(--success-200) / <alpha-value>)',
           300: '#86EFAC',
           400: '#4ADE80',
-          500: '#22C55E',
-          600: '#16A34A',
-          700: '#15803D',
-          800: '#166534',
+          500: 'rgb(var(--success-500) / <alpha-value>)',
+          600: 'rgb(var(--success-600) / <alpha-value>)',
+          700: 'rgb(var(--success-700) / <alpha-value>)',
+          800: 'rgb(var(--success-800) / <alpha-value>)',
         },
         warning: {
-          50: '#FFFBEB',
-          100: '#FEF3C7',
-          200: '#FDE68A',
+          50: 'rgb(var(--warning-50) / <alpha-value>)',
+          100: 'rgb(var(--warning-100) / <alpha-value>)',
+          200: 'rgb(var(--warning-200) / <alpha-value>)',
           300: '#FCD34D',
           400: '#FBBF24',
-          500: '#F59E0B',
-          600: '#D97706',
-          700: '#B45309',
-          800: '#92400E',
+          500: 'rgb(var(--warning-500) / <alpha-value>)',
+          600: 'rgb(var(--warning-600) / <alpha-value>)',
+          700: 'rgb(var(--warning-700) / <alpha-value>)',
+          800: 'rgb(var(--warning-800) / <alpha-value>)',
         },
         danger: {
-          50: '#FEF2F2',
-          100: '#FEE2E2',
-          200: '#FECACA',
+          50: 'rgb(var(--danger-50) / <alpha-value>)',
+          100: 'rgb(var(--danger-100) / <alpha-value>)',
+          200: 'rgb(var(--danger-200) / <alpha-value>)',
           300: '#FCA5A5',
           400: '#F87171',
-          500: '#EF4444',
-          600: '#DC2626',
-          700: '#B91C1C',
-          800: '#991B1B',
+          500: 'rgb(var(--danger-500) / <alpha-value>)',
+          600: 'rgb(var(--danger-600) / <alpha-value>)',
+          700: 'rgb(var(--danger-700) / <alpha-value>)',
+          800: 'rgb(var(--danger-800) / <alpha-value>)',
         },
         // Informational reads as cyan, the one secondary hue in the system, so
         // it never gets confused with `brand` green — which owns buttons and
         // links. Amber stays reserved for "needs attention", red for "broken".
         info: {
-          50: '#ECFEFF',
-          100: '#CFFAFE',
-          200: '#A5F3FC',
+          50: 'rgb(var(--info-50) / <alpha-value>)',
+          100: 'rgb(var(--info-100) / <alpha-value>)',
+          200: 'rgb(var(--info-200) / <alpha-value>)',
           300: '#67E8F9',
           400: '#22D3EE',
-          500: '#06B6D4',
-          600: '#0891B2',
-          700: '#0E7490',
-          800: '#155E75',
+          500: 'rgb(var(--info-500) / <alpha-value>)',
+          600: 'rgb(var(--info-600) / <alpha-value>)',
+          700: 'rgb(var(--info-700) / <alpha-value>)',
+          800: 'rgb(var(--info-800) / <alpha-value>)',
         },
 
         // Ratings keep their own gold, and it is the *same* gold as the hero
         // accent — a 4.8 rating and the primary CTA belong to the same identity.
-        // Rating text uses 600, which clears 4.5:1 on white; 400/500 are fills
-        // (stars) and backgrounds.
+        // Rating text uses 600, which clears 4.5:1 on white and (flipped) on
+        // dark surfaces; 400/500 are fills (stars) and backgrounds.
         rating: {
-          400: '#E4B56A',
-          500: '#C9963F',
-          600: '#A6782B',
+          400: 'rgb(var(--rating-400) / <alpha-value>)',
+          500: 'rgb(var(--rating-500) / <alpha-value>)',
+          600: 'rgb(var(--rating-600) / <alpha-value>)',
         },
       },
 
@@ -193,7 +232,8 @@ const config: Config = {
         // Deliberately shallow. `xs`/`sm` are the everyday card elevations and
         // should be felt more than seen; `lg`/`xl` are reserved for overlays.
         // Shadows are tinted with the cool night ink rather than pure black, so
-        // a shadow reads as depth instead of dirt.
+        // a shadow reads as depth instead of dirt. In dark mode the borders do
+        // the separating and the (barely visible) shadows just deepen the page.
         xs: '0 1px 2px 0 rgb(10 14 19 / 0.04)',
         sm: '0 1px 2px 0 rgb(10 14 19 / 0.05), 0 1px 3px 0 rgb(10 14 19 / 0.04)',
         md: '0 2px 4px -1px rgb(10 14 19 / 0.05), 0 4px 12px -2px rgb(10 14 19 / 0.06)',
@@ -202,7 +242,7 @@ const config: Config = {
         // The standard resting elevation for a card — barely there.
         card: '0 1px 2px 0 rgb(10 14 19 / 0.04), 0 2px 8px -4px rgb(10 14 19 / 0.06)',
         // Focus affordance, matched to the brand forest.
-        ring: '0 0 0 3px rgb(15 71 63 / 0.16)',
+        ring: '0 0 0 3px rgb(var(--ring) / 0.16)',
         // Legacy aliases kept so components written before the redesign
         // (glow / lift / nav) still resolve to sensible elevations.
         glow: '0 0 0 1px rgb(15 71 63 / 0.10), 0 16px 40px -16px rgb(10 14 19 / 0.20)',
@@ -211,12 +251,15 @@ const config: Config = {
       },
 
       // Unprefixed ring-* resolves to the brand forest instead of Tailwind's
-      // stock blue, so focus rings are on-brand without every call site opting in.
+      // stock blue, so focus rings are on-brand without every call site opting
+      // in. The ring colour flips with the theme (bright mint-teal on dark).
       ringColor: {
-        DEFAULT: 'rgb(15 71 63 / 0.16)',
+        DEFAULT: 'rgb(var(--ring) / 0.16)',
       },
+      // The offset behind a ring is the surrounding surface — white cards in
+      // light, dark cards in dark — never a white halo on a dark screen.
       ringOffsetColor: {
-        DEFAULT: '#ffffff',
+        DEFAULT: 'rgb(var(--ring-offset))',
       },
 
       backgroundImage: {

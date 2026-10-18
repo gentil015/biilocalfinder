@@ -369,7 +369,7 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
                   <Link
                     key={offering.id}
                     href={`/service-offerings/${offering.id}`}
-                    className="group relative flex flex-col overflow-hidden rounded-2xl border border-ink-200 bg-white p-4 transition duration-200 ease-out hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg"
+                    className="group relative flex flex-col overflow-hidden rounded-2xl border border-ink-200 bg-surface p-4 transition duration-200 ease-out hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg"
                   >
                     <span
                       className="pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full bg-brand-50 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100"
@@ -496,9 +496,9 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
                   const name = `${r.client?.user?.firstName ?? ''} ${r.client?.user?.lastName ?? ''}`.trim();
                   const reviewerInitial = name.charAt(0).toUpperCase() || 'C';
                   return (
-                    <li key={r.id} className="rounded-2xl border border-ink-200 bg-white p-4 transition hover:border-ink-300">
+                    <li key={r.id} className="rounded-2xl border border-ink-200 bg-surface p-4 transition hover:border-ink-300">
                       <div className="flex items-start gap-3">
-                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-800 font-display text-sm font-extrabold text-white">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-800 font-display text-sm font-extrabold text-white dark:text-home-night">
                           {reviewerInitial}
                         </span>
                         <div className="min-w-0 flex-1">
@@ -728,7 +728,7 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
       </div>
 
       {/* Mobile sticky action bar — above the mobile tab bar. */}
-      <div className="fixed inset-x-0 bottom-[calc(3.25rem+env(safe-area-inset-bottom))] z-20 flex gap-2 border-t border-ink-200 bg-white/95 p-3 backdrop-blur-xl md:hidden">
+      <div className="fixed inset-x-0 bottom-[calc(3.25rem+env(safe-area-inset-bottom))] z-20 flex gap-2 border-t border-ink-200 bg-surface/90 p-3 backdrop-blur-xl md:hidden">
         <MessageProviderButton
           providerId={provider.id}
           providerName={provider.businessName}

@@ -255,19 +255,19 @@ function ProjectCard({
                 <img src={img.url} alt="" className="h-full w-full object-cover" />
               )}
               {img.beforeAfterRole && (
-                <span className="absolute left-1 top-1 rounded bg-ink-950/70 px-1.5 py-0.5 text-2xs font-bold text-white">
+                <span className="absolute left-1 top-1 rounded bg-home-night/70 px-1.5 py-0.5 text-2xs font-bold text-white">
                   {img.beforeAfterRole}
                 </span>
               )}
               {img.mediaType === 'VIDEO' && (
-                <span className="absolute right-1 top-1 rounded bg-ink-950/70 p-1 text-white" aria-hidden="true">
+                <span className="absolute right-1 top-1 rounded bg-home-night/70 p-1 text-white" aria-hidden="true">
                   <Film className="h-3 w-3" />
                 </span>
               )}
               <button
                 onClick={() => removeMedia(img.id)}
                 aria-label={`Remove ${img.mediaType === 'VIDEO' ? 'video' : 'photo'} from ${project.title}`}
-                className="absolute inset-0 flex items-center justify-center bg-ink-950/40 text-white opacity-0 transition focus:opacity-100 group-hover:opacity-100"
+                className="absolute inset-0 flex items-center justify-center bg-home-night/40 text-white opacity-0 transition focus:opacity-100 group-hover:opacity-100"
               >
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
               </button>

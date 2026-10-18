@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Wrench,
   Zap,
@@ -25,10 +25,6 @@ import {
   Languages,
   CheckCircle2,
   Send,
-  Users,
-  Timer,
-  Map,
-  Heart,
   FileText,
   type LucideIcon,
 } from 'lucide-react';
@@ -105,24 +101,6 @@ const PREVIEW_QUOTES = [
   { name: 'Kimisagara Fixes', meta: 'ID-checked · 41 min', price: '38,500', pick: false },
 ];
 
-const TESTIMONIALS = [
-  {
-    name: 'Clarisse U.',
-    role: 'Kigali · client',
-    quote: 'I described a kitchen leak in one sentence and had three quotes on the same thread before dinner. Picked one, they showed up next morning — paid bypass, no platform fee.',
-  },
-  {
-    name: 'Patrick N.',
-    role: 'Remera · client',
-    quote: 'Being able to see scope and price side by side instead of a private chat is the whole difference. I knew exactly what I was agreeing to before I booked.',
-  },
-  {
-    name: 'Fabrice M.',
-    role: 'Musanze · provider',
-    quote: 'The verification badge actually means something here — clients say they chose me because of it. Requests arrive pre-filled, so I quote faster.',
-  },
-];
-
 const FAQS = [
   {
     q: 'How is this different from listing in a directory?',
@@ -149,61 +127,6 @@ const FAQS = [
     a: 'Every booking has a reporting path: either side can open a dispute, attach evidence and message from one thread, and an admin moderator reviews it to a resolution. Your payment, though, is still settled directly with the provider.',
   },
 ];
-
-/* Animate a number from 0 to `target` once the element scrolls into view. */
-function useCountUp(target: number, active: boolean, duration = 1600) {
-  const [value, setValue] = useState(0);
-  useEffect(() => {
-    if (!active) return;
-    let raf = 0;
-    const start = performance.now();
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - start) / duration);
-      setValue(Math.round(target * (1 - Math.pow(1 - p, 3))));
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [active, target, duration]);
-  return value;
-}
-
-function LiveStat({ icon: Icon, value, suffix, label, sub }: { icon: LucideIcon; value: number; suffix?: string; label: string; sub: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setActive(true);
-          io.disconnect();
-        }
-      },
-      { threshold: 0.4 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
-  const display = useCountUp(value, active);
-
-  return (
-    <div ref={ref} className="flex items-center gap-4 rounded-3xl border border-ink-900/10 bg-white p-5 shadow-xs">
-      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-home-forest text-home-mint">
-        <Icon className="h-5 w-5" aria-hidden="true" />
-      </span>
-      <div className="min-w-0">
-        <p className="font-display text-2xl font-extrabold tabular tracking-tight text-home-night">
-          {display.toLocaleString()}
-          {suffix && <span className="text-home-forest">{suffix}</span>}
-        </p>
-        <p className="text-sm font-bold text-ink-800">{label}</p>
-        <p className="truncate text-xs text-ink-500">{sub}</p>
-      </div>
-    </div>
-  );
-}
 
 export function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
@@ -289,7 +212,7 @@ export function LandingPage() {
             <div className="relative mx-auto max-w-lg animate-float lg:ml-auto lg:max-w-none">
               <div className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.06] shadow-2xl backdrop-blur-xl">
                 <div className="flex items-center justify-between border-b border-white/10 px-5 py-3.5">
-                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/50">Live quote thread</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/50">Example quote thread</p>
                   <span className="rounded-full bg-home-mint/15 px-2.5 py-1 text-2xs font-bold uppercase tracking-wide text-home-mint">
                     3 comparable
                   </span>
@@ -361,22 +284,6 @@ export function LandingPage() {
       </section>
 
       {/* ------------------------------------------------------------------
-          Live stats — count up when scrolled into view.
-          ------------------------------------------------------------------ */}
-      <section className="relative">
-        <div className="page-shell py-12 md:py-16">
-          <Reveal>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <LiveStat icon={Users} value={850} suffix="+" label="Verified professionals" sub="Identity-checked and phone-confirmed" />
-              <LiveStat icon={Heart} value={12000} suffix="+" label="Requests posted" sub="From kitchen leaks to weddings" />
-              <LiveStat icon={Map} value={8} label="Cities live" sub="Kigali and beyond — post anywhere" />
-              <LiveStat icon={Timer} value={60} suffix=" min" label="Median response" sub="Providers reply fast, or we notice" />
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ------------------------------------------------------------------
           Category architecture: bento.
           ------------------------------------------------------------------ */}
       <section className="home-hatch relative">
@@ -384,14 +291,14 @@ export function LandingPage() {
           <Reveal>
             <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
               <div>
-                <p className="text-2xs font-bold uppercase tracking-[0.16em] text-home-forest">Catalogue</p>
-                <h2 className="mt-2 font-display text-3xl font-extrabold tracking-[-0.03em] text-home-night sm:text-4xl">
+                <p className="text-2xs font-bold uppercase tracking-[0.16em] text-brand-700">Catalogue</p>
+                <h2 className="mt-2 font-display text-3xl font-extrabold tracking-[-0.03em] text-ink-950 sm:text-4xl">
                   Start from the job, not a pitch.
                 </h2>
               </div>
               <Link
                 href="/search"
-                className="inline-flex items-center gap-1.5 text-sm font-bold text-home-forest underline-offset-4 hover:underline"
+                className="inline-flex items-center gap-1.5 text-sm font-bold text-brand-700 underline-offset-4 hover:underline"
               >
                 Browse all providers <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
@@ -404,23 +311,23 @@ export function LandingPage() {
                 <Link
                   key={name}
                   href={`/search?q=${encodeURIComponent(name)}`}
-                  className={`group relative overflow-hidden rounded-3xl border border-ink-900/10 bg-white p-5 text-left shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-home-forest/30 hover:shadow-lg ${
+                  className={`group relative overflow-hidden rounded-3xl border border-ink-900/10 bg-surface p-5 text-left shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-home-forest/30 hover:shadow-lg ${
                     i === 0 ? 'sm:col-span-2 sm:row-span-2 sm:p-7' : ''
                   }`}
                 >
                   <span
-                    className={`flex items-center justify-center rounded-2xl bg-home-mist text-home-forest transition group-hover:bg-home-forest group-hover:text-home-mint ${
+                    className={`flex items-center justify-center rounded-2xl bg-home-mist text-brand-700 transition group-hover:bg-home-forest group-hover:text-home-mint ${
                       i === 0 ? 'h-14 w-14' : 'h-11 w-11'
                     }`}
                   >
                     <Icon className={i === 0 ? 'h-6 w-6' : 'h-5 w-5'} aria-hidden="true" />
                   </span>
-                  <span className={`mt-4 block font-display font-extrabold tracking-tight text-home-night ${i === 0 ? 'text-2xl' : 'text-base'}`}>
+                  <span className={`mt-4 block font-display font-extrabold tracking-tight text-ink-950 ${i === 0 ? 'text-2xl' : 'text-base'}`}>
                     {name}
                   </span>
                   <span className="mt-1 block text-sm text-ink-500">{hint}</span>
                   {i === 0 && (
-                    <span className="mt-6 inline-flex items-center gap-1 text-sm font-bold text-home-forest">
+                    <span className="mt-6 inline-flex items-center gap-1 text-sm font-bold text-brand-700">
                       Jump in <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </span>
                   )}
@@ -435,12 +342,12 @@ export function LandingPage() {
           AI assistant feature — a product capability, surfaced as marketing.
           ------------------------------------------------------------------ */}
       <section className="page-shell py-14 md:py-20">
-        <div className="overflow-hidden rounded-[32px] border border-ink-900/10 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-[32px] border border-ink-900/10 bg-surface shadow-sm">
           <div className="grid gap-10 p-6 md:p-10 lg:grid-cols-12 lg:gap-12">
             <div className="lg:col-span-6">
               <Reveal>
-                <p className="text-2xs font-bold uppercase tracking-[0.16em] text-home-forest">AI-assist</p>
-                <h2 className="mt-3 font-display text-[32px] font-extrabold leading-[1.05] tracking-[-0.03em] text-home-night sm:text-4xl">
+                <p className="text-2xs font-bold uppercase tracking-[0.16em] text-brand-700">AI-assist</p>
+                <h2 className="mt-3 font-display text-[32px] font-extrabold leading-[1.05] tracking-[-0.03em] text-ink-950 sm:text-4xl">
                   Describe the job. We draft the request.
                 </h2>
                 <p className="mt-4 max-w-lg text-sm leading-relaxed text-ink-600">
@@ -455,7 +362,7 @@ export function LandingPage() {
                         <Icon className="h-5 w-5" aria-hidden="true" />
                       </span>
                       <div>
-                        <p className="font-display text-base font-extrabold tracking-tight text-home-night">{title}</p>
+                        <p className="font-display text-base font-extrabold tracking-tight text-ink-950">{title}</p>
                         <p className="mt-1 text-sm leading-relaxed text-ink-600">{body}</p>
                       </div>
                     </li>
@@ -525,8 +432,8 @@ export function LandingPage() {
         <div className="page-shell py-16 md:py-24">
           <Reveal>
             <div className="max-w-2xl">
-              <p className="text-2xs font-bold uppercase tracking-[0.16em] text-home-forest">How it works</p>
-              <h2 className="mt-2.5 font-display text-[32px] font-extrabold leading-[1.05] tracking-[-0.03em] text-home-night sm:text-5xl">
+              <p className="text-2xs font-bold uppercase tracking-[0.16em] text-brand-700">How it works</p>
+              <h2 className="mt-2.5 font-display text-[32px] font-extrabold leading-[1.05] tracking-[-0.03em] text-ink-950 sm:text-5xl">
                 Three moves. No escrow games.
               </h2>
             </div>
@@ -543,63 +450,12 @@ export function LandingPage() {
                   <span className="relative z-10 mb-5 inline-flex h-16 w-16 items-center justify-center rounded-full bg-home-night font-display text-xl font-extrabold text-home-gold">
                     {String(i + 1).padStart(2, '0')}
                   </span>
-                  <h3 className="font-display text-xl font-extrabold tracking-tight text-home-night">{step.title}</h3>
+                  <h3 className="font-display text-xl font-extrabold tracking-tight text-ink-950">{step.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-ink-600">{step.body}</p>
                 </li>
               ))}
             </ol>
           </Reveal>
-        </div>
-      </section>
-
-      {/* ------------------------------------------------------------------
-          Testimonials — social proof.
-          ------------------------------------------------------------------ */}
-      <section className="page-shell py-16 md:py-20">
-        <Reveal>
-          <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-2xs font-bold uppercase tracking-[0.16em] text-home-forest">What people say</p>
-              <h2 className="mt-2.5 font-display text-[32px] font-extrabold tracking-[-0.03em] text-home-night sm:text-4xl">
-                Work that speaks for itself.
-              </h2>
-            </div>
-            <div className="flex items-center gap-2 rounded-2xl border border-ink-900/10 bg-white px-4 py-2.5 shadow-xs">
-              <span className="flex items-center gap-0.5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className="h-4 w-4 fill-rating-400 text-rating-400" aria-hidden="true" />
-                ))}
-              </span>
-              <span className="text-sm font-bold tabular text-ink-900">4.8</span>
-              <span className="text-xs text-ink-500">from verified bookings</span>
-            </div>
-          </div>
-        </Reveal>
-
-        <div className="grid gap-3 md:grid-cols-3">
-          {TESTIMONIALS.map((t, i) => (
-            <Reveal key={t.name} delay={i * 80}>
-              <figure className="surface-card flex h-full flex-col justify-between gap-6 p-6">
-                <div>
-                  <span className="flex items-center gap-0.5">
-                    {Array.from({ length: 5 }).map((_, idx) => (
-                      <Star key={idx} className="h-3.5 w-3.5 fill-rating-400 text-rating-400" aria-hidden="true" />
-                    ))}
-                  </span>
-                  <blockquote className="mt-4 text-sm leading-relaxed text-ink-700">&ldquo;{t.quote}&rdquo;</blockquote>
-                </div>
-                <figcaption className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-700 font-display text-sm font-extrabold text-white">
-                    {t.name.charAt(0)}
-                  </span>
-                  <div>
-                    <p className="text-sm font-bold text-ink-950">{t.name}</p>
-                    <p className="text-xs text-ink-500">{t.role}</p>
-                  </div>
-                </figcaption>
-              </figure>
-            </Reveal>
-          ))}
         </div>
       </section>
 
@@ -660,8 +516,8 @@ export function LandingPage() {
           <div className="grid gap-10 lg:grid-cols-12">
             <div className="lg:col-span-4">
               <Reveal>
-                <p className="text-2xs font-bold uppercase tracking-[0.16em] text-home-forest">FAQ</p>
-                <h2 className="mt-2.5 font-display text-[32px] font-extrabold leading-[1.05] tracking-[-0.03em] text-home-night sm:text-4xl">
+                <p className="text-2xs font-bold uppercase tracking-[0.16em] text-brand-700">FAQ</p>
+                <h2 className="mt-2.5 font-display text-[32px] font-extrabold leading-[1.05] tracking-[-0.03em] text-ink-950 sm:text-4xl">
                   Straight answers.
                 </h2>
                 <p className="mt-4 max-w-sm text-sm leading-relaxed text-ink-600">
@@ -676,7 +532,7 @@ export function LandingPage() {
                   {FAQS.map((f, i) => {
                     const open = openFaq === i;
                     return (
-                      <div key={f.q} className="overflow-hidden rounded-2xl border border-ink-900/10 bg-white shadow-xs">
+                      <div key={f.q} className="overflow-hidden rounded-2xl border border-ink-900/10 bg-surface shadow-xs">
                         <button
                           type="button"
                           onClick={() => setOpenFaq(open ? null : i)}

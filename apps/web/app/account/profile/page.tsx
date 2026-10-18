@@ -211,7 +211,7 @@ export default function ClientProfilePage() {
                     <button
                       type="button"
                       onClick={() => set('avatarUrl', '')}
-                      className="btn-secondary btn-sm border-ink-200 text-ink-700 hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+                      className="btn-secondary btn-sm border-ink-200 text-ink-700 hover:border-danger-200 hover:bg-danger-50 hover:text-danger-700"
                     >
                       Remove
                     </button>

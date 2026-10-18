@@ -86,12 +86,12 @@ export function MessageProviderButton({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/50 backdrop-blur-sm md:items-center md:p-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-home-night/50 backdrop-blur-sm md:items-center md:p-4">
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
-            className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-xl md:rounded-2xl md:p-6"
+            className="w-full max-w-md rounded-t-2xl bg-surface p-5 shadow-xl md:rounded-2xl md:p-6"
           >
             <div className="mb-4 flex items-start justify-between gap-3">
               <div>

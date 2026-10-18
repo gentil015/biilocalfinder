@@ -273,7 +273,7 @@ export default function ProviderOnboardingServicesPage() {
           {state.teamMembers.length > 0 && (
             <ul className="mb-3 flex flex-col gap-2">
               {state.teamMembers.map((m) => (
-                <li key={m.id} className="flex items-center justify-between rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm">
+                <li key={m.id} className="flex items-center justify-between rounded-lg border border-ink-200 bg-surface px-3 py-2 text-sm">
                   <span className="font-medium text-ink-800">
                     {m.name} {m.role && <span className="text-ink-400">· {m.role}</span>}
                   </span>

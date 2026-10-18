@@ -5,19 +5,252 @@
 /* ==========================================================================
    Tokens
    Mirrors tailwind.config.ts. Anything that needs a raw CSS value (gradients,
-   focus rings, scrollbar tinting) reads from here rather than hardcoding hex.
+   focus rings, scrollbar tinting, Leaflet chrome) reads from here rather
+   than hardcoding hex.
+
+   Every value is an RGB triplet (no `rgb()` wrapper) so Tailwind can inject
+   an alpha channel: `rgb(var(--ink-200) / 0.5)`.
+
+   LIGHT is `:root`; DARK is `.dark` on <html>, applied before first paint by
+   the inline bootstrap script in app/layout.tsx. The dark ramp is a tuned
+   *flip* of the light one — light steps (50-200, used for surfaces/borders)
+   become dark fills, dark steps (700-950, used for text) become light text —
+   because the codebase uses the ramp in exactly that split everywhere.
    ========================================================================== */
 :root {
+  color-scheme: light;
+
   --background: 245 246 248;
   --foreground: 18 22 29;
+
+  /* Page canvas and raised surfaces. */
+  --canvas: 245 246 248; /* #F5F6F8 */
+  --surface: 255 255 255; /* #FFFFFF */
+
+  /* Marketing page bands (home-mist / home-sand). */
+  --home-mist: 245 246 248;
+  --home-sand: 236 238 243;
+
+  /* The neutral ramp — cool grey, deliberately gapped at 400/500. */
+  --ink-25: 252 252 253;
+  --ink-50: 245 246 248;
+  --ink-100: 237 239 243;
+  --ink-200: 225 228 234;
+  --ink-300: 201 207 216;
+  --ink-400: 139 147 161;
+  --ink-500: 95 104 120;
+  --ink-600: 69 77 92;
+  --ink-700: 51 58 70;
+  --ink-800: 33 38 47;
+  --ink-900: 18 22 29;
+  --ink-950: 10 14 19;
+
+  /* Brand, anchored on home-forest #0F2E28. */
+  --brand-50: 234 244 241;
+  --brand-100: 207 231 224;
+  --brand-200: 160 207 194;
+  --brand-300: 107 176 160;
+  --brand-400: 61 140 125;
+  --brand-500: 31 113 99;
+  --brand-600: 20 89 79;
+  --brand-700: 15 71 63;
+  --brand-800: 12 58 52;
+  --brand-900: 15 46 40;
+
+  /* Status ramps. Soft 50-200 = badge/alert backgrounds; 500-800 = dots,
+     icons and label text. */
+  --success-50: 240 253 244;
+  --success-100: 220 252 231;
+  --success-200: 187 247 208;
+  --success-500: 34 197 94;
+  --success-600: 22 163 74;
+  --success-700: 21 128 61;
+  --success-800: 22 101 52;
+
+  --warning-50: 255 251 235;
+  --warning-100: 254 243 199;
+  --warning-200: 253 230 138;
+  --warning-500: 245 158 11;
+  --warning-600: 217 119 6;
+  --warning-700: 180 83 9;
+  --warning-800: 146 64 14;
+
+  --danger-50: 254 242 242;
+  --danger-100: 254 226 226;
+  --danger-200: 254 202 202;
+  --danger-500: 239 68 68;
+  --danger-600: 220 38 38;
+  --danger-700: 185 28 28;
+  --danger-800: 153 27 27;
+
+  --info-50: 236 254 255;
+  --info-100: 207 250 255;
+  --info-200: 165 243 252;
+  --info-500: 6 182 212;
+  --info-600: 8 145 178;
+  --info-700: 14 116 144;
+  --info-800: 21 94 117;
+
+  /* Ratings — the same gold as the hero accent. */
+  --rating-400: 228 181 106;
+  --rating-500: 201 150 63;
+  --rating-600: 166 120 43;
 
   --brand: 15 71 63;
   --brand-strong: 12 58 52;
 
   --ring: 15 71 63;
+  --ring-offset: 255 255 255;
   --radius: 0.875rem;
 
   --header-height: 4rem;
+
+  /* The pin-counter hole in the BrandMark tile (the glyph is currentColor;
+     the hole must match the tile's own fill: bg-brand-700 per theme). */
+  --mark-hole: #0f473f;
+
+  /* Select chevron, tinted to the muted-text token. */
+  --select-chevron: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%23606879'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='m19.5 8.25-7.5 7.5-7.5-7.5'/%3e%3c/svg%3e");
+}
+
+/* --------------------------------------------------------------------------
+   Dark theme — warm charcoal + ivory.
+
+   The dark theme is NOT a value-for-value inversion of the cool light ramp.
+   It is its own hand-tuned surface ladder in a warm-charcoal family, chosen
+   so the product feels like the same brand after dusk rather than a blue
+   terminal:
+
+     canvas   #202321  page background — warm charcoal, never pure black
+     surface  #2C322E  cards, menus, inputs — one clear step above the page
+     ink-50   #252A27  subtle fills (hover rows, table heads, disabled bg)
+     ink-100  #2A302C  stronger fills (panels, map chrome, popovers)
+     ink-200  #39413C  default hairline borders (the separators that lead)
+     ink-300  #4A544D  strong borders, hover borders, disabled chrome
+
+   Type is soft ivory, never pure white: ink-950 #F3F0E8 headings,
+   ink-900 #EDEAE2 body, ink-500 #B8C0B9 muted (7:1 on surface),
+   ink-400 #949D95 placeholder (4.7:1).
+
+   The accent is a restrained sage-teal, not neon mint: brand-700 #8FC9B5 is
+   the one accent — links, primary buttons (with ink-night text), selection.
+   brand-800 #A6D9C7 is its hover state. Everything else stays neutral.
+
+   Status ramps are desaturated toward the warm family so a success green or
+   danger red never out-shouts the teal accent. The marketing bands
+   (home-night hero, forest trust band) stay their static dark in both
+   themes; under .dark their aurora washes are softened so they read as warm
+   light instead of neon glow.
+   -------------------------------------------------------------------------- */
+.dark {
+  color-scheme: dark;
+
+  --background: 32 35 33;
+  --foreground: 237 234 226;
+
+  --canvas: 32 35 33; /* #202321 */
+  --surface: 44 50 46; /* #2C322E */
+
+  --home-mist: 37 42 39; /* #252A27 */
+  --home-sand: 28 31 30; /* #1C1F1D */
+
+  /* Warm neutral ramp. Same roles as light (surfaces below, text above),
+     re-tuned so every step stays inside the charcoal/sage family. */
+  --ink-25: 35 38 36; /* #232624 */
+  --ink-50: 37 42 39; /* #252A27 */
+  --ink-100: 42 48 44; /* #2A302C */
+  --ink-200: 57 65 60; /* #39413C */
+  --ink-300: 74 84 77; /* #4A544D */
+  --ink-400: 148 157 149; /* #949D95 */
+  --ink-500: 184 192 185; /* #B8C0B9 */
+  --ink-600: 198 203 196; /* #C6CBC4 */
+  --ink-700: 212 215 207; /* #D4D7CF */
+  --ink-800: 226 225 217; /* #E2E1D9 */
+  --ink-900: 237 234 226; /* #EDEAE2 */
+  --ink-950: 243 240 232; /* #F3F0E8 */
+
+  /* Sage-teal accent ramp. 50-400 are dark tints and deep accents (chip and
+     badge fills, hover borders); 500-900 brighten toward the one accent
+     (700 #8FC9B5) and its hover (800 #A6D9C7). brand-600/700 sit close
+     together on purpose: 600 is the pressed/selected depth under a 700 fill. */
+  --brand-50: 26 38 33; /* #1A2621 */
+  --brand-100: 34 51 44; /* #22332C */
+  --brand-200: 46 70 61; /* #2E463D */
+  --brand-300: 63 94 82; /* #3F5E52 */
+  --brand-400: 90 134 119; /* #5A8677 */
+  --brand-500: 116 168 148; /* #74A894 */
+  --brand-600: 133 194 174; /* #85C2AE */
+  --brand-700: 143 201 181; /* #8FC9B5 — THE accent */
+  --brand-800: 166 217 199; /* #A6D9C7 — hover accent */
+  --brand-900: 192 228 212; /* #C0E4D4 */
+
+  /* Status ramps, desaturated toward warm. 50-200 are badge/alert fills;
+     500-800 are dots, icons and label text (each clears AA on its own 50). */
+  --success-50: 22 40 28;
+  --success-100: 28 50 36;
+  --success-200: 38 68 49;
+  --success-500: 85 194 133;
+  --success-600: 107 206 148;
+  --success-700: 133 218 169;
+  --success-800: 158 228 191;
+
+  --warning-50: 42 33 16;
+  --warning-100: 56 44 20;
+  --warning-200: 78 62 29;
+  --warning-500: 221 176 92;
+  --warning-600: 232 192 115;
+  --warning-700: 239 208 143;
+  --warning-800: 244 222 172;
+
+  --danger-50: 44 22 22;
+  --danger-100: 58 28 28;
+  --danger-200: 82 40 40;
+  --danger-500: 224 122 122;
+  --danger-600: 234 142 142;
+  --danger-700: 242 168 168;
+  --danger-800: 247 193 193;
+
+  --info-50: 18 40 44;
+  --info-100: 23 50 56;
+  --info-200: 31 69 76;
+  --info-500: 98 184 198;
+  --info-600: 122 198 210;
+  --info-700: 149 212 222;
+  --info-800: 176 225 233;
+
+  /* Rating gold stays the hero gold — it is warm already, so only the text
+     steps lift slightly to keep AA on charcoal. */
+  --rating-400: 228 181 106;
+  --rating-500: 232 192 122;
+  --rating-600: 240 205 140;
+
+  --brand: 143 201 181;
+  --brand-strong: 166 217 199;
+
+  --ring: 143 201 181;
+  --ring-offset: 44 50 46;
+
+  --mark-hole: #8fc9b5;
+
+  --select-chevron: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%23949d95'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='m19.5 8.25-7.5 7.5-7.5-7.5'/%3e%3c/svg%3e");
+}
+
+/* Aurora washes, re-lit for charcoal. The light-mode mesh leans on bright
+   mint over near-white; on warm charcoal the same shape is dialled down and
+   warmed so the band glows instead of beaming. Same geometry, same identity,
+   lower volume. */
+.dark .bg-mesh {
+  background-image:
+    radial-gradient(ellipse 80% 70% at 8% -20%, rgb(143 201 181 / 0.14), transparent 52%),
+    radial-gradient(ellipse 55% 50% at 100% 0%, rgb(228 181 106 / 0.16), transparent 48%),
+    radial-gradient(ellipse 70% 55% at 70% 110%, rgb(44 64 56 / 0.85), transparent 58%);
+}
+
+.dark .bg-home-aurora {
+  background-image:
+    radial-gradient(ellipse 80% 70% at 8% -20%, rgb(143 201 181 / 0.16), transparent 52%),
+    radial-gradient(ellipse 55% 50% at 100% 0%, rgb(228 181 106 / 0.2), transparent 48%),
+    radial-gradient(ellipse 70% 55% at 70% 110%, rgb(15 46 40 / 0.9), transparent 58%);
 }
 
 @layer base {
@@ -53,7 +286,7 @@
   }
 
   ::selection {
-    @apply bg-brand-700 text-white;
+    @apply bg-brand-700 text-home-night dark:bg-brand-600 dark:text-home-night;
   }
 
   :focus-visible {
@@ -77,7 +310,7 @@
   input:not([type='checkbox']):not([type='radio']):not([type='file']):not([type='hidden']):not([type='range']),
   textarea,
   select {
-    @apply block w-full rounded-xl border border-ink-200 bg-white px-3.5 py-2.5 text-sm font-medium text-ink-900 shadow-xs transition
+    @apply block w-full rounded-xl border border-ink-200 bg-surface px-3.5 py-2.5 text-sm font-medium text-ink-900 shadow-xs transition
       placeholder:font-normal placeholder:text-ink-400
       hover:border-ink-300
       focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10
@@ -90,7 +323,7 @@
 
   select {
     @apply cursor-pointer appearance-none bg-[length:16px] bg-[right_1rem_center] bg-no-repeat pr-10;
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%23606879'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' d='m19.5 8.25-7.5 7.5-7.5-7.5'/%3e%3c/svg%3e");
+    background-image: var(--select-chevron);
   }
 
   /* Taller select for primary pickers (a service chooser is the single most
@@ -106,11 +339,11 @@
   }
 
   input[type='range']::-webkit-slider-thumb {
-    @apply h-4 w-4 appearance-none rounded-full border-2 border-white bg-brand-600 shadow-sm;
+    @apply h-4 w-4 appearance-none rounded-full border-2 border-surface bg-brand-600 shadow-sm;
   }
 
   input[type='range']::-moz-range-thumb {
-    @apply h-4 w-4 rounded-full border-2 border-white bg-brand-600 shadow-sm;
+    @apply h-4 w-4 rounded-full border-2 border-surface bg-brand-600 shadow-sm;
   }
 
   /* Checkbox and radio keep their native hit target and look but get a brand
@@ -130,7 +363,7 @@
   }
 
   /* Opt-out for controls that live inside another surface (hero search bar,
-     filter rows) where the white fill would break the composition. */
+     filter rows) where the surface fill would break the composition. */
   input.bare-input,
   .bare-input {
     @apply w-full rounded-none border-0 bg-transparent p-0 font-medium shadow-none
@@ -182,10 +415,10 @@
      Surfaces
      `border` is doing the work; shadows only lift things off the page.
      A card in /search and a card on / are the same object: a hairline border
-     over white, with the shallow `card` elevation.
+     over the surface colour, with the shallow `card` elevation.
      ========================================================================== */
   .surface-card {
-    @apply rounded-2xl border border-ink-200 bg-white shadow-card;
+    @apply rounded-2xl border border-ink-200 bg-surface shadow-card;
   }
 
   /* Interactive card. Pair with a single <a>/<button> inside, or make the
@@ -198,7 +431,9 @@
     @apply rounded-2xl border border-ink-200 bg-ink-50/70;
   }
 
-  /* Inverted surface for hero / CTA bands. */
+  /* Inverted surface for hero / CTA bands. home-night is static, so this
+     band stays dark in both themes — that is intentional: dark bands give
+     the dark theme its depth. */
   .surface-dark {
     @apply rounded-3xl bg-home-night text-white;
   }
@@ -212,9 +447,13 @@
      One base + variants + sizes. Every button in the product is one of these
      so height, radius and focus behaviour never drift between screens.
 
-     `.btn-primary` is solid brand green with white text — the single confident
-     action colour. Gold is the *highlight* accent (`.btn-accent`, `.btn-on-dark`)
-     and is only used where it sits on a dark surface.
+     `.btn-primary` is solid brand green with white text in light mode; in
+     dark mode the fill flips to the sage-teal accent (brand-700 #8FC9B5)
+     with ink-night text, hovering to the brighter accent (brand-800) — the
+     polarity inversion described in tailwind.config.ts keeps the primary
+     action the most present element on a charcoal screen. Gold is the
+     *highlight* accent (`.btn-accent`, `.btn-on-dark`) and is only used
+     where it sits on a dark marketing band.
      ========================================================================== */
   .btn {
     @apply inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-xl
@@ -237,11 +476,12 @@
 
   .btn-primary {
     @apply btn btn-md bg-brand-700 text-white shadow-sm
-      hover:bg-brand-800 active:bg-brand-900;
+      hover:bg-brand-800 active:bg-brand-900
+      dark:bg-brand-700 dark:text-home-night dark:hover:bg-brand-800 dark:active:bg-brand-600;
   }
 
   .btn-secondary {
-    @apply btn btn-md border border-ink-200 bg-white text-ink-800 shadow-xs
+    @apply btn btn-md border border-ink-200 bg-surface text-ink-800 shadow-xs
       hover:border-ink-300 hover:bg-ink-50 hover:text-ink-950 active:bg-ink-100;
   }
 
@@ -250,11 +490,15 @@
   }
 
   .btn-danger {
-    @apply btn btn-md bg-danger-600 text-white shadow-sm hover:bg-danger-700 active:bg-danger-700;
+    @apply btn btn-md bg-danger-600 text-white shadow-sm hover:bg-danger-700 active:bg-danger-700
+      /* In dark the ramp is flipped (600 is a *text* step, i.e. brighter), so a
+         token-based darker hover doesn't exist — nudge with a filter instead. */
+      dark:bg-danger-500 dark:text-home-night dark:hover:brightness-110;
   }
 
   /* Gold highlight button — the strong call to action on light surfaces where
-     it should out-shout a green primary (e.g. the landing hero). */
+     it should out-shout a green primary (e.g. the landing hero). Gold is
+     static, so it looks identical in dark mode. */
   .btn-accent {
     @apply btn btn-md bg-home-gold text-home-night shadow-sm
       hover:bg-[#EDC27E] active:bg-[#D9A857];
@@ -284,7 +528,7 @@
      Chips, badges, pills
      ========================================================================== */
   .chip {
-    @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-600 transition;
+    @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-ink-200 bg-surface px-3 py-1.5 text-xs font-semibold text-ink-600 transition;
   }
 
   .chip-interactive {
@@ -292,11 +536,12 @@
   }
 
   .chip-active {
-    @apply border-brand-700 bg-brand-700 text-white hover:bg-brand-800 hover:text-white;
+    @apply border-brand-700 bg-brand-700 text-white hover:bg-brand-800 hover:text-white
+      dark:border-brand-700 dark:bg-brand-700 dark:text-home-night dark:hover:bg-brand-800 dark:hover:text-home-night;
   }
 
   /* Status badge — a dot plus a tinted label reads faster than a filled pill
-     when a list has a dozen of them. */
+     when a list has a dozen of them. The tints flip with the theme. */
   .badge {
     @apply inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-2xs font-bold uppercase tracking-wide;
   }
@@ -325,9 +570,11 @@
     @apply bg-info-50 text-info-800;
   }
 
-  /* Filter counter that rides on top of a button. */
+  /* Filter counter that rides on top of a button. Same polarity flip as
+     .btn-primary so it stays legible on its host surface. */
   .count-pill {
-    @apply inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-700 px-1.5 text-2xs font-bold text-white;
+    @apply inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-700 px-1.5 text-2xs font-bold text-white
+      dark:bg-brand-700 dark:text-home-night;
   }
 
   /* ==========================================================================
@@ -388,7 +635,7 @@
 
   /* Bordered block wrapping a labelled control, used in long forms. */
   .field-card {
-    @apply rounded-2xl border border-ink-200 bg-white p-5 shadow-card;
+    @apply rounded-2xl border border-ink-200 bg-surface p-5 shadow-card;
   }
 
   /* Checkbox / toggle row. */
@@ -487,7 +734,7 @@
   }
 
   .empty-state {
-    @apply flex flex-col items-center justify-center rounded-2xl border border-dashed border-ink-300 bg-white/60 px-6 py-14 text-center;
+    @apply flex flex-col items-center justify-center rounded-2xl border border-dashed border-ink-300 bg-surface/60 px-6 py-14 text-center;
   }
 
   .skeleton {
@@ -498,6 +745,16 @@
     @apply absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent;
     content: '';
     animation: shimmer 1.6s infinite;
+  }
+
+  /* Dark skeletons sweep with the surface colour instead of a white glare. */
+  .dark .skeleton::after {
+    background-image: linear-gradient(
+      to right,
+      transparent,
+      rgb(var(--surface) / 0.5),
+      transparent
+    );
   }
 
   /* Scrollable region that shouldn't push the page layout wider. */
@@ -546,7 +803,8 @@
 }
 
 /* Landing: architectural grain + diagonal hatch. The hatch is light and very
-   subtle so it reads as paper texture on the near-white canvas. */
+   subtle so it reads as paper texture on the near-white canvas — in dark mode
+   it reads as a faint etch, which is the same idea flipped. */
 .home-grain::before {
   content: '';
   pointer-events: none;
@@ -557,6 +815,11 @@
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
 }
 
+.dark .home-grain::before {
+  opacity: 0.2;
+  mix-blend-mode: soft-light;
+}
+
 .home-hatch {
   background-image: repeating-linear-gradient(
     -18deg,
@@ -565,8 +828,82 @@
   );
 }
 
-/* Reduced-motion: kill transforms and shimmer, keep opacity so nothing that
-   relies on animation to become visible stays invisible. */
+.dark .home-hatch {
+  background-image: repeating-linear-gradient(
+    -18deg,
+    rgb(243 240 232 / 0.025) 0 1px,
+    transparent 1px 14px
+  );
+}
+
+/* --------------------------------------------------------------------------
+   Leaflet (all maps render through components/leaflet-map.tsx).
+   OpenStreetMap tiles are light cartography; in dark mode they are hue-rotated
+   into a legible dark map (the standard Leaflet dark-tiles approach) and the
+   control chrome is re-skinned to match the dark surface ladder. Marker PNGs
+   and brand-green circles keep their colour — geographic features must stay
+   recognisable, not inverted into nonsense.
+   -------------------------------------------------------------------------- */
+.dark .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.92) contrast(0.9) saturate(0.65);
+}
+
+.dark .leaflet-container {
+  background: rgb(var(--ink-100));
+}
+
+.dark .leaflet-control-attribution {
+  background: rgb(var(--surface) / 0.8);
+  color: rgb(var(--ink-500));
+}
+
+.dark .leaflet-control-attribution a {
+  color: rgb(var(--ink-600));
+}
+
+.dark .leaflet-bar a,
+.dark .leaflet-bar a:hover {
+  background: rgb(var(--ink-100));
+  color: rgb(var(--ink-900));
+  border-bottom-color: rgb(var(--ink-200));
+}
+
+.dark .leaflet-bar a:hover {
+  background: rgb(var(--ink-200));
+}
+
+.dark .leaflet-bar a.leaflet-disabled {
+  background: rgb(var(--ink-50));
+  color: rgb(var(--ink-400));
+}
+
+.dark .leaflet-popup-content-wrapper,
+.dark .leaflet-popup-tip,
+.dark .leaflet-tooltip {
+  background: rgb(var(--ink-100));
+  color: rgb(var(--ink-900));
+  box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.5);
+}
+
+.dark .leaflet-popup-content-wrapper {
+  border: 1px solid rgb(var(--ink-200));
+  border-radius: 12px;
+}
+
+.dark .leaflet-popup-close-button {
+  color: rgb(var(--ink-500));
+}
+
+.dark .leaflet-control-layers {
+  background: rgb(var(--surface));
+  color: rgb(var(--ink-800));
+  border: 1px solid rgb(var(--ink-200));
+}
+
+/* --------------------------------------------------------------------------
+   Reduced-motion: kill transforms and shimmer, keep opacity so nothing that
+   relies on animation to become visible stays invisible.
+   -------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

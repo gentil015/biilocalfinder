@@ -1,0 +1,9 @@
+
+{
+  "name": "biilocalfinder",
+  "private": true,
+  "workspaces": [
+    "web",
+    "api"
+  ]
+}

@@ -16,53 +16,49 @@ import type { Config } from 'tailwindcss';
  *      workhorses for secondary text, dividers and disabled states, so they
  *      carry deliberate contrast rather than being a generated scale.
  *
- * DIRECTION — "clean light SaaS": a near-white canvas, crisp white cards,
- * generous spacing and one confident brand green. The neutral ramp is a cool
- * grey so the white surfaces read as *surfaces* rather than melting into the
- * page, which is what the old warm-parchment palette struggled with once the
- * product grew dense dashboards.
+ * DIRECTION — "forest green + warm ivory": a warm-ivory canvas, crisp white
+ * cards, generous spacing and one confident forest green. The neutral ramp is
+ * a warm, green-leaning grey so the ivory page and the white surfaces read as
+ * *surfaces* rather than melting into each other, and so every neutral stays
+ * inside the brand family.
  *
- * PALETTE — the marketing identity is preserved and remains the anchor for the
- * whole product; there is no second set of colours for "app" vs "marketing":
+ * PALETTE — one identity for the whole product; there is no second set of
+ * colours for "app" vs "marketing":
  *
- *   home/night  #0A0E13   every "dark" surface: footer, dark shells, hero
- *   home/forest #0F2E28   deep green — the anchor for `brand` and the trust
- *                         bands, so every green in the product is one green
- *   home/mist   #F5F6F8   page background (`canvas`) — clean, near-white
- *   home/gold   #E4B56A   the highlight/accent colour for dark surfaces and
- *                         hero CTAs (always paired with night text)
- *   home/mint   #5EEAD4   highlights and badges on dark surfaces only
+ *   home/night  #0B1712   every static dark band: footer, dark shells, hero
+ *   home/forest #0F2E28   deepest forest — layered dark surfaces
+ *   brand-700   #166534   THE primary forest green (light mode action fill)
+ *   home/mist   #F1F5EC   secondary page band (`home-mist`)
+ *   canvas      #FAF8F2   page background — warm ivory
  *
- * Semantic status colours (success/warning/danger/info) stay stock on purpose:
- * they carry status meaning, not surface meaning, and a "red" that drifts warm
- * stops reading as an error.
+ * Semantic status colours (success/warning/danger/info) stay recognisable on
+ * purpose: they carry status meaning, not surface meaning, and a "red" that
+ * drifts warm stops reading as an error.
  *
  * DARK MODE — every surface, text, border, brand and status ramp step is
  * backed by a CSS custom property (RGB triplets in globals.css) that is
  * re-defined under `.dark` on <html>. Class names never change between
- * themes: `text-ink-900` is near-black on light cards and soft ivory on
- * dark ones, `bg-surface` is white in light and warm charcoal (#2C322E) in
- * dark. The dark theme is its own hand-tuned ladder in a warm-charcoal /
- * ivory family — not a blue-black inversion — with a restrained sage-teal
- * accent (brand-700 #8FC9B5) replacing the old neon mint. Marketing bands
- * (hero, footer, trust sections) stay their static dark in both themes and
- * gain warmth from softened aurora washes under .dark.
+ * themes: `text-ink-900` is deep-forest on light ivory and soft ivory on deep
+ * forest, `bg-surface` is white in light and #122019 in dark. The dark theme
+ * is forest green at night — deep green-tinted surfaces, ivory text, and a
+ * *lighter* green accent (brand-700 #86EFAC) for actions. Marketing bands
+ * (hero, footer, dark sections) are the static deep forest #0B1712 in both
+ * themes and gain warmth from softened aurora washes under .dark.
  *
  * Deliberately NOT variable-backed (they must look the same in both themes):
- *   - home/night, home/forest, home/mint, home/gold — the marketing identity.
- *     Dark bands (hero, footer, trust sections) stay dark in dark mode; that
- *     is what gives the dark theme depth instead of a flat grey wash.
+ *   - home/night, home/forest, home/mint — the static marketing identity.
+ *     Dark bands (hero, footer, dark sections) stay their deep forest in dark
+ *     mode; that is what gives the dark theme depth instead of a flat wash.
  *   - `white` itself — `text-white` on brand fills must stay white. Card
  *     surfaces use the separate `surface` token instead.
  *
- * PRIMARY BUTTON polarity flips in dark mode: light = brand-700 fill + white
- * text; dark = brand-700 (sage-teal accent #8FC9B5) fill + ink-night text,
- * hovering to brand-800 (#A6D9C7). That keeps the primary action the most
- * present element on a charcoal screen — the same deep green that reads as
- * confident on white reads as a black hole on warm charcoal.
+ * PRIMARY BUTTON polarity flips in dark mode: light = brand-700 (#166534
+ * forest) fill + white text; dark = brand-700 (light green #86EFAC) fill +
+ * deep-forest text, hovering to brand-800 (#BBF7D0). That keeps the primary
+ * action the most present element on a deep-forest screen.
  *
  * Contrast is pinned, not assumed: `ink-500` is the muted-text token and clears
- * 4.5:1 on both white cards and the near-white canvas (and its dark flip
+ * 4.5:1 on both white cards and the warm-ivory canvas (and its dark flip
  * clears 4.5:1 on dark surfaces); `ink-400` clears 3:1 on both and is
  * therefore large/decorative text only.
  */
@@ -81,15 +77,18 @@ const config: Config = {
         surface: 'rgb(var(--surface) / <alpha-value>)',
 
         // The brand palette. These are the anchors for every token below.
-        // night/forest/mint/gold are static: the marketing identity must not
-        // shift between themes. mist/sand are page-band fills and flip.
+        // night/forest are the static deep-forest marketing bands (hero,
+        // footer, dark CTA sections) — the forest identity at night. gold is
+        // retired as a UI accent (ratings own their own ramp) and kept only as
+        // a legacy alias so a stray call site degrades to the forest family.
+        // mist/sand are page-band fills and flip with the theme.
         home: {
-          night: '#0A0E13',
+          night: '#0B1712', // deep forest — every static dark band
           mist: 'rgb(var(--home-mist) / <alpha-value>)',
           sand: 'rgb(var(--home-sand) / <alpha-value>)',
-          gold: '#E4B56A',
-          mint: '#5EEAD4',
-          forest: '#0F2E28',
+          gold: '#166534', // legacy alias retired to forest
+          mint: '#86EFAC', // light green highlight on dark bands
+          forest: '#0F2E28', // deepest forest, for layered dark surfaces
         },
 
         // The single neutral ramp for the whole product. Cool grey, evenly
@@ -128,24 +127,24 @@ const config: Config = {
           700: 'rgb(var(--brand-700) / <alpha-value>)',
           800: 'rgb(var(--brand-800) / <alpha-value>)',
           900: 'rgb(var(--brand-900) / <alpha-value>)',
-          950: '#061A16',
+          950: '#0B1712',
         },
 
-        // Highlight, anchored on home-mint but deliberately softened: this
-        // ramp only ever sits on the static dark marketing bands (auth aside
-        // eyebrow, selected provider-type chip), so it is a restrained
-        // sage-teal rather than the neon mint it once was — the same family
-        // as the dark-mode brand accent (#8FC9B5). Mint on white is
-        // unreadable by design, so it is never a light-mode text colour.
+        // Highlight, anchored on the light-green marketing accent. This ramp
+        // only ever sits on the static dark forest bands (auth aside eyebrow,
+        // selected provider-type chip), so it is a light green rather than the
+        // neon mint it once was — the same family as the dark-mode brand accent
+        // (#86EFAC). Light green on white is unreadable by design, so it is
+        // never a light-mode text colour.
         accent: {
-          50: '#E6FBF6',
-          100: '#C2F5EB',
-          200: '#A5E5D4',
-          300: '#8FD4C0',
-          400: '#7FC4B0',
-          500: '#5AAE98',
-          600: '#0C8F7E',
-          700: '#0B7164',
+          50: '#E8FCEF',
+          100: '#D1FADF',
+          200: '#A7F3C2',
+          300: '#86EFAC',
+          400: '#6EE7A0',
+          500: '#4ADE80',
+          600: '#22C55E',
+          700: '#15803D',
         },
 
         // Semantic status ramp. Defined here (rather than leaning on Tailwind's
@@ -231,28 +230,30 @@ const config: Config = {
       boxShadow: {
         // Deliberately shallow. `xs`/`sm` are the everyday card elevations and
         // should be felt more than seen; `lg`/`xl` are reserved for overlays.
-        // Shadows are tinted with the cool night ink rather than pure black, so
-        // a shadow reads as depth instead of dirt. In dark mode the borders do
-        // the separating and the (barely visible) shadows just deepen the page.
-        xs: '0 1px 2px 0 rgb(10 14 19 / 0.04)',
-        sm: '0 1px 2px 0 rgb(10 14 19 / 0.05), 0 1px 3px 0 rgb(10 14 19 / 0.04)',
-        md: '0 2px 4px -1px rgb(10 14 19 / 0.05), 0 4px 12px -2px rgb(10 14 19 / 0.06)',
-        lg: '0 4px 8px -2px rgb(10 14 19 / 0.06), 0 12px 28px -6px rgb(10 14 19 / 0.09)',
-        xl: '0 8px 16px -4px rgb(10 14 19 / 0.08), 0 24px 56px -12px rgb(10 14 19 / 0.13)',
+        // Shadows are tinted with the deep-forest night ink rather than pure
+        // black, so a shadow reads as depth instead of dirt. In dark mode the
+        // borders do the separating and the (barely visible) shadows just
+        // deepen the page.
+        xs: '0 1px 2px 0 rgb(11 23 18 / 0.04)',
+        sm: '0 1px 2px 0 rgb(11 23 18 / 0.05), 0 1px 3px 0 rgb(11 23 18 / 0.04)',
+        md: '0 2px 4px -1px rgb(11 23 18 / 0.05), 0 4px 12px -2px rgb(11 23 18 / 0.06)',
+        lg: '0 4px 8px -2px rgb(11 23 18 / 0.06), 0 12px 28px -6px rgb(11 23 18 / 0.09)',
+        xl: '0 8px 16px -4px rgb(11 23 18 / 0.08), 0 24px 56px -12px rgb(11 23 18 / 0.13)',
         // The standard resting elevation for a card — barely there.
-        card: '0 1px 2px 0 rgb(10 14 19 / 0.04), 0 2px 8px -4px rgb(10 14 19 / 0.06)',
+        card: '0 1px 2px 0 rgb(11 23 18 / 0.04), 0 2px 8px -4px rgb(11 23 18 / 0.06)',
         // Focus affordance, matched to the brand forest.
         ring: '0 0 0 3px rgb(var(--ring) / 0.16)',
         // Legacy aliases kept so components written before the redesign
-        // (glow / lift / nav) still resolve to sensible elevations.
-        glow: '0 0 0 1px rgb(15 71 63 / 0.10), 0 16px 40px -16px rgb(10 14 19 / 0.20)',
-        lift: '0 1px 2px 0 rgb(10 14 19 / 0.04), 0 10px 28px -12px rgb(10 14 19 / 0.12)',
-        nav: '0 1px 0 0 rgb(10 14 19 / 0.06), 0 8px 24px -14px rgb(10 14 19 / 0.14)',
+        // (glow / lift / nav) still resolve to sensible elevations. Shadows are
+        // tinted with the deep-forest night ink rather than pure black.
+        glow: '0 0 0 1px rgb(22 101 52 / 0.10), 0 16px 40px -16px rgb(11 23 18 / 0.20)',
+        lift: '0 1px 2px 0 rgb(11 23 18 / 0.04), 0 10px 28px -12px rgb(11 23 18 / 0.12)',
+        nav: '0 1px 0 0 rgb(11 23 18 / 0.06), 0 8px 24px -14px rgb(11 23 18 / 0.14)',
       },
 
       // Unprefixed ring-* resolves to the brand forest instead of Tailwind's
       // stock blue, so focus rings are on-brand without every call site opting
-      // in. The ring colour flips with the theme (bright mint-teal on dark).
+      // in. The ring colour flips with the theme (light green on dark).
       ringColor: {
         DEFAULT: 'rgb(var(--ring) / 0.16)',
       },
@@ -266,11 +267,11 @@ const config: Config = {
         // Aurora wash for dark surfaces (auth aside, dark app shells). Same
         // shape as the landing hero so every dark band is lit by the same light.
         mesh:
-          'radial-gradient(ellipse 80% 70% at 8% -20%, rgb(94 234 212 / 0.20), transparent 52%), radial-gradient(ellipse 55% 50% at 100% 0%, rgb(228 181 106 / 0.22), transparent 48%), radial-gradient(ellipse 70% 55% at 70% 110%, rgb(15 46 40 / 0.95), transparent 58%)',
+          'radial-gradient(ellipse 80% 70% at 8% -20%, rgb(134 239 172 / 0.20), transparent 52%), radial-gradient(ellipse 55% 50% at 100% 0%, rgb(228 181 106 / 0.18), transparent 48%), radial-gradient(ellipse 70% 55% at 70% 110%, rgb(11 23 18 / 0.95), transparent 58%)',
         'home-aurora':
-          'radial-gradient(ellipse 80% 70% at 8% -20%, rgb(94 234 212 / 0.22), transparent 52%), radial-gradient(ellipse 55% 50% at 100% 0%, rgb(228 181 106 / 0.28), transparent 48%), radial-gradient(ellipse 70% 55% at 70% 110%, rgb(15 46 40 / 0.95), transparent 58%)',
-        'brand-gradient': 'linear-gradient(135deg, #1F7163 0%, #14594F 55%, #0F2E28 100%)',
-        hairline: 'linear-gradient(to right, transparent, rgb(10 14 19 / 0.08), transparent)',
+          'radial-gradient(ellipse 80% 70% at 8% -20%, rgb(134 239 172 / 0.22), transparent 52%), radial-gradient(ellipse 55% 50% at 100% 0%, rgb(228 181 106 / 0.20), transparent 48%), radial-gradient(ellipse 70% 55% at 70% 110%, rgb(11 23 18 / 0.95), transparent 58%)',
+        'brand-gradient': 'linear-gradient(135deg, #15803D 0%, #166534 55%, #0B1712 100%)',
+        hairline: 'linear-gradient(to right, transparent, rgb(11 23 18 / 0.08), transparent)',
       },
 
       borderRadius: {

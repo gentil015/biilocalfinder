@@ -33,8 +33,9 @@ export function BrandMark({
           {/* The pin's head is the *tile's* background colour, not the glyph's —
               using currentColor here would fill the hole and flatten the pin into
               a solid blob. --mark-hole (globals.css) tracks bg-brand-700 in each
-              theme; the inverted tile is always white, so its hole is always night. */}
-          <circle cx="12" cy="10" r="2.6" fill={inverted ? '#0A0E13' : 'var(--mark-hole)'} />
+              theme; the inverted tile is always white, so its hole is always deep
+              forest. */}
+          <circle cx="12" cy="10" r="2.6" fill={inverted ? '#0B1712' : 'var(--mark-hole)'} />
         </svg>
       </span>
       {!compact && (

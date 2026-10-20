@@ -30,9 +30,9 @@ const ROLE_LABEL: Record<string, MessageKey> = {
 };
 
 const ROLE_TONE: Record<string, string> = {
-  CLIENT: 'from-[#1F7163] to-[#0F473F]',
-  PROVIDER: 'from-home-forest to-[#064E3B]',
-  ADMIN: 'from-home-gold to-[#B45309]',
+  CLIENT: 'from-[#15803D] to-[#166534]',
+  PROVIDER: 'from-home-forest to-[#0B1712]',
+  ADMIN: 'from-[#B45309] to-[#92400E]',
 };
 
 type AccountLink = { href: string; labelKey: MessageKey; descriptionKey: MessageKey; icon: LucideIcon };
@@ -155,7 +155,7 @@ export default function AccountPage() {
         <div className="relative h-24 overflow-hidden bg-home-forest sm:h-28">
           <div className="absolute inset-0 opacity-40">
             <div className="absolute -left-10 -top-16 h-48 w-48 rounded-full bg-home-mint/30 blur-3xl" aria-hidden="true" />
-            <div className="absolute -right-8 bottom-0 h-40 w-40 rounded-full bg-home-gold/30 blur-3xl" aria-hidden="true" />
+            <div className="absolute -right-8 bottom-0 h-40 w-40 rounded-full bg-brand-400/30 blur-3xl" aria-hidden="true" />
           </div>
           <div
             className="pointer-events-none absolute inset-0 opacity-20"

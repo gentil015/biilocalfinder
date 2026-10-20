@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Bii Localfinder">
+  <style>
+    .tile { fill: #166534; }
+    .pin { fill: #FFFFFF; }
+    .hole { fill: #166534; }
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #86EFAC; }
+      .pin { fill: #0B1712; }
+      .hole { fill: #86EFAC; }
+    }
+  </style>
+  <rect class="tile" width="24" height="24" rx="7.5" />
+  <g transform="translate(12 12) scale(0.82) translate(-12 -12)">
+    <path class="pin" d="M12 21s7-5.372 7-11a7 7 0 1 0-14 0c0 5.628 7 11 7 11Z" />
+    <circle class="hole" cx="12" cy="10" r="2.6" />
+  </g>
+</svg>

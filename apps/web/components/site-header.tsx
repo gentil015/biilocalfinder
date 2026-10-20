@@ -63,8 +63,8 @@ export function SiteHeader() {
     href === '/' ? pathname === '/' : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-ink-200/80 bg-surface/80 backdrop-blur-xl">
-      <div className="page-shell flex h-16 items-center gap-4">
+    <header className="sticky top-0 z-40 border-b border-ink-200/70 bg-surface/85 backdrop-blur-xl">
+      <div className="page-shell flex h-16 items-center gap-4 lg:h-[4.5rem]">
         {canGoBack && (
           <>
             <BackButton variant="icon" label="Go back" className="-ml-1.5" />
@@ -73,17 +73,17 @@ export function SiteHeader() {
         )}
         <BrandMark />
 
-        <nav aria-label="Main" className="hidden items-center gap-1 lg:flex">
+        <nav aria-label="Main" className="hidden items-center gap-1 lg:ml-4 lg:flex">
           {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}
               title={link.description}
               aria-current={isCurrent(link.href) ? 'page' : undefined}
-              className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
+              className={`relative rounded-lg px-3 py-2.5 text-sm font-semibold transition after:absolute after:inset-x-3 after:bottom-0.5 after:h-0.5 after:rounded-full after:bg-brand-700 after:opacity-0 after:transition ${
                 isCurrent(link.href)
-                  ? 'bg-ink-100 text-ink-950'
-                  : 'text-ink-600 hover:bg-ink-100/70 hover:text-ink-950'
+                  ? 'text-ink-950 after:opacity-100'
+                  : 'text-ink-600 hover:bg-ink-100/60 hover:text-ink-950'
               }`}
             >
               {link.label}
@@ -143,7 +143,7 @@ export function SiteHeader() {
             <>
               <Link
                 href="/login"
-                className="hidden text-sm font-semibold text-ink-700 transition hover:text-ink-950 md:inline"
+                className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-ink-700 transition hover:bg-ink-100/60 hover:text-ink-950 md:inline"
               >
                 Log in
               </Link>
@@ -183,7 +183,7 @@ export function SiteHeader() {
                   aria-current={isCurrent(link.href) ? 'page' : undefined}
                   className={`block rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
                     isCurrent(link.href)
-                      ? 'bg-ink-100 text-ink-950'
+                      ? 'bg-brand-50 text-brand-800'
                       : 'text-ink-700 hover:bg-ink-100/70 hover:text-ink-950'
                   }`}
                 >

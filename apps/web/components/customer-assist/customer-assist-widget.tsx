@@ -117,7 +117,7 @@ export function CustomerAssistWidget() {
         >
           <Sparkles className="h-5 w-5" aria-hidden="true" />
           <span className="hidden text-sm sm:inline">Ask BII Assistant</span>
-          <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-home-gold ring-2 ring-white" aria-hidden="true" />
+          <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full bg-home-mint ring-2 ring-white" aria-hidden="true" />
         </button>
       )}
 

@@ -263,7 +263,7 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
                 />
                 {reviewCount > 0 && (
                   <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/10 px-2.5 py-1 text-2xs font-bold uppercase tracking-wide text-white backdrop-blur">
-                    <Star className="h-3 w-3 fill-home-gold text-home-gold" aria-hidden="true" />
+                    <Star className="h-3 w-3 fill-rating-400 text-rating-400" aria-hidden="true" />
                     {rating.toFixed(1)}
                     <span className="font-semibold normal-case tracking-normal text-white/50">
                       ({reviewCount})

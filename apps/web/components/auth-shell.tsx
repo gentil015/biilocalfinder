@@ -44,7 +44,7 @@ export function AuthShell({
 
           <div className="py-10">
             <p className="text-2xs font-bold uppercase tracking-[0.14em] text-accent-400">{eyebrow}</p>
-            <h2 className="mt-3 font-display text-[34px] font-extrabold leading-[1.12] tracking-[-0.025em] xl:text-4xl">
+            <h2 className="mt-3 font-display text-[34px] font-extrabold leading-[1.12] tracking-[-0.025em] text-white xl:text-4xl">
               {heading}
             </h2>
 

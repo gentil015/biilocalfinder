@@ -69,13 +69,13 @@ function StrengthRing({ percent }: { percent: number }) {
       role="img"
       aria-label={`Profile strength ${percent}%`}
     >
-      <circle cx="36" cy="36" r={radius} fill="none" stroke="#E0D9C8" strokeWidth="8" />
+      <circle cx="36" cy="36" r={radius} fill="none" stroke="rgb(var(--ink-200))" strokeWidth="8" />
       <circle
         cx="36"
         cy="36"
         r={radius}
         fill="none"
-        stroke="#1F7163"
+        stroke="rgb(var(--brand-600))"
         strokeWidth="8"
         strokeLinecap="round"
         strokeDasharray={circumference}

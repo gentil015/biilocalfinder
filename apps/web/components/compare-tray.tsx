@@ -67,7 +67,7 @@ export function CompareTray({ compare }: { compare: CompareSelection }) {
             onClick={() => router.push(`/compare?ids=${compare.ids.join(',')}`)}
             disabled={compare.ids.length < 2}
             title={compare.ids.length < 2 ? 'Select at least two providers' : undefined}
-            className="btn btn-sm shrink-0 bg-home-gold text-home-night shadow-sm transition hover:bg-[#EDC27E] disabled:opacity-40"
+            className="btn btn-sm shrink-0 bg-home-mint text-home-night shadow-sm transition hover:bg-[#a7f3c2] disabled:opacity-40"
           >
             Compare ({compare.ids.length})
           </button>

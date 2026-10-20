@@ -96,10 +96,10 @@ export function LeafletMap({
 
   // Redraw markers/circles/center whenever the data — or the theme — changes.
   // Service-area strokes and the "your location" dot are brand greens tuned
-  // per theme: the light values (#1F7163/#14594F) sink into the hue-rotated
-  // dark tiles, and the dark values glare on the light tiles. In dark they
-  // are the warm sage-teal accent family (#8FC9B5/#A6D9C7) so the map reads
-  // as part of the charcoal theme, not a neon overlay. The map itself
+  // per theme: the light values (#166534/#15803D) sink into the hue-rotated
+  // dark tiles, and the darker values glare on the light tiles. In dark they
+  // are the light-green accent family (#86EFAC/#BBF7D0) so the map reads
+  // as part of the deep-forest theme, not a neon overlay. The map itself
   // (tiles, control chrome) follows the theme via CSS in globals.css.
   useEffect(() => {
     const map = mapRef.current;
@@ -107,8 +107,8 @@ export function LeafletMap({
     if (!map || !group) return;
     group.clearLayers();
 
-    const stroke = resolvedTheme === 'dark' ? '#8FC9B5' : '#1F7163';
-    const dot = resolvedTheme === 'dark' ? '#A6D9C7' : '#14594F';
+    const stroke = resolvedTheme === 'dark' ? '#86EFAC' : '#166534';
+    const dot = resolvedTheme === 'dark' ? '#BBF7D0' : '#15803D';
 
     for (const c of circles) {
       L.circle([c.lat, c.lng], { radius: c.radiusKm * 1000, color: c.color ?? stroke, fillOpacity: 0.08 }).addTo(group);

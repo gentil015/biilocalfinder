@@ -77,8 +77,8 @@ export const viewport: Viewport = {
   // OS still gets a light chrome. Never mutate or delete these tags from
   // client code — they are React-owned hoistables.
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#F5F6F8' },
-    { media: '(prefers-color-scheme: dark)', color: '#202321' },
+    { media: '(prefers-color-scheme: light)', color: '#FAF8F2' },
+    { media: '(prefers-color-scheme: dark)', color: '#0B1712' },
   ],
   width: 'device-width',
   initialScale: 1,

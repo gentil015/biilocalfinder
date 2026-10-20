@@ -160,7 +160,7 @@ export function MemberHome() {
                   </div>
                   <Link
                     href={isClient ? '/requests/new' : isProvider ? '/provider/offerings/new' : '/admin'}
-                    className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-2xl bg-home-gold px-5 text-sm font-bold text-home-night transition hover:bg-[#edc27e]"
+                    className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-2xl bg-home-mint px-5 text-sm font-bold text-home-night transition hover:bg-[#a7f3c2]"
                   >
                     {t('home.go')} <ChevronRight className="h-4 w-4" aria-hidden="true" />
                   </Link>

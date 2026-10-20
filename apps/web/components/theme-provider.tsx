@@ -73,7 +73,7 @@ function applyTheme(resolved: ResolvedTheme) {
   // unmountHoistable). So instead we append an app-owned unmediated tag
   // after them; the browser uses the last matching theme-color, which makes
   // the explicit choice win over the OS pair without touching React's nodes.
-  const color = resolved === 'dark' ? '#202321' : '#F5F6F8';
+  const color = resolved === 'dark' ? '#0B1712' : '#FAF8F2';
   let meta = document.head.querySelector<HTMLMetaElement>('meta[data-bii-theme-color]');
   if (!meta) {
     meta = document.createElement('meta');

@@ -42,7 +42,15 @@ import { CustomerAssistModule } from './customer-assist/customer-assist.module';
 
 function parseRedisUrl(url: string) {
   const u = new URL(url);
-  return { host: u.hostname, port: Number(u.port || 6379), password: u.password || undefined };
+  // `rediss://` means TLS (managed providers like Upstash are TLS-only);
+  // dropping it would send plaintext to a TLS port and fail.
+  return {
+    host: u.hostname,
+    port: Number(u.port || 6379),
+    username: u.username || undefined,
+    password: decodeURIComponent(u.password) || undefined,
+    ...(u.protocol === 'rediss:' ? { tls: {} } : {}),
+  };
 }
 
 @Module({

@@ -297,18 +297,22 @@ export class QuotesService {
       return created;
     });
 
+    const provider = await this.prisma.provider.findUniqueOrThrow({
+      where: { id: quote.providerId },
+      select: { businessName: true },
+    });
     await this.notifications.notify({
       userId: await this.providerUserId(quote.providerId),
       type: 'QUOTE_ACCEPTED',
       title: 'Your quote was accepted',
-      body: 'A booking has been created — check your bookings.',
+      body: `Your quote of ${formatRwf(quote.price)} was accepted. A booking has been created — open it to see the agreed details.`,
       data: { quoteId, bookingId: booking.id },
     });
     await this.notifications.notify({
       userId: await this.requestClientUserId(quote.requestId),
       type: 'BOOKING_CREATED',
       title: 'Booking confirmed',
-      body: 'Your booking has been created.',
+      body: `Your booking with ${provider.businessName} has been created at the agreed price of ${formatRwf(quote.price)}.`,
       data: { bookingId: booking.id },
     });
 
@@ -403,4 +407,12 @@ export class QuotesService {
     }
     return clientProfile;
   }
+}
+
+// A quote's price is a Prisma Decimal, so `toLocaleString` isn't available on
+// it directly — this normalises it to a grouped numeric string for the
+// notification copy ("25,000 RWF"). `2` decimals are dropped because prices
+// are whole RWF amounts in practice and the extra `.00` only adds noise.
+function formatRwf(value: Prisma.Decimal | number | string): string {
+  return `${Number(value).toLocaleString('en-US', { maximumFractionDigits: 0 })} RWF`;
 }

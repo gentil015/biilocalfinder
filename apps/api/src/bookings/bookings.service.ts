@@ -76,15 +76,23 @@ export class BookingsService {
     ]);
 
     const [client, provider] = await Promise.all([
-      this.prisma.clientProfile.findUniqueOrThrow({ where: { id: booking.clientId } }),
+      this.prisma.clientProfile.findUniqueOrThrow({
+        where: { id: booking.clientId },
+        include: { user: { select: { firstName: true, lastName: true } } },
+      }),
       this.prisma.provider.findUniqueOrThrow({ where: { id: booking.providerId } }),
     ]);
     const otherUserId = role === 'CLIENT' ? provider.userId : client.userId;
+    const serviceName = await this.serviceName(booking.serviceRequestId);
+    const statusLabel = BOOKING_STATUS_LABELS[dto.status] ?? dto.status.toLowerCase();
     await this.notifications.notify({
       userId: otherUserId,
       type: dto.status === 'COMPLETED' ? 'BOOKING_COMPLETED' : 'BOOKING_UPDATED',
-      title: dto.status === 'COMPLETED' ? 'Booking completed' : 'Booking updated',
-      body: `Status changed to ${dto.status}`,
+      title: dto.status === 'COMPLETED' ? 'Booking completed' : `Booking ${statusLabel}`,
+      body:
+        dto.status === 'COMPLETED'
+          ? `Your booking for ${serviceName} with ${counterpartName(role, provider.businessName, client)} has been marked complete.`
+          : `Your booking for ${serviceName} with ${counterpartName(role, provider.businessName, client)} is now ${statusLabel}.`,
       data: { bookingId: id },
     });
 
@@ -106,4 +114,40 @@ export class BookingsService {
     if (await this.providerContext.userHasAccessToProvider(userId, booking.providerId)) return { role: 'PROVIDER' };
     throw new ForbiddenException('Not authorized for this booking');
   }
+
+  private async serviceName(serviceRequestId: string): Promise<string> {
+    const request = await this.prisma.serviceRequest.findUnique({
+      where: { id: serviceRequestId },
+      select: { service: { select: { name: true } } },
+    });
+    return request?.service?.name ?? 'your service';
+  }
+}
+
+// Plain-language labels for the status a booking just moved into, used in the
+// notification title/body so the recipient reads "Booking confirmed" rather
+// than the raw enum ("CONFIRMED").
+const BOOKING_STATUS_LABELS: Record<string, string> = {
+  ACCEPTED: 'accepted',
+  CONFIRMED: 'confirmed',
+  IN_PROGRESS: 'in progress',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled',
+};
+
+// Names the party the *recipient* cares about. The actor performed the
+// transition, so the recipient is the other side: a client acting means the
+// provider is notified (and should see the client's name), and vice versa.
+function counterpartName(
+  actorRole: 'CLIENT' | 'PROVIDER',
+  providerBusinessName: string,
+  client: { user: { firstName: string; lastName: string } },
+): string {
+  if (actorRole === 'CLIENT') return clientName(client);
+  return providerBusinessName;
+}
+
+function clientName(client: { user: { firstName: string; lastName: string } }): string {
+  const name = `${client.user.firstName ?? ''} ${client.user.lastName ?? ''}`.trim();
+  return name || 'your client';
 }

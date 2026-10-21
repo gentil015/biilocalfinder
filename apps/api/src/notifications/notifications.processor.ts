@@ -4,8 +4,10 @@ import { Job } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { SocketServerRegistry } from '../realtime/socket-server-registry.service';
 import { NOTIFICATIONS_QUEUE, NotificationJobData, NotificationsService } from './notifications.service';
-import { EMAIL_SENDER, EmailSender } from './channels/email-sender';
+import { EMAIL_SENDER, EmailMessage, EmailSender } from './channels/email-sender';
 import { PUSH_SENDER, PushSender, PushSubscriptionGoneError } from './channels/push-sender';
+import { notificationEmail } from './email-templates';
+import { notificationLink } from './notification-links';
 
 // The one place that fans a notification out to every channel the user
 // has opted into (spec §19 / §10: callers enqueue one job, channels are
@@ -68,10 +70,28 @@ export class NotificationsProcessor extends WorkerHost {
   }
 
   private async dispatchEmail(data: NotificationJobData) {
-    const user = await this.prisma.user.findUnique({ where: { id: data.userId }, select: { email: true, emailVerified: true } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: data.userId },
+      select: { email: true, emailVerified: true, firstName: true },
+    });
     if (!user?.emailVerified) return; // don't email an address nobody's confirmed owning
+
+    // Notifications with a known in-app destination get the branded HTML
+    // shell + a deep-link button; everything else keeps the plain
+    // title/body it already sent, so this change is additive.
+    const link = notificationLink(data.type, data.data);
+    const message: EmailMessage = link
+      ? notificationEmail({
+          to: user.email,
+          title: data.title,
+          body: data.body,
+          recipientName: user.firstName,
+          link,
+        })
+      : { to: user.email, subject: data.title, body: data.body ?? data.title };
+
     try {
-      await this.emailSender.send({ to: user.email, subject: data.title, body: data.body ?? data.title });
+      await this.emailSender.send(message);
     } catch (err) {
       this.logger.warn(`Email delivery failed for user ${data.userId}: ${(err as Error).message}`);
     }

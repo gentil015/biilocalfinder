@@ -13,7 +13,10 @@ export class RecommendationCacheService implements OnModuleDestroy {
   private redis: Redis;
 
   constructor(private prisma: PrismaService) {
-    this.redis = new Redis(process.env.REDIS_URL ?? 'redis://localhost:6379', { lazyConnect: true });
+    const url = process.env.REDIS_URL ?? 'redis://localhost:6379';
+    // ioredis parses `rediss://` (TLS) and credentials from the URL itself,
+    // so pass the string through rather than hand-rolling options.
+    this.redis = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: null });
   }
 
   async onModuleDestroy() {

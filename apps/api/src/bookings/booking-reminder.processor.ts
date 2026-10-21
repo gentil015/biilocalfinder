@@ -35,6 +35,7 @@ export class BookingReminderProcessor extends WorkerHost {
       include: {
         client: { select: { userId: true } },
         provider: { select: { userId: true, businessName: true } },
+        serviceRequest: { select: { service: { select: { name: true } } } },
       },
     });
 
@@ -50,18 +51,19 @@ export class BookingReminderProcessor extends WorkerHost {
       reminded++;
 
       const when = booking.scheduledAt!.toLocaleString();
+      const service = booking.serviceRequest?.service?.name ?? 'your booking';
       await this.notifications.notify({
         userId: booking.client.userId,
         type: 'BOOKING_REMINDER',
         title: 'Upcoming booking reminder',
-        body: `Your booking with ${booking.provider.businessName} is coming up on ${when}.`,
+        body: `Your ${service} booking with ${booking.provider.businessName} is coming up on ${when}.`,
         data: { bookingId: booking.id },
       });
       await this.notifications.notify({
         userId: booking.provider.userId,
         type: 'BOOKING_REMINDER',
         title: 'Upcoming booking reminder',
-        body: `You have a booking scheduled for ${when}.`,
+        body: `You have a ${service} booking scheduled for ${when}.`,
         data: { bookingId: booking.id },
       });
     }

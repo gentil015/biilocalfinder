@@ -3,6 +3,7 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
+  HeadObjectCommandOutput,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -14,7 +15,14 @@ import { StorageService, UploadedFileResult } from './storage.interface';
 @Injectable()
 export class S3StorageService implements StorageService {
   private s3: S3Client;
+  // Public bucket: anonymous reads are allowed by the bucket's access level,
+  // so getUrl() can hand out a permanent URL (some of these are persisted in
+  // Postgres — a presigned URL would expire in the database).
   private bucket = process.env.S3_BUCKET ?? 'bii-localfinder';
+  // Private bucket: credential required for every operation. Verification
+  // documents and dispute evidence live here and are only ever reached
+  // through getSignedUrl().
+  private privateBucket = process.env.S3_PRIVATE_BUCKET ?? process.env.S3_BUCKET ?? 'bii-localfinder';
 
   constructor() {
     this.s3 = new S3Client({
@@ -28,6 +36,29 @@ export class S3StorageService implements StorageService {
     });
   }
 
+  /**
+   * Which of the two buckets actually holds `key`, plus its metadata.
+   *
+   * Callers pass keys from both paths without saying which bucket they used
+   * (review photos are public, verification documents are not), so the key
+   * itself decides: probe the public bucket, then the private one.
+   */
+  private async headIn(key: string): Promise<{ bucket: string; head: HeadObjectCommandOutput } | null> {
+    for (const bucket of [this.bucket, this.privateBucket]) {
+      try {
+        const head = await this.s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+        return { bucket, head };
+      } catch (err: any) {
+        const status = err?.$metadata?.httpStatusCode;
+        // Missing in this bucket: keep looking. Anything else (bad
+        // credentials, unreachable endpoint) is a real failure — surface it.
+        if (err?.name === 'NotFound' || status === 404 || status === 403) continue;
+        throw err;
+      }
+    }
+    return null;
+  }
+
   async upload(buffer: Buffer, originalName: string, mimeType: string, prefix: string): Promise<UploadedFileResult> {
     // The original filename is only used for its extension — never trusted
     // as a path or stored as-is (spec §20: "Never trust the client-provided
@@ -35,9 +66,9 @@ export class S3StorageService implements StorageService {
     const ext = path.extname(originalName).toLowerCase().replace(/[^a-z0-9.]/g, '') || '';
     const key = `${prefix}/${crypto.randomUUID()}${ext}`;
 
-    await this.s3.send(
-      new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: buffer, ContentType: mimeType, ACL: 'public-read' }),
-    );
+    // No ACL header: the bucket's access level (public_read) decides, and
+    // Neon's S3 endpoint rejects ACL headers outright (NotImplemented).
+    await this.s3.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: buffer, ContentType: mimeType }));
 
     return { key, url: this.getUrl(key) };
   }
@@ -50,30 +81,34 @@ export class S3StorageService implements StorageService {
   ): Promise<{ key: string }> {
     const ext = path.extname(originalName).toLowerCase().replace(/[^a-z0-9.]/g, '') || '';
     const key = `${prefix}/${crypto.randomUUID()}${ext}`;
-    // Deliberately no ACL: the object inherits the bucket's default, which
-    // MUST be private (block public access) — see docs/DEPLOYMENT.md.
-    await this.s3.send(new PutObjectCommand({ Bucket: this.bucket, Key: key, Body: buffer, ContentType: mimeType }));
+    await this.s3.send(
+      new PutObjectCommand({ Bucket: this.privateBucket, Key: key, Body: buffer, ContentType: mimeType }),
+    );
     return { key };
   }
 
   async statObject(key: string): Promise<{ sizeBytes: number; mimeType: string } | null> {
-    try {
-      const head = await this.s3.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
-      return { sizeBytes: Number(head.ContentLength ?? 0), mimeType: head.ContentType ?? 'application/octet-stream' };
-    } catch (err: any) {
-      if (err?.name === 'NotFound' || err?.$metadata?.httpStatusCode === 404) return null;
-      throw err;
-    }
+    const found = await this.headIn(key);
+    if (!found) return null;
+    return {
+      sizeBytes: Number(found.head.ContentLength ?? 0),
+      mimeType: found.head.ContentType ?? 'application/octet-stream',
+    };
   }
 
   async getSignedUrl(key: string, expiresInSeconds = 300): Promise<string> {
-    return getSignedUrl(this.s3, new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
+    // Sign against the bucket that actually holds the object; presigning is
+    // what makes a private object reachable without exposing credentials.
+    const found = await this.headIn(key);
+    const bucket = found ? found.bucket : this.privateBucket;
+    return getSignedUrl(this.s3, new GetObjectCommand({ Bucket: bucket, Key: key }), {
       expiresIn: expiresInSeconds,
     });
   }
 
   async delete(key: string): Promise<void> {
-    await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+    const found = await this.headIn(key);
+    await this.s3.send(new DeleteObjectCommand({ Bucket: found ? found.bucket : this.bucket, Key: key }));
   }
 
   getUrl(key: string): string {

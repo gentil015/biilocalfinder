@@ -15,14 +15,20 @@ jobs:
   deploy:
     if: github.ref_type == 'branch'
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: oven-sh/setup-bun@v2
-      - uses: prisma/cloud-deploy-action@v1
-        with:
-          working-directory: apps/api
-          build-command: npm run build
-          schema-path: prisma/schema.prisma
+          cache: 'npm'
+          cache-dependency-path: apps/api/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Deploy migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+        run: npx prisma migrate deploy --schema=prisma/schema.prisma

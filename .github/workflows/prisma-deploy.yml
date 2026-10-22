@@ -23,4 +23,5 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - uses: prisma/cloud-deploy-action@v1
         with:
+          working-directory: apps/api
           build-command: npm run build

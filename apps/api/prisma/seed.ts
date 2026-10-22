@@ -289,6 +289,40 @@ async function main() {
     }
   }
 
+  const SERVICES_BY_CATEGORY: Record<string, string[]> = {
+    'Car repair': ['General repair', 'Engine diagnostics', 'Oil change', 'Full vehicle servicing'],
+    'Car electrical': ['Battery replacement', 'Wiring repair', 'Alternator repair'],
+    'Brake repair': ['Brake pad replacement', 'Brake disc replacement', 'Brake inspection'],
+    'Tire services': ['Tire change', 'Wheel balancing', 'Puncture repair', 'Wheel alignment'],
+    Plumbing: ['Pipe repair', 'Leak fixing', 'Toilet repair', 'Water heater installation'],
+    Electrical: ['Wiring', 'Outlet repair', 'Lighting installation', 'Circuit breaker repair'],
+    Cleaning: ['House cleaning', 'Office cleaning', 'Deep cleaning', 'Move-in/move-out cleaning'],
+    Painting: ['Interior painting', 'Exterior painting', 'Wall preparation', 'Touch-up painting'],
+    Carpentry: ['Furniture repair', 'Cabinet making', 'Door installation', 'Custom furniture'],
+    'Software development': ['Web app development', 'API development', 'Mobile app development'],
+    'Website development': ['Business website', 'E-commerce website', 'Landing page'],
+    'Computer repair': ['Laptop repair', 'Desktop repair', 'Virus removal', 'Data recovery'],
+    Networking: ['Network setup', 'WiFi installation', 'Network troubleshooting'],
+    Photography: ['Event photography', 'Portrait photography', 'Product photography'],
+    Videography: ['Event videography', 'Corporate video', 'Wedding videography'],
+    Decoration: ['Event decoration', 'Balloon decoration', 'Floral decoration'],
+    DJ: ['Wedding DJ', 'Party DJ', 'Corporate event DJ'],
+    'Wedding Services': ['Full wedding planning', 'Wedding coordination', 'Wedding decor package'],
+  };
+
+  for (const [categoryName, serviceNames] of Object.entries(SERVICES_BY_CATEGORY)) {
+    const categoryId = categoryIdByName.get(categoryName);
+    if (!categoryId) continue;
+    for (const serviceName of serviceNames) {
+      const slug = slugify(serviceName);
+      await prisma.service.upsert({
+        where: { categoryId_slug: { categoryId, slug } },
+        update: { isActive: true },
+        create: { categoryId, name: serviceName, slug, isActive: true },
+      });
+    }
+  }
+
   // Type-specific plans (spec §7): FREE/STANDARD/PRO per workspace type,
   // matching the brief's illustrative structure. Prices, limits and
   // features here are seed defaults, not final business rules — all of

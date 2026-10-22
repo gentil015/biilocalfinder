@@ -14,7 +14,7 @@ const logger = new Logger('StorageService');
  * health check, and a dev boot must not hang waiting on a service that isn't
  * there.
  */
-function endpointReachable(rawUrl: string, timeoutMs = 800): Promise<boolean> {
+function endpointReachable(rawUrl: string, timeoutMs = Number(process.env.S3_PROBE_TIMEOUT_MS ?? 800)): Promise<boolean> {
   return new Promise((resolve) => {
     let url: URL;
     try {
@@ -67,6 +67,16 @@ async function selectStorageDriver(): Promise<'s3' | 'local'> {
         if (driver === 's3') {
           logger.log(`File storage: S3-compatible backend at ${process.env.S3_ENDPOINT}`);
           return s3;
+        }
+        // In production there is no durable local disk: silently falling back
+        // would accept uploads and then lose them on the next deploy/restart.
+        // Fail the boot loudly instead so the misconfiguration is obvious.
+        if (process.env.NODE_ENV === 'production' && process.env.STORAGE_DRIVER !== 'local') {
+          throw new Error(
+            process.env.S3_ENDPOINT
+              ? `File storage: S3 endpoint ${process.env.S3_ENDPOINT} unreachable and NODE_ENV=production — refusing to fall back to local disk`
+              : 'File storage: S3_ENDPOINT is not set and NODE_ENV=production — refusing to fall back to local disk',
+          );
         }
         logger.warn(
           process.env.S3_ENDPOINT

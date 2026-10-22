@@ -52,9 +52,9 @@ async function bootstrap() {
     SwaggerModule.setup('api/docs', app, document);
   }
 
-  const port = process.env.API_PORT ?? 4000;
-  await app.listen(port);
+  const port = Number(process.env.PORT ?? process.env.API_PORT ?? 4000);
+  await app.listen(port, '0.0.0.0');
   // eslint-disable-next-line no-console
-  console.log(`Bii Localfinder API running on http://localhost:${port}/api`);
+  console.log(`Bii Localfinder API listening on 0.0.0.0:${port}/api`);
 }
 bootstrap();

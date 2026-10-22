@@ -319,10 +319,10 @@ export class PostgresProviderSearchService implements ProviderSearchService {
       );
     }
 
-    const priceHaving = [];
+    const priceHaving: any[] = [];
     if (params.minPrice != null) priceHaving.push(Prisma.sql`MIN(ps."basePrice") >= ${params.minPrice}`);
     if (params.maxPrice != null) priceHaving.push(Prisma.sql`MIN(ps."basePrice") <= ${params.maxPrice}`);
-    const havingClause = priceHaving.length ? Prisma.sql`HAVING ${Prisma.join(priceHaving, ' AND ')}` : Prisma.sql``;
+    const havingClause: any = priceHaving.length ? Prisma.sql`HAVING ${Prisma.join(priceHaving, ' AND ')}` : Prisma.sql``;
 
     // Dynamic category-attribute filters (spec §16-17) — resolved to a set
     // of validated EXISTS clauses before conditions is finalized. Only

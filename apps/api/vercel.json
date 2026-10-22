@@ -1,6 +1,6 @@
 {
   "version": 2,
   "buildCommand": "npm run vercel-build",
-  "installCommand": "npm install",
+  "installCommand": "rm -rf node_modules/.prisma node_modules/@prisma/client && npm install",
   "outputDirectory": "dist"
 }

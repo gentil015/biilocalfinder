@@ -15,6 +15,7 @@ import {
 import { categoryGroups, type CategoryNode } from '@/lib/categories';
 import { LocationPickerMap } from '@/components/location-picker-map';
 import { LoadingBlock } from '@/components/ui/page';
+import { DynamicAttributeForm } from '@/components/attributes/dynamic-attribute-form';
 
 const KIGALI = { lat: -1.9441, lng: 30.0619 };
 const TEAM_ROSTER_TYPES = ['TEAM', 'AGENCY'];
@@ -38,6 +39,8 @@ export default function ProviderOnboardingServicesPage() {
   const [serviceId, setServiceId] = useState('');
   const [myOfferings, setMyOfferings] = useState<any[]>([]);
   const [addingService, setAddingService] = useState(false);
+  const [attributes, setAttributes] = useState<any[]>([]);
+  const [attributeValues, setAttributeValues] = useState<Record<string, unknown>>({});
 
   // Team roster (TEAM/AGENCY only)
   const [memberName, setMemberName] = useState('');
@@ -73,6 +76,16 @@ export default function ProviderOnboardingServicesPage() {
     servicesApi.list(categoryId).then(setServices);
   }, [categoryId]);
 
+  useEffect(() => {
+    setAttributeValues({});
+    const svc = services.find((s) => s.id === serviceId);
+    if (!svc?.category?.id) {
+      setAttributes([]);
+      return;
+    }
+    categoriesApi.attributes(svc.category.id).then(setAttributes).catch(() => setAttributes([]));
+  }, [serviceId, services]);
+
   function useMyLocation() {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition((pos) => {
@@ -99,9 +112,11 @@ export default function ProviderOnboardingServicesPage() {
     setAddingService(true);
     setError(null);
     try {
-      const offering = await offeringsApi.create({ serviceId });
+      const offering = await offeringsApi.create({ serviceId, attributeValues });
       setMyOfferings((prev) => [...prev, offering]);
       setServiceId('');
+      setAttributeValues({});
+      setAttributes([]);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not add that service');
     } finally {
@@ -260,6 +275,16 @@ export default function ProviderOnboardingServicesPage() {
             Add
           </button>
         </div>
+        {attributes.length > 0 && serviceId && (
+          <div className="mt-3 rounded-xl border border-ink-200 bg-surface p-3">
+            <p className="mb-2 text-xs font-semibold text-ink-700">Details for this service</p>
+            <DynamicAttributeForm
+              attributes={attributes}
+              values={attributeValues}
+              onChange={(id, value) => setAttributeValues((prev) => ({ ...prev, [id]: value }))}
+            />
+          </div>
+        )}
         <p className="mt-1.5 text-xs text-ink-500">
           You can set pricing and details for each service later from your dashboard.
         </p>

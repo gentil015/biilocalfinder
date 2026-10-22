@@ -1,8 +1,6 @@
 import { ProviderOnboardingStep } from './api';
 
-// Single source of truth for "where does this step live" — used both
-// right after registration and by each onboarding page's own resume
-// check, so they can never disagree about the URL for a given step.
+// Single source of truth for "where does this step live"
 export function onboardingStepPath(step: ProviderOnboardingStep): string {
   switch (step) {
     case 'TYPE_SELECTION':
@@ -13,7 +11,7 @@ export function onboardingStepPath(step: ProviderOnboardingStep): string {
     case 'VERIFICATION':
       return '/provider/onboarding/services';
     case 'COMPLETED':
-      return '/provider/dashboard';
+      return '/provider/offerings/new';
     default:
       return '/provider/onboarding';
   }

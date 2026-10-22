@@ -122,11 +122,11 @@ export default function ProviderOnboardingProfilePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col px-4 py-8">
       <div className="mb-2 flex items-center gap-1.5" aria-hidden="true">
-        {['bg-brand-600', 'bg-brand-600', 'bg-ink-200'].map((c, i) => (
+        {['bg-brand-600', 'bg-brand-600'].map((c, i) => (
           <span key={i} className={`h-1.5 flex-1 rounded-full ${c}`} />
         ))}
       </div>
-      <p className="mb-6 text-xs font-medium text-ink-400">Step 2 of 3</p>
+      <p className="mb-6 text-xs font-medium text-ink-400">Step 2 of 2</p>
 
       <h1 className="mb-1 text-2xl font-bold text-ink-950">Tell us about {state.providerType === 'INDIVIDUAL' ? 'you' : 'your organization'}</h1>
       <p className="mb-6 text-sm text-ink-500">

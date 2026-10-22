@@ -153,13 +153,13 @@ export class ProvidersService {
     // Preserve the order the client asked for rather than however
     // Postgres happened to return rows, so the comparison table's column
     // order matches the order providers were added to the tray.
-    const byId = new Map(providers.map((p) => [p.id, p]));
+    const byId = new Map((providers as any[]).map((p) => [p.id, p]));
     return unique.map((id) => {
-      const p = byId.get(id)!;
+      const p: any = byId.get(id)!;
       return {
         id: p.id,
         businessName: p.businessName,
-        avatarUrl: p.logoUrl ?? p.user.avatarUrl,
+        avatarUrl: p.logoUrl ?? p.user?.avatarUrl,
         city: p.location?.city ?? null,
         rating: Number(p.rating),
         reviewCount: p.reviewCount,
@@ -168,8 +168,8 @@ export class ProvidersService {
         responseTimeMinutes: p.responseTimeMinutes,
         verificationStatus: p.verificationStatus,
         businessVerified: p.businessVerified,
-        startingPrice: p.services[0] ? Number(p.services[0].basePrice) : null,
-        currency: p.services[0]?.currency ?? 'RWF',
+        startingPrice: p.services?.[0] ? Number(p.services[0].basePrice) : null,
+        currency: p.services?.[0]?.currency ?? 'RWF',
         availability: availabilityById.get(id) ?? null,
       };
     });

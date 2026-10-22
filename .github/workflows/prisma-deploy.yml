@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   deploy:
-    if: github.ref_type == 'branch'
+    if: github.ref_type == 'branch' && secrets.DATABASE_URL != ''
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -32,5 +32,6 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
         run: |
+          if [ -z "$DATABASE_URL" ]; then echo "No DATABASE_URL"; exit 0; fi
           if [ -z "$DIRECT_URL" ]; then export DIRECT_URL="$DATABASE_URL"; fi
           npx prisma migrate deploy --schema=prisma/schema.prisma

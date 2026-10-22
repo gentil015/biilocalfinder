@@ -3,12 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ApiError, categoriesApi, offeringsApi, servicesApi } from '@/lib/api';
+import { categoryGroups, type CategoryNode } from '@/lib/categories';
 import { DynamicAttributeForm } from '@/components/attributes/dynamic-attribute-form';
 import { PageHeader, Panel } from '@/components/ui/page';
 
 export default function NewServiceOfferingPage() {
   const router = useRouter();
+  const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [services, setServices] = useState<any[]>([]);
+  const [categoryId, setCategoryId] = useState('');
   const [serviceId, setServiceId] = useState('');
   const [attributes, setAttributes] = useState<any[]>([]);
   const [attributeValues, setAttributeValues] = useState<Record<string, unknown>>({});
@@ -23,21 +26,32 @@ export default function NewServiceOfferingPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    servicesApi.list().then(setServices).catch(() => setServices([]));
+    categoriesApi.tree().then(setCategories).catch(() => setCategories([]));
   }, []);
 
-  // Fetch the category's attribute definitions the moment a service is
-  // picked — this is what makes the form generate itself with no
-  // per-category frontend code (spec §10).
+  useEffect(() => {
+    if (!categoryId) {
+      setServices([]);
+      setServiceId('');
+      return;
+    }
+    servicesApi.list(categoryId).then(setServices).catch(() => setServices([]));
+  }, [categoryId]);
+
   useEffect(() => {
     setAttributeValues({});
     const service = services.find((s) => s.id === serviceId);
-    if (!service?.category?.id) {
+    if (!service?.category?.id && !categoryId) {
       setAttributes([]);
       return;
     }
-    categoriesApi.attributes(service.category.id).then(setAttributes).catch(() => setAttributes([]));
-  }, [serviceId, services]);
+    const catId = service?.category?.id || categoryId;
+    if (!catId) {
+      setAttributes([]);
+      return;
+    }
+    categoriesApi.attributes(catId).then(setAttributes).catch(() => setAttributes([]));
+  }, [serviceId, services, categoryId]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -74,8 +88,33 @@ export default function NewServiceOfferingPage() {
       />
 
       <form onSubmit={onSubmit}>
-        <Panel title="Choose a service" className="mb-4">
+        <Panel title="Choose your service" className="mb-4">
           <div className="field">
+            <label htmlFor="offering-category" className="label">
+              Sub-category
+            </label>
+            <select
+              id="offering-category"
+              required
+              value={categoryId}
+              onChange={(e) => {
+                setCategoryId(e.target.value);
+                setServiceId('');
+              }}
+            >
+              <option value="">Select sub-category…</option>
+              {categoryGroups(categories).map((group) => (
+                <optgroup key={group.group} label={group.group}>
+                  {group.options.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+          <div className="field mb-0 mt-4">
             <label htmlFor="offering-service" className="label">
               Service
             </label>
@@ -84,11 +123,12 @@ export default function NewServiceOfferingPage() {
               required
               value={serviceId}
               onChange={(e) => setServiceId(e.target.value)}
+              disabled={!categoryId}
             >
               <option value="">Select a service…</option>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.category?.name ? `${s.category.name} — ${s.name}` : s.name}
+                  {s.name}
                 </option>
               ))}
             </select>

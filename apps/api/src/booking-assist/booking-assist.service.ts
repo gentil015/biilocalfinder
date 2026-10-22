@@ -84,7 +84,7 @@ export class BookingAssistService {
       name: s.name,
       category: s.category.name,
     }));
-    const byKey = new Map(catalog.map((c) => [c.key, c] as const));
+    const byKey = new Map<string, { serviceId: string }>(catalog.map((c) => [c.key, { serviceId: c.serviceId }] as const));
 
     // A service already selected in the form pins the conversation: the
     // model may not swap it, and its category's questions become askable.

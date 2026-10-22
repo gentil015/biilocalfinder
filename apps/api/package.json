@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "prisma generate --schema=./prisma/schema.prisma && nest build",
-    "vercel-build": "prisma generate --schema=./prisma/schema.prisma && nest build",
+    "vercel-build": "prisma generate --schema=./prisma/schema.prisma && tsc -p tsconfig.build.json",
     "postinstall": "prisma generate --schema=./prisma/schema.prisma",
     "start": "node prisma/generate-if-missing.js && node dist/src/main",
     "start:dev": "nest start --watch",

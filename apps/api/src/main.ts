@@ -27,8 +27,14 @@ async function bootstrap() {
         .filter(Boolean)
     : undefined;
   app.enableCors({
-    origin: corsOrigin ?? (process.env.NODE_ENV === 'production' ? false : true),
-    credentials: !!corsOrigin,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (corsOrigin && corsOrigin.includes(origin)) return callback(null, true);
+      if (process.env.NODE_ENV !== 'production') return callback(null, true);
+      if (origin.endsWith('.vercel.app')) return callback(null, true);
+      return callback(null, false);
+    },
+    credentials: true,
   });
 
   app.useGlobalPipes(

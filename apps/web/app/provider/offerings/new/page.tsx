@@ -41,12 +41,7 @@ export default function NewServiceOfferingPage() {
         if (list && list.length > 0) {
           setServiceId(list[0].id);
         } else {
-          try {
-            const created = await servicesApi.create({ categoryId, name: categories.find((c:any)=>c.children?.some((ch:any)=>ch.id===categoryId))?.children?.find((ch:any)=>ch.id===categoryId)?.name || 'Service' });
-            setServiceId(created.id);
-          } catch {
-            // ignore
-          }
+          // Cannot create service from client; just keep empty
         }
       })
       .catch(() => {});
@@ -64,8 +59,12 @@ export default function NewServiceOfferingPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!serviceId) {
+    if (!categoryId) {
       setError('Please choose a sub-category.');
+      return;
+    }
+    if (!serviceId) {
+      setError('No service available for this sub-category. Please contact admin to add one.');
       return;
     }
     setLoading(true);

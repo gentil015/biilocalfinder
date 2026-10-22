@@ -5,9 +5,9 @@
   "scripts": {
     "build": "prisma generate && nest build",
     "postinstall": "prisma generate",
-    "start": "prisma generate && node dist/src/main",
+    "start": "node prisma/generate-if-missing.js && node dist/src/main",
     "start:dev": "nest start --watch",
-    "start:prod": "prisma generate && node dist/src/main",
+    "start:prod": "node prisma/generate-if-missing.js && node dist/src/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:e2e": "jest --config ./test/jest-e2e.json",

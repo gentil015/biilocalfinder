@@ -44,8 +44,18 @@ export class LocalStorageService implements StorageService {
   ).replace(/\/$/, '');
 
   constructor() {
-    fs.mkdirSync(this.publicDir, { recursive: true });
-    fs.mkdirSync(this.privateDir, { recursive: true });
+    try {
+      fs.mkdirSync(this.publicDir, { recursive: true });
+      fs.mkdirSync(this.privateDir, { recursive: true });
+    } catch {
+      // In serverless environments, fall back to /tmp if cwd is not writable
+      const tmpRoot = path.join('/tmp', '.local-storage');
+      (this as any).root = tmpRoot;
+      (this as any).publicDir = path.join(tmpRoot, 'public');
+      (this as any).privateDir = path.join(tmpRoot, 'private');
+      fs.mkdirSync((this as any).publicDir, { recursive: true });
+      fs.mkdirSync((this as any).privateDir, { recursive: true });
+    }
   }
 
   async upload(buffer: Buffer, originalName: string, _mimeType: string, prefix: string): Promise<UploadedFileResult> {

@@ -73,9 +73,9 @@ export class NotificationsService {
   // for every user.
   async getPreferences(userId: string) {
     const rows = await this.prisma.notificationPreference.findMany({ where: { userId } });
-    const byCategory = new Map(rows.map((r) => [r.category, r]));
+    const byCategory = new Map(rows.map((r: any) => [r.category, r]));
     return (Object.keys(CATEGORY_LABELS) as NotificationCategory[]).map((category) => {
-      const row = byCategory.get(category);
+      const row = byCategory.get(category) as any;
       return {
         category,
         ...CATEGORY_LABELS[category],
@@ -102,7 +102,7 @@ export class NotificationsService {
     const category = NOTIFICATION_TYPE_CATEGORY[type];
     const row = await this.prisma.notificationPreference.findUnique({
       where: { userId_category: { userId, category } },
-    });
+    }) as any;
     return {
       category,
       inApp: row?.inApp ?? DEFAULT_PREFERENCE.inApp,

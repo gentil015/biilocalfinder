@@ -10,7 +10,6 @@ import { PageHeader, Panel } from '@/components/ui/page';
 export default function NewServiceOfferingPage() {
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryNode[]>([]);
-  const [services, setServices] = useState<any[]>([]);
   const [categoryId, setCategoryId] = useState('');
   const [serviceId, setServiceId] = useState('');
   const [attributes, setAttributes] = useState<any[]>([]);
@@ -31,33 +30,42 @@ export default function NewServiceOfferingPage() {
 
   useEffect(() => {
     if (!categoryId) {
-      setServices([]);
       setServiceId('');
+      setAttributes([]);
       return;
     }
-    servicesApi.list(categoryId).then(setServices).catch(() => setServices([]));
-  }, [categoryId]);
+    // Try to find or create a service for this sub-category
+    servicesApi
+      .list(categoryId)
+      .then(async (list) => {
+        if (list && list.length > 0) {
+          setServiceId(list[0].id);
+        } else {
+          try {
+            const created = await servicesApi.create({ categoryId, name: categories.find((c:any)=>c.children?.some((ch:any)=>ch.id===categoryId))?.children?.find((ch:any)=>ch.id===categoryId)?.name || 'Service' });
+            setServiceId(created.id);
+          } catch {
+            // ignore
+          }
+        }
+      })
+      .catch(() => {});
+  }, [categoryId, categories]);
 
   useEffect(() => {
     setAttributeValues({});
-    const service = services.find((s) => s.id === serviceId);
-    if (!service?.category?.id && !categoryId) {
+    if (!categoryId) {
       setAttributes([]);
       return;
     }
-    const catId = service?.category?.id || categoryId;
-    if (!catId) {
-      setAttributes([]);
-      return;
-    }
-    categoriesApi.attributes(catId).then(setAttributes).catch(() => setAttributes([]));
-  }, [serviceId, services, categoryId]);
+    categoriesApi.attributes(categoryId).then(setAttributes).catch(() => setAttributes([]));
+  }, [categoryId]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!serviceId) {
-      setError('Please choose a service.');
+      setError('Please choose a sub-category.');
       return;
     }
     setLoading(true);
@@ -89,7 +97,7 @@ export default function NewServiceOfferingPage() {
 
       <form onSubmit={onSubmit}>
         <Panel title="Choose your service" className="mb-4">
-          <div className="field">
+          <div className="field mb-0">
             <label htmlFor="offering-category" className="label">
               Sub-category
             </label>
@@ -111,25 +119,6 @@ export default function NewServiceOfferingPage() {
                     </option>
                   ))}
                 </optgroup>
-              ))}
-            </select>
-          </div>
-          <div className="field mb-0 mt-4">
-            <label htmlFor="offering-service" className="label">
-              Service
-            </label>
-            <select
-              id="offering-service"
-              required
-              value={serviceId}
-              onChange={(e) => setServiceId(e.target.value)}
-              disabled={!categoryId}
-            >
-              <option value="">Select a service…</option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
               ))}
             </select>
           </div>

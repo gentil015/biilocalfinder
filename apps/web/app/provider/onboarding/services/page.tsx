@@ -41,6 +41,7 @@ export default function ProviderOnboardingServicesPage() {
   const [addingService, setAddingService] = useState(false);
   const [attributes, setAttributes] = useState<any[]>([]);
   const [attributeValues, setAttributeValues] = useState<Record<string, unknown>>({});
+  const [offeringForm, setOfferingForm] = useState({ title: '', description: '', basePrice: '', priceType: 'FIXED', duration: '' });
 
   // Team roster (TEAM/AGENCY only)
   const [memberName, setMemberName] = useState('');
@@ -112,11 +113,22 @@ export default function ProviderOnboardingServicesPage() {
     setAddingService(true);
     setError(null);
     try {
-      const offering = await offeringsApi.create({ serviceId, attributeValues });
+      const offering = await offeringsApi.create({
+        serviceId,
+        title: offeringForm.title || undefined,
+        description: offeringForm.description || undefined,
+        basePrice: offeringForm.basePrice ? Number(offeringForm.basePrice) : undefined,
+        priceType: offeringForm.priceType,
+        duration: offeringForm.duration || undefined,
+        attributeValues,
+      });
       setMyOfferings((prev) => [...prev, offering]);
       setServiceId('');
       setAttributeValues({});
       setAttributes([]);
+      setOfferingForm({ title: '', description: '', basePrice: '', priceType: 'FIXED', duration: '' });
+      setCategoryId('');
+      setServices([]);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not add that service');
     } finally {
@@ -145,7 +157,7 @@ export default function ProviderOnboardingServicesPage() {
     try {
       await providerOnboardingApi.removeTeamMember(id);
     } catch {
-      // best-effort; if it fails the member reappears on next load
+      // best-effort
     }
   }
 
@@ -174,7 +186,7 @@ export default function ProviderOnboardingServicesPage() {
   const isTeamRoster = TEAM_ROSTER_TYPES.includes(state.providerType ?? '');
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col px-4 py-8">
+    <main className="mx-auto flex min-h-screen max-w-2xl flex-col px-4 py-8">
       <div className="mb-2 flex items-center gap-1.5" aria-hidden="true">
         {['bg-brand-600', 'bg-brand-600', 'bg-brand-600'].map((c, i) => (
           <span key={i} className={`h-1.5 flex-1 rounded-full ${c}`} />
@@ -182,47 +194,20 @@ export default function ProviderOnboardingServicesPage() {
       </div>
       <p className="mb-6 text-xs font-medium text-ink-400">Step 3 of 3</p>
 
-      <h1 className="mb-1 text-2xl font-bold text-ink-950">Where and what do you offer?</h1>
+      <h1 className="mb-1 text-2xl font-bold text-ink-950">Create your service & location</h1>
       <p className="mb-6 text-sm text-ink-500">
-        Add your location and at least one service so clients can find and book you.
+        Add at least one service offering with details so clients can see it publicly on the platform.
       </p>
 
-      <section className="mb-6">
-        <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-ink-800">
-          <MapPin className="h-4 w-4 text-brand-600" aria-hidden="true" /> Service location
-        </h2>
-        <div className="overflow-hidden rounded-xl border border-ink-200">
-          <LocationPickerMap
-            center={center}
-            onCenterChange={(pos) => {
-              setCenter(pos);
-              setLocationSaved(false);
-            }}
-          />
-        </div>
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-          <button type="button" onClick={useMyLocation} className="text-link text-xs">
-            Use my current location
-          </button>
-          <button
-            type="button"
-            onClick={saveLocation}
-            disabled={savingLocation || locationSaved}
-            className="text-xs font-semibold text-brand-700 underline-offset-4 hover:underline disabled:text-ink-400 disabled:no-underline"
-          >
-            {locationSaved ? 'Location saved' : savingLocation ? 'Saving…' : 'Save this location'}
-          </button>
-        </div>
-      </section>
-
-      <section className="mb-6">
-        <h2 className="mb-2 text-sm font-semibold text-ink-800">Services you offer</h2>
+      <section className="mb-6 rounded-xl border border-ink-200 bg-surface p-4">
+        <h2 className="mb-3 text-sm font-semibold text-ink-800">Your services</h2>
 
         {myOfferings.length > 0 && (
-          <ul className="mb-3 flex flex-wrap gap-2">
+          <ul className="mb-4 flex flex-col gap-2">
             {myOfferings.map((o) => (
-              <li key={o.id} className="chip border-brand-200 bg-brand-50 text-brand-700">
-                {o.title || o.service?.name || 'Service'}
+              <li key={o.id} className="rounded-lg border border-ink-200 px-3 py-2 text-sm">
+                <div className="font-medium text-ink-800">{o.title || o.service?.name || 'Service'}</div>
+                {o.service?.category?.name && <div className="text-xs text-ink-500">{o.service.category.name}</div>}
               </li>
             ))}
           </ul>
@@ -260,34 +245,90 @@ export default function ProviderOnboardingServicesPage() {
               </option>
             ))}
           </select>
-          <button
-            type="button"
-            onClick={addService}
-            disabled={!serviceId || addingService}
-            className="btn-secondary sm:w-auto"
-            aria-label="Add service"
-          >
-            {addingService ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            ) : (
-              <Plus className="h-4 w-4" aria-hidden="true" />
-            )}
-            Add
-          </button>
         </div>
-        {attributes.length > 0 && serviceId && (
-          <div className="mt-3 rounded-xl border border-ink-200 bg-surface p-3">
-            <p className="mb-2 text-xs font-semibold text-ink-700">Details for this service</p>
-            <DynamicAttributeForm
-              attributes={attributes}
-              values={attributeValues}
-              onChange={(id, value) => setAttributeValues((prev) => ({ ...prev, [id]: value }))}
-            />
+
+        {serviceId && (
+          <div className="mt-3 space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="field mb-0">
+                <label className="label">Title (optional)</label>
+                <input value={offeringForm.title} onChange={(e) => setOfferingForm({ ...offeringForm, title: e.target.value })} placeholder="e.g. Professional plumbing" />
+              </div>
+              <div className="field mb-0">
+                <label className="label">Base price (RWF)</label>
+                <input type="number" value={offeringForm.basePrice} onChange={(e) => setOfferingForm({ ...offeringForm, basePrice: e.target.value })} placeholder="e.g. 15000" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="field mb-0">
+                <label className="label">Price type</label>
+                <select value={offeringForm.priceType} onChange={(e) => setOfferingForm({ ...offeringForm, priceType: e.target.value })}>
+                  <option value="FIXED">Fixed</option>
+                  <option value="HOURLY">Hourly</option>
+                  <option value="PER_DAY">Per day</option>
+                  <option value="STARTING_FROM">Starting from</option>
+                  <option value="CUSTOM_QUOTE">Custom quote</option>
+                </select>
+              </div>
+              <div className="field mb-0">
+                <label className="label">Duration (optional)</label>
+                <input value={offeringForm.duration} onChange={(e) => setOfferingForm({ ...offeringForm, duration: e.target.value })} placeholder="e.g. 2 hours" />
+              </div>
+            </div>
+            <div className="field mb-0">
+              <label className="label">Description (optional)</label>
+              <textarea rows={2} value={offeringForm.description} onChange={(e) => setOfferingForm({ ...offeringForm, description: e.target.value })} />
+            </div>
+            {attributes.length > 0 && (
+              <div className="rounded-lg border border-ink-200 p-3">
+                <p className="mb-2 text-xs font-semibold text-ink-700">Service details</p>
+                <DynamicAttributeForm
+                  attributes={attributes}
+                  values={attributeValues}
+                  onChange={(id, value) => setAttributeValues((prev) => ({ ...prev, [id]: value }))}
+                />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={addService}
+              disabled={!serviceId || addingService}
+              className="btn-primary w-full sm:w-auto"
+            >
+              {addingService ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Create service offering
+            </button>
           </div>
         )}
-        <p className="mt-1.5 text-xs text-ink-500">
-          You can set pricing and details for each service later from your dashboard.
-        </p>
+        <p className="mt-2 text-xs text-ink-500">This will be visible publicly on the platform.</p>
+      </section>
+
+      <section className="mb-6">
+        <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-ink-800">
+          <MapPin className="h-4 w-4 text-brand-600" aria-hidden="true" /> Service location
+        </h2>
+        <div className="overflow-hidden rounded-xl border border-ink-200">
+          <LocationPickerMap
+            center={center}
+            onCenterChange={(pos) => {
+              setCenter(pos);
+              setLocationSaved(false);
+            }}
+          />
+        </div>
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+          <button type="button" onClick={useMyLocation} className="text-link text-xs">
+            Use my current location
+          </button>
+          <button
+            type="button"
+            onClick={saveLocation}
+            disabled={savingLocation || locationSaved}
+            className="text-xs font-semibold text-brand-700 underline-offset-4 hover:underline disabled:text-ink-400 disabled:no-underline"
+          >
+            {locationSaved ? 'Location saved' : savingLocation ? 'Saving…' : 'Save this location'}
+          </button>
+        </div>
       </section>
 
       {isTeamRoster && (
@@ -310,29 +351,12 @@ export default function ProviderOnboardingServicesPage() {
             </ul>
           )}
           <div className="flex gap-2">
-            <input
-              placeholder="Name"
-              value={memberName}
-              onChange={(e) => setMemberName(e.target.value)}
-              className="min-w-0 flex-1"
-            />
-            <input
-              placeholder="Role"
-              value={memberRole}
-              onChange={(e) => setMemberRole(e.target.value)}
-              className="w-28 shrink-0"
-            />
-            <button
-              type="button"
-              onClick={addMember}
-              disabled={!memberName.trim() || addingMember}
-              className="btn-secondary shrink-0"
-              aria-label="Add team member"
-            >
+            <input placeholder="Name" value={memberName} onChange={(e) => setMemberName(e.target.value)} className="min-w-0 flex-1" />
+            <input placeholder="Role" value={memberRole} onChange={(e) => setMemberRole(e.target.value)} className="w-28 shrink-0" />
+            <button type="button" onClick={addMember} disabled={!memberName.trim() || addingMember} className="btn-secondary shrink-0">
               <Plus className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
-          <p className="mt-1.5 text-xs text-ink-500">You can invite people to manage their own accounts later.</p>
         </section>
       )}
 
@@ -343,25 +367,14 @@ export default function ProviderOnboardingServicesPage() {
       )}
 
       <div className="mt-auto flex gap-3 pt-2">
-        <button
-          type="button"
-          onClick={() => router.push('/provider/onboarding/profile')}
-          className="btn-secondary flex-1"
-        >
+        <button type="button" onClick={() => router.push('/provider/onboarding/profile')} className="btn-secondary flex-1">
           Back
         </button>
-        <button
-          type="button"
-          onClick={finish}
-          disabled={finishing || myOfferings.length === 0}
-          className="btn-primary flex-[1.4]"
-        >
+        <button type="button" onClick={finish} disabled={finishing || myOfferings.length === 0} className="btn-primary flex-[1.4]">
           {finishing ? 'Finishing…' : 'Finish setup'}
         </button>
       </div>
-      {myOfferings.length === 0 && (
-        <p className="mt-2 text-center text-xs text-ink-500">Add at least one service to finish setup.</p>
-      )}
+      {myOfferings.length === 0 && <p className="mt-2 text-center text-xs text-ink-500">Create at least one service offering to finish setup.</p>}
     </main>
   );
 }

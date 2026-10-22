@@ -25,3 +25,4 @@ jobs:
         with:
           working-directory: apps/api
           build-command: npm run build
+          schema-path: prisma/schema.prisma

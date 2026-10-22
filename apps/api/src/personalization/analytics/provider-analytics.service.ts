@@ -37,8 +37,8 @@ export class ProviderAnalyticsService {
     });
 
     const start = startOfCurrentMonth();
-    const offeringIds = provider.services.map((o) => o.id);
-    const serviceById = new Map(provider.services.map((o) => [o.id, o.service]));
+    const offeringIds = provider.services.map((o: any) => o.id);
+    const serviceById = new Map<string, { id: string; name: string }>(provider.services.map((o: any) => [o.id, o.service]));
 
     const [profileViews, serviceViewRows, requests, quotesSent, bookings, searchRows] = await Promise.all([
       this.prisma.userInteraction.count({
@@ -71,11 +71,11 @@ export class ProviderAnalyticsService {
     ]);
 
     const mostViewedService = this.getMostViewedService(
-      serviceViewRows.map((r) => r.entityId).filter((id): id is string => !!id),
-      serviceById,
+      serviceViewRows.map((r: any) => r.entityId).filter((id: any): id is string => !!id),
+      serviceById as any,
     );
 
-    const topSearchedService = this.getTopSearchedService(provider.services.map((o) => o.service), searchRows);
+    const topSearchedService = this.getTopSearchedService(provider.services.map((o: any) => o.service), searchRows);
 
     return {
       periodLabel: 'This month',

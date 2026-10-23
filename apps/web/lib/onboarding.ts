@@ -11,7 +11,7 @@ export function onboardingStepPath(step: ProviderOnboardingStep): string {
     case 'VERIFICATION':
       return '/provider/onboarding/services';
     case 'COMPLETED':
-      return '/provider/offerings/new';
+      return '/provider/dashboard';
     default:
       return '/provider/onboarding';
   }

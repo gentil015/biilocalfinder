@@ -1,14 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { ApiError, categoriesApi, offeringsApi, servicesApi } from '@/lib/api';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  ApiError,
+  categoriesApi,
+  offeringsApi,
+  providerOnboardingApi,
+  providersApi,
+  servicesApi,
+  type ProviderOnboardingState,
+} from '@/lib/api';
 import { categoryGroups, type CategoryNode } from '@/lib/categories';
 import { DynamicAttributeForm } from '@/components/attributes/dynamic-attribute-form';
+import { LocationPickerMap } from '@/components/location-picker-map';
 import { PageHeader, Panel } from '@/components/ui/page';
 
-export default function NewServiceOfferingPage() {
+const DEFAULT_LOCATION = { lat: -1.9441, lng: 30.0619 }; // Kigali
+
+function NewServiceOfferingForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isOnboarding = searchParams.get('onboarding') === '1';
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [categoryId, setCategoryId] = useState('');
   const [serviceId, setServiceId] = useState('');
@@ -23,6 +36,28 @@ export default function NewServiceOfferingPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [onboardingState, setOnboardingState] = useState<ProviderOnboardingState | null>(null);
+  const [location, setLocation] = useState(DEFAULT_LOCATION);
+  const [locationChanged, setLocationChanged] = useState(false);
+
+  // A provider who already created their first service but never finished
+  // onboarding (the old flow stopped here) only needs a location before we
+  // can mark setup complete — asking them to create the same offering again
+  // would fail with "You already have an offering for this service".
+  const skipOffering = isOnboarding && onboardingState?.hasActiveOffering;
+
+  useEffect(() => {
+    if (!isOnboarding) return;
+    providerOnboardingApi
+      .getState()
+      .then((state) => {
+        setOnboardingState(state);
+        if (state.location) {
+          setLocation({ lat: state.location.latitude, lng: state.location.longitude });
+        }
+      })
+      .catch(() => {});
+  }, [isOnboarding]);
 
   useEffect(() => {
     categoriesApi.tree().then(setCategories).catch(() => setCategories([]));
@@ -59,16 +94,22 @@ export default function NewServiceOfferingPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!categoryId) {
+    if (!skipOffering && !categoryId) {
       setError('Please choose a sub-category.');
       return;
     }
-    if (!serviceId) {
+    if (!skipOffering && !serviceId) {
       setError('No service available for this sub-category. Please contact admin to add one.');
       return;
     }
     setLoading(true);
     try {
+      if (skipOffering) {
+        await providersApi.setLocation({ latitude: location.lat, longitude: location.lng });
+        await providerOnboardingApi.complete();
+        router.push('/provider/dashboard');
+        return;
+      }
       const offering = await offeringsApi.create({
         serviceId,
         title: form.title || undefined,
@@ -78,6 +119,16 @@ export default function NewServiceOfferingPage() {
         duration: form.duration || undefined,
         attributeValues,
       });
+      if (isOnboarding) {
+        // Finishing setup still needs a base location even though the
+        // simplified flow no longer has a dedicated step for it.
+        if (!onboardingState?.location || locationChanged) {
+          await providersApi.setLocation({ latitude: location.lat, longitude: location.lng });
+        }
+        await providerOnboardingApi.complete();
+        router.push('/provider/dashboard');
+        return;
+      }
       router.push(`/provider/offerings?created=${offering.id}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not create service offering');
@@ -90,11 +141,26 @@ export default function NewServiceOfferingPage() {
     <main className="page-narrow py-6 pb-28 md:py-8">
       <PageHeader
         eyebrow="Services"
-        title="Add a service"
-        description="Tell clients about this service — the details below adjust automatically based on what you pick."
+        title={skipOffering ? 'Finish setting up' : 'Add a service'}
+        description={
+          skipOffering
+            ? 'Your first service is already listed. Set your base location to finish setting up your workspace.'
+            : 'Tell clients about this service — the details below adjust automatically based on what you pick.'
+        }
       />
 
       <form onSubmit={onSubmit}>
+        {skipOffering && (
+          <Panel title="First service created" className="mb-4">
+            <p className="text-sm text-ink-600">
+              You already added your first service. Confirm where you are based and we&rsquo;ll take you to your
+              dashboard.
+            </p>
+          </Panel>
+        )}
+
+        {!skipOffering && (
+          <>
         <Panel title="Choose your service" className="mb-4">
           <div className="field mb-0">
             <label htmlFor="offering-category" className="label">
@@ -202,6 +268,39 @@ export default function NewServiceOfferingPage() {
             />
           </Panel>
         )}
+          </>
+        )}
+
+        {isOnboarding && (
+          <Panel
+            title="Your base location"
+            description="Clients see how far away you are. Drag the pin or click the map to adjust it."
+            className="mb-4"
+          >
+            <div className="overflow-hidden rounded-xl border border-ink-200">
+              <LocationPickerMap
+                center={location}
+                onCenterChange={(pos) => {
+                  setLocation(pos);
+                  setLocationChanged(true);
+                }}
+              />
+            </div>
+            <button
+              type="button"
+              className="btn-secondary mt-4 w-full"
+              onClick={() => {
+                if (!navigator.geolocation) return;
+                navigator.geolocation.getCurrentPosition((pos) => {
+                  setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+                  setLocationChanged(true);
+                });
+              }}
+            >
+              Use my current location
+            </button>
+          </Panel>
+        )}
 
         {/* Sticky submit — stays within reach while the category attributes
             grow the form well past a screenful. */}
@@ -212,10 +311,19 @@ export default function NewServiceOfferingPage() {
             </p>
           )}
           <button type="submit" disabled={loading} className="btn-primary btn-lg w-full">
-            {loading ? 'Saving…' : 'Add service'}
+            {loading ? 'Saving…' : skipOffering ? 'Finish setup' : isOnboarding ? 'Add service & finish' : 'Add service'}
           </button>
         </div>
       </form>
     </main>
+  );
+}
+
+// useSearchParams needs a Suspense boundary during static prerendering.
+export default function NewServiceOfferingPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewServiceOfferingForm />
+    </Suspense>
   );
 }

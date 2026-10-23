@@ -30,8 +30,9 @@ Edit `.env.production` and set real values for at minimum:
 - `S3_ACCESS_KEY`, `S3_SECRET_KEY` (MinIO root credentials, or real S3 IAM
   keys if you point `S3_ENDPOINT` at AWS instead of the bundled MinIO)
 - `CORS_ORIGIN` — your real frontend origin, e.g. `https://app.example.com`
-- `NEXT_PUBLIC_API_URL` — `https://app.example.com/api` if nginx proxies
-  both under one domain (the provided nginx.conf does this)
+- `NEXT_PUBLIC_API_URL` — the frontend/API origin, e.g.
+  `https://app.example.com` (without `/api`; the frontend adds that path).
+  This is embedded in the frontend during the Docker image build.
 - `MAP_PROVIDER_KEY` — a real Mapbox token, once you're ready; the app
   runs fine without one (falls back to the offline mock provider)
 - `SENTRY_DSN` — optional; leave blank to skip error reporting

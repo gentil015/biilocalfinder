@@ -19,7 +19,7 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react';
-import { providersApi, reviewsApi } from '@/lib/api';
+import { ApiError, providersApi, reviewsApi } from '@/lib/api';
 import { FavoriteButton } from '@/components/favorite-button';
 import { VerificationBadge, VerificationLabel } from '@/components/verification-badge';
 import { ReportButton } from '@/components/report-button';
@@ -164,15 +164,35 @@ function AtAGlanceRow({ icon: Icon, label, children }: { icon: LucideIcon; label
   );
 }
 
-export default async function ProviderProfilePage({ params }: { params: { id: string } }) {
-  let provider: any;
-  let reviewSummary: any = null;
-  try {
-    provider = await providersApi.getPublic(params.id);
-    reviewSummary = await reviewsApi.summary(params.id).catch(() => null);
-  } catch {
-    notFound();
+const PROVIDER_FETCH_ATTEMPTS = 3;
+const PROVIDER_FETCH_RETRY_DELAY_MS = 300;
+
+// A provider that genuinely doesn't exist should 404, but a temporarily
+// unreachable API (Neon cold start, transient 5xx) must not be presented as
+// "not found" — retry briefly, then let the error bubble up to Next's error
+// boundary instead of calling notFound().
+async function loadProvider(id: string) {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < PROVIDER_FETCH_ATTEMPTS; attempt += 1) {
+    try {
+      return await providersApi.getPublic(id);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) notFound();
+      lastError = error;
+      if (error instanceof ApiError && error.status < 500) throw error;
+      if (attempt < PROVIDER_FETCH_ATTEMPTS - 1) {
+        await new Promise((resolve) => setTimeout(resolve, PROVIDER_FETCH_RETRY_DELAY_MS * (attempt + 1)));
+      }
+    }
   }
+
+  throw lastError;
+}
+
+export default async function ProviderProfilePage({ params }: { params: { id: string } }) {
+  const provider: any = await loadProvider(params.id);
+  const reviewSummary: any = await reviewsApi.summary(params.id).catch(() => null);
 
   const services: any[] = provider.services ?? [];
   const pricedServices = services.filter((s: any) => s.basePrice != null);

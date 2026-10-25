@@ -1,8 +1,15 @@
+const VERCEL_API_URL = 'https://biilocalfinder.vercel.app';
+
+// Server components run without `window`, so a client-only fallback sent their
+// fetches to http://localhost:4000 in production — which made every
+// server-rendered provider profile 404. Apply the fallback on the server too
+// (an explicitly configured NEXT_PUBLIC_API_URL always wins).
+const onVercel =
+  !!process.env.VERCEL ||
+  (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app'));
+
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
-    ? 'https://biilocalfinder.vercel.app'
-    : 'http://localhost:4000');
+  process.env.NEXT_PUBLIC_API_URL || (onVercel ? VERCEL_API_URL : 'http://localhost:4000');
 
 export class ApiError extends Error {
   constructor(

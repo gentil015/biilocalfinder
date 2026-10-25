@@ -6,6 +6,7 @@ import {
   ArrowUp,
   Bookmark,
   CalendarDays,
+  ChevronDown,
   ChevronRight,
   Flag,
   MapPin,
@@ -69,6 +70,15 @@ export function CustomerAssistWidget() {
     if (open) scrollToBottom();
   }, [open, turns, busy, scrollToBottom]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [open]);
+
   async function send(text: string) {
     const message = text.trim();
     if (!message || busy) return;
@@ -113,6 +123,7 @@ export function CustomerAssistWidget() {
           type="button"
           onClick={() => setOpen(true)}
           aria-expanded={false}
+          aria-label="Ask BII Assistant"
           className="group fixed bottom-24 right-4 z-50 inline-flex items-center gap-2 rounded-full bg-brand-gradient p-3 pl-4 font-semibold text-white shadow-lg shadow-brand-900/25 transition hover:shadow-brand-900/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/25 sm:bottom-6 md:right-6"
         >
           <Sparkles className="h-5 w-5" aria-hidden="true" />
@@ -122,11 +133,20 @@ export function CustomerAssistWidget() {
       )}
 
       {open && (
+        <button
+          type="button"
+          aria-label="Hide BII Assistant"
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-[55] cursor-default bg-home-night/45 backdrop-blur-sm animate-fade-in sm:hidden"
+        />
+      )}
+
+      {open && (
         <section
           role="dialog"
           aria-modal="true"
           aria-label="BII Assistant"
-          className="fixed inset-x-0 bottom-0 z-[60] flex h-[min(660px, 92dvh)] flex-col overflow-hidden border-t border-ink-200 bg-surface shadow-2xl shadow-ink-950/20 animate-slide-up-sheet sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[600px] sm:w-[400px] sm:rounded-2xl sm:border"
+          className="fixed inset-x-0 bottom-0 z-[60] flex h-[min(660px,92dvh)] max-h-[92dvh] flex-col overflow-hidden border-t border-ink-200 bg-surface shadow-2xl shadow-ink-950/20 animate-slide-up-sheet sm:inset-x-auto sm:bottom-6 sm:right-6 sm:h-[600px] sm:w-[400px] sm:rounded-2xl sm:border"
         >
           {/* Header */}
           <header className="relative flex items-center gap-3 bg-brand-gradient px-4 py-3.5 text-white">
@@ -144,7 +164,7 @@ export function CustomerAssistWidget() {
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Close assistant"
-              className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/85 transition hover:bg-white/15 hover:text-white"
+              className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white/85 transition hover:bg-white/15 hover:text-white"
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
@@ -153,7 +173,7 @@ export function CustomerAssistWidget() {
           {/* Messages */}
           <div
             ref={scrollRef}
-            className="flex-1 space-y-4 overflow-y-auto bg-canvas px-4 py-4"
+            className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain bg-canvas px-4 py-4"
           >
             {turns.length === 0 && (
               <>
@@ -214,6 +234,15 @@ export function CustomerAssistWidget() {
               aria-label="Message BII Assistant"
               className="min-w-0 flex-1 rounded-xl border border-ink-200 bg-ink-50/50 px-3.5 py-2.5 text-sm outline-none transition focus:border-brand-400 focus:bg-surface"
             />
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Hide BII Assistant"
+              className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-ink-200 px-3 text-xs font-bold text-ink-600 transition hover:bg-ink-50 hover:text-ink-900 sm:hidden"
+            >
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
+              Hide
+            </button>
             <button
               type="submit"
               disabled={busy || !input.trim()}

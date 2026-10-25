@@ -111,7 +111,7 @@ export default function AdminVerificationDetailPage() {
               <div className="detail-row">
                 <dt className="detail-key">Contact verified</dt>
                 <dd className="detail-value">
-                  <span className="flex items-center justify-end gap-3">
+                  <span className="flex flex-wrap items-center gap-2 sm:justify-end sm:gap-3">
                     <span
                       className={`inline-flex items-center gap-1 text-xs ${
                         record.provider.user.emailVerified ? 'text-success-700' : 'text-warning-700'

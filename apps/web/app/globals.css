@@ -687,7 +687,7 @@
   }
 
   .detail-row {
-    @apply flex items-baseline justify-between gap-6 py-3;
+    @apply flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6;
   }
 
   .detail-key {
@@ -695,7 +695,7 @@
   }
 
   .detail-value {
-    @apply text-right text-sm font-bold text-ink-900;
+    @apply min-w-0 break-words text-left text-sm font-bold text-ink-900 sm:text-right;
   }
 
   /* ==========================================================================

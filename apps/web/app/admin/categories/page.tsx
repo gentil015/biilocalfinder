@@ -65,14 +65,14 @@ export default function AdminCategoriesPage() {
           bodyClassName="p-0"
         >
           <div className="table-wrap">
-            <table className="table">
+            <table className="table table-fixed">
               <thead>
                 <tr>
                   <th scope="col">Category</th>
-                  <th scope="col" className="w-28">
+                  <th scope="col" className="w-20 sm:w-28">
                     Status
                   </th>
-                  <th scope="col" className="w-40 text-right">
+                  <th scope="col" className="w-20 text-right sm:w-40">
                     Actions
                   </th>
                 </tr>
@@ -110,10 +110,10 @@ export default function AdminCategoriesPage() {
                     <td className="text-right">
                       <Link
                         href={`/admin/categories/${c.id}`}
-                        className="btn-secondary btn-sm"
+                        className="btn-secondary btn-sm h-10 px-2 sm:h-8 sm:px-3"
                         aria-label={`Manage attributes for ${c.name}`}
                       >
-                        Attributes
+                        <span className="hidden sm:inline">Attributes</span>
                         <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                       </Link>
                     </td>

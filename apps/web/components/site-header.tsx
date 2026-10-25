@@ -64,14 +64,14 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-ink-200/70 bg-surface/85 backdrop-blur-xl">
-      <div className="page-shell flex h-16 items-center gap-4 lg:h-[4.5rem]">
+      <div className="page-shell flex h-16 items-center gap-3 sm:gap-4 lg:h-[4.5rem]">
         {canGoBack && (
           <>
-            <BackButton variant="icon" label="Go back" className="-ml-1.5" />
+            <BackButton variant="icon" label="Go back" className="-ml-1.5 hidden sm:inline-flex" />
             <span aria-hidden="true" className="hidden h-5 w-px shrink-0 bg-ink-200 sm:block" />
           </>
         )}
-        <BrandMark />
+        <BrandMark responsive />
 
         <nav aria-label="Main" className="hidden items-center gap-1 lg:ml-4 lg:flex">
           {links.map((link) => (
@@ -91,7 +91,7 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
           {user ? (
             <>
               <Link
@@ -147,7 +147,7 @@ export function SiteHeader() {
               >
                 Log in
               </Link>
-              <Link href="/register" className="btn-primary btn-sm sm:h-10 sm:px-4 sm:text-sm">
+              <Link href="/register" className="btn-primary h-10 px-3.5 text-sm sm:px-4">
                 Get started
               </Link>
             </>

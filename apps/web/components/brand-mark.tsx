@@ -13,12 +13,15 @@ import Link from 'next/link';
 export function BrandMark({
   inverted = false,
   compact = false,
+  responsive = false,
 }: {
   inverted?: boolean;
   compact?: boolean;
+  /** Collapse the wordmark to the icon on screens narrower than 380px. */
+  responsive?: boolean;
 }) {
   return (
-    <Link href="/" className="group inline-flex shrink-0 items-center gap-2.5 rounded-xl" aria-label="Bii Localfinder home">
+    <Link href="/" className="group -m-1 inline-flex shrink-0 items-center gap-2.5 rounded-xl p-1" aria-label="Bii Localfinder home">
       <span
         className={`relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] shadow-xs transition group-hover:shadow-sm
           /* inverted sits on always-dark bands, so its glyph stays night-in-white;
@@ -39,7 +42,7 @@ export function BrandMark({
         </svg>
       </span>
       {!compact && (
-        <span className="flex items-baseline gap-1 leading-none">
+        <span className={`${responsive ? 'hidden min-[380px]:flex' : 'flex'} items-baseline gap-1 leading-none`}>
           <span className={`font-display text-[17px] font-extrabold tracking-tight ${inverted ? 'text-white' : 'text-ink-950'}`}>
             Bii
           </span>

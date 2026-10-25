@@ -221,9 +221,9 @@ export default function AccountPage() {
       {/* Sections */}
       <div className="mt-6 grid gap-5 lg:grid-cols-3">
         {/* Left: two aligned link sections */}
-        <div className="space-y-5 lg:col-span-2">
+        <div className="min-w-0 space-y-5 lg:col-span-2">
           <section className="surface-card">
-            <div className="flex items-center justify-between border-b border-ink-900/10 px-5 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-900/10 px-5 py-4">
               <h2 className="card-title">{t('account.activity')}</h2>
               <span className="text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">{t('account.activityMeta')}</span>
             </div>
@@ -242,7 +242,7 @@ export default function AccountPage() {
           </section>
 
           <section className="surface-card">
-            <div className="flex items-center justify-between border-b border-ink-900/10 px-5 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-900/10 px-5 py-4">
               <h2 className="card-title">{t('account.preferences')}</h2>
               <span className="text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">{t('account.preferencesMeta')}</span>
             </div>
@@ -257,7 +257,7 @@ export default function AccountPage() {
         </div>
 
         {/* Right: workspace + session, aligned to the left column height */}
-        <div className="flex flex-col gap-5">
+        <div className="min-w-0 flex flex-col gap-5">
           <section className="surface-card flex flex-1 flex-col">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink-900/10 px-5 py-4">
               <div className="flex items-center gap-2.5">

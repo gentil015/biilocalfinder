@@ -521,7 +521,8 @@
 
   /* Square icon-only button (header actions, card affordances). */
   .icon-btn {
-    @apply inline-flex h-9 w-9 items-center justify-center rounded-xl text-ink-500 transition duration-150
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-xl text-ink-500 transition duration-150
+      sm:h-9 sm:w-9
       hover:bg-ink-900/5 hover:text-ink-900
       focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20;
   }

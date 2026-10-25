@@ -236,7 +236,7 @@ export function WorkspaceShell({
         >
           <Menu className="h-5 w-5" />
         </button>
-        {canGoBack && <BackButton variant="icon" label="Go back" className="-ml-1" />}
+        {canGoBack && <BackButton variant="icon" label="Go back" className="-ml-1 hidden sm:inline-flex" />}
         <div className="min-w-0 flex-1">{identity}</div>
         <ThemeToggle className="shrink-0" />
         <Link

@@ -487,7 +487,7 @@ export function LandingPage() {
                 Rwanda&apos;s local services marketplace
               </p>
 
-              <h1 className="mt-6 max-w-[16ch] font-display text-[38px] font-extrabold leading-[1.03] tracking-[-0.035em] text-ink-950 sm:text-5xl lg:text-[58px]">
+              <h1 className="mt-6 max-w-[16ch] font-display text-[clamp(2rem,10vw,2.375rem)] font-extrabold leading-[1.03] tracking-[-0.035em] text-ink-950 sm:text-5xl lg:text-[58px]">
                 Find the right professional.{' '}
                 <span className="relative whitespace-nowrap">
                   <span className="relative z-10 text-brand-700">Right around you.</span>
@@ -1028,7 +1028,7 @@ export function LandingPage() {
                 <MapPin className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />
                 Free for clients, always
               </p>
-              <h2 className="mt-3 font-display text-[30px] font-extrabold leading-[1.08] tracking-[-0.03em] text-white sm:text-5xl">
+              <h2 className="mt-3 font-display text-[clamp(1.5rem,7.5vw,1.875rem)] font-extrabold leading-[1.08] tracking-[-0.03em] text-white sm:text-5xl">
                 Your neighbourhood&apos;s pros are one search away.
               </h2>
               <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-white/70">

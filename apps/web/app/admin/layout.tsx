@@ -91,11 +91,11 @@ function AdminChrome({ children }: { children: React.ReactNode }) {
           <div className="flex h-14 items-center gap-4">
             {canGoBack && (
               <>
-                <BackButton variant="icon" label="Go back" className="-ml-1" />
+                <BackButton variant="icon" label="Go back" className="-ml-1 hidden sm:inline-flex" />
                 <span aria-hidden="true" className="hidden h-5 w-px shrink-0 bg-ink-200 sm:block" />
               </>
             )}
-            <BrandMark />
+            <BrandMark responsive />
 
             <span className="hidden shrink-0 items-center gap-1.5 rounded-full bg-brand-50 px-2.5 py-1 text-2xs font-bold uppercase tracking-wider text-brand-700 sm:inline-flex">
               Admin
@@ -124,7 +124,7 @@ function AdminChrome({ children }: { children: React.ReactNode }) {
                 onClick={() => setOpen((v) => !v)}
                 aria-label={open ? 'Close admin navigation' : 'Open admin navigation'}
                 aria-expanded={open}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-ink-600 transition hover:bg-ink-100 md:hidden"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-ink-600 transition hover:bg-ink-100 md:hidden md:h-9 md:w-9"
               >
                 {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
               </button>

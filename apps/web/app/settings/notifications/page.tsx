@@ -16,6 +16,43 @@ const CHANNELS = [
   { key: 'email', label: 'Email', icon: Mail },
 ] as const;
 
+function ChannelSwitch({
+  checked,
+  label,
+  onClick,
+  disabled,
+}: {
+  checked: boolean;
+  label: string;
+  onClick: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex h-10 w-11 shrink-0 items-center justify-center rounded-full transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20 disabled:opacity-50"
+    >
+      <span
+        aria-hidden="true"
+        className={`flex h-6 w-11 items-center rounded-full transition-colors ${
+          checked ? 'bg-brand-600' : 'bg-ink-200'
+        }`}
+      >
+        <span
+          className={`block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+            checked ? 'translate-x-[22px]' : 'translate-x-0.5'
+          }`}
+        />
+      </span>
+    </button>
+  );
+}
+
 export default function NotificationSettingsPage() {
   const { t } = useI18n();
   const [prefs, setPrefs] = useState<any[]>([]);
@@ -84,7 +121,38 @@ export default function NotificationSettingsPage() {
         description={t('notifications.deliveryChannelsDescription')}
         bodyClassName="p-0"
       >
-        <div className="table-wrap">
+        {/* Phones get one card per category with labelled switches. The matrix
+            used on larger screens needs 384px, so it would force a horizontal
+            scroll on every phone. */}
+        <div className="sm:hidden">
+          {prefs.map((p) => (
+            <div key={p.category} className="border-b border-ink-100 px-4 py-4 last:border-0">
+              <p className="text-sm font-semibold text-ink-900">{p.label}</p>
+              <p className="mt-0.5 text-xs leading-relaxed text-ink-500">{p.description}</p>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {CHANNELS.map(({ key, label, icon: Icon }) => (
+                  <div
+                    key={key}
+                    className="flex flex-col items-center gap-1 rounded-xl border border-ink-100 bg-ink-50/50 px-2 py-2.5"
+                  >
+                    <span className="flex items-center gap-1 text-2xs font-bold uppercase tracking-wide text-ink-500">
+                      <Icon className="h-3 w-3" aria-hidden="true" />
+                      {label}
+                    </span>
+                    <ChannelSwitch
+                      checked={!!p[key]}
+                      label={`${label} for ${p.label}`}
+                      onClick={() => toggle(p.category, key)}
+                      disabled={savingKey === `${p.category}:${key}`}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden table-wrap sm:block">
           <div className="min-w-[24rem]">
             <div className="grid grid-cols-[minmax(0,1fr)_repeat(3,6rem)] items-center gap-2 border-b border-ink-200 bg-ink-50/60 px-5 py-3">
               <span className="text-2xs font-bold uppercase tracking-wider text-ink-500">
@@ -116,28 +184,12 @@ export default function NotificationSettingsPage() {
                 </div>
                 {CHANNELS.map(({ key, label }) => (
                   <div key={key} className="flex justify-center">
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={!!p[key]}
-                      aria-label={`${label} for ${p.label}`}
+                    <ChannelSwitch
+                      checked={!!p[key]}
+                      label={`${label} for ${p.label}`}
                       onClick={() => toggle(p.category, key)}
                       disabled={savingKey === `${p.category}:${key}`}
-                      className={`h-6 w-11 rounded-full transition-colors disabled:opacity-50 ${
-                        p[key] ? 'bg-brand-600' : 'bg-ink-200'
-                      }`}
-                    >
-                      <span
-                        /* The knob stays solid white in both themes — a switch
-                           knob has to read as *raised* against its track, and
-                           the dark surface token would sink into the off-track
-                           grey. White works on both the grey off-track and the
-                           green on-track. */
-                        className={`block h-5 w-5 translate-x-0.5 rounded-full bg-white shadow transition-transform ${
-                          p[key] ? 'translate-x-[22px]' : ''
-                        }`}
-                      />
-                    </button>
+                    />
                   </div>
                 ))}
               </div>

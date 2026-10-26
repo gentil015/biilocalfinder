@@ -21,7 +21,7 @@ describe('MessagingService.startConversation', () => {
         findUnique: jest.fn(),
         update: jest.fn(),
       },
-      conversationParticipant: { findFirst: jest.fn(), update: jest.fn() },
+      conversationParticipant: { findFirst: jest.fn(), findMany: jest.fn(), update: jest.fn() },
       message: { create: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
       $transaction: jest.fn(),
     };
@@ -53,7 +53,16 @@ describe('MessagingService.startConversation', () => {
       Promise.resolve({ id: where.id, participants: [] }),
     );
     prisma.conversationParticipant.findFirst.mockResolvedValue({ id: 'part-1', clientId: clientProfileId });
-    prisma.message.create.mockResolvedValue({ id: 'msg-1', body: 'Hi', conversationId: 'conv-new' });
+    prisma.conversationParticipant.findMany.mockResolvedValue([
+      { client: { userId: clientUserId }, provider: null },
+      { client: null, provider: { userId: 'provider-user-1' } },
+    ]);
+    prisma.message.create.mockResolvedValue({
+      id: 'msg-1',
+      body: 'Hi',
+      conversationId: 'conv-new',
+      sender: { firstName: 'Aline', lastName: 'Mukamana' },
+    });
     prisma.$transaction.mockImplementation((ops: any[]) => Promise.all(ops));
   });
 
@@ -94,13 +103,34 @@ describe('MessagingService.startConversation', () => {
     expect(notifications.notify).toHaveBeenCalledWith(
       expect.objectContaining({ userId: 'provider-user-1', type: 'NEW_MESSAGE' }),
     );
-    expect(result.message).toEqual({ id: 'msg-1', body: 'Hi', conversationId: 'conv-new' });
+    expect(result.message).toEqual({
+      id: 'msg-1',
+      body: 'Hi',
+      conversationId: 'conv-new',
+      sender: { firstName: 'Aline', lastName: 'Mukamana' },
+    });
   });
 
   it('trims the opening message so whitespace-only text cannot be stored', async () => {
     await service.startConversation(clientUserId, { providerId: 'provider-1', body: '  hello  ' });
 
     expect(prisma.message.create.mock.calls[0][0].data.body).toBe('hello');
+  });
+
+  it('notifies the other participant on every reply, not just the opening message', async () => {
+    await service.sendMessage('conv-existing', clientUserId, 'Any update?');
+
+    expect(notifications.notify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'provider-user-1',
+        type: 'NEW_MESSAGE',
+        body: 'Aline Mukamana: Any update?',
+        data: { conversationId: 'conv-existing' },
+      }),
+    );
+    expect(notifications.notify).not.toHaveBeenCalledWith(
+      expect.objectContaining({ userId: clientUserId }),
+    );
   });
 
   it('reuses the existing thread instead of creating a duplicate', async () => {

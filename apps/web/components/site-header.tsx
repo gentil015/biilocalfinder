@@ -7,6 +7,7 @@ import { Menu, X, Plus, LayoutDashboard, ShieldCheck } from 'lucide-react';
 import { BrandMark } from '@/components/brand-mark';
 import { BackButton, useCanGoBack } from '@/components/back-button';
 import { useAuth, useSession } from '@/components/auth-provider';
+import { NotificationBell } from '@/components/notification-bell';
 import { ThemeSegmentedControl, ThemeToggle } from '@/components/theme-toggle';
 
 type NavLink = { href: string; label: string; description?: string };
@@ -117,6 +118,7 @@ export function SiteHeader() {
                   Admin
                 </Link>
               )}
+              <NotificationBell />
               <Link
                 href="/account"
                 aria-current={pathname === '/account' ? 'page' : undefined}

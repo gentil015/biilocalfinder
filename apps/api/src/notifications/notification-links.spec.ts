@@ -29,6 +29,14 @@ describe('notificationLink', () => {
     expect(notificationLink('BOOKING_UPDATED', undefined)).toBeNull();
   });
 
+  it('links a message notification to its conversation', () => {
+    process.env.WEB_URL = 'https://app.bii.example/';
+    expect(notificationLink('NEW_MESSAGE', { conversationId: 'c-1' })).toEqual({
+      href: 'https://app.bii.example/messages/c-1',
+      label: 'View message',
+    });
+  });
+
   it('returns null for types with no deep link', () => {
     expect(notificationLink('NEW_MESSAGE', { bookingId: 'b1' })).toBeNull();
     expect(notificationLink('NEW_REVIEW', {})).toBeNull();

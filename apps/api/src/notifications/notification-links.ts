@@ -25,6 +25,11 @@ export function notificationLink(
   type: NotificationType,
   data: Record<string, unknown> | undefined,
 ): NotificationLink | null {
+  const conversationId = data && typeof data.conversationId === 'string' ? data.conversationId : undefined;
+  if (type === 'NEW_MESSAGE' && conversationId) {
+    return { href: `${webUrl()}/messages/${conversationId}`, label: 'View message' };
+  }
+
   const bookingId = data && typeof data.bookingId === 'string' ? data.bookingId : undefined;
   if (!bookingId) return null;
 

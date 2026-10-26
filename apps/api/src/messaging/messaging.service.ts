@@ -40,13 +40,7 @@ export class MessagingService {
   // request — must land back in it rather than starting a duplicate, so
   // this reuses the existing conversation and just appends the new message.
   async startConversation(userId: string, dto: StartConversationDto) {
-    const [clientProfile, user] = await Promise.all([
-      this.prisma.clientProfile.findUnique({ where: { userId } }),
-      this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { firstName: true, lastName: true },
-      }),
-    ]);
+    const clientProfile = await this.prisma.clientProfile.findUnique({ where: { userId } });
     if (!clientProfile) {
       throw new ForbiddenException('Only client accounts can start a conversation with a provider');
     }
@@ -99,17 +93,6 @@ export class MessagingService {
     let firstMessage = null;
     if (dto.body) {
       firstMessage = await this.sendMessage(conversationId, userId, dto.body.trim());
-    }
-
-    if (dto.body) {
-      const senderName = `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim() || 'A client';
-      await this.notifications.notify({
-        userId: provider.userId,
-        type: 'NEW_MESSAGE',
-        title: 'New message',
-        body: `${senderName}: ${dto.body.trim().slice(0, 140)}`,
-        data: { conversationId },
-      });
     }
 
     const conversation = await this.getConversation(conversationId, userId);
@@ -178,6 +161,28 @@ export class MessagingService {
       }),
       this.prisma.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } }),
     ]);
+
+    // Every reply — not just the opening message of a new thread — notifies
+    // the other participants. Both the socket gateway and the REST fallback
+    // call this one method, so notifications can't drift between the two
+    // transports.
+    const recipientIds = await this.otherParticipantUserIds(conversationId, senderId);
+    if (recipientIds.length > 0) {
+      const senderName =
+        `${message.sender?.firstName ?? ''} ${message.sender?.lastName ?? ''}`.trim() || 'Someone';
+      const preview = body.trim().slice(0, 140);
+      await Promise.all(
+        recipientIds.map((userId) =>
+          this.notifications.notify({
+            userId,
+            type: 'NEW_MESSAGE',
+            title: 'New message',
+            body: `${senderName}: ${preview}`,
+            data: { conversationId },
+          }),
+        ),
+      );
+    }
 
     return message;
   }

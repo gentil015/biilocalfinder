@@ -22,6 +22,7 @@ import { RequireAdmin } from '@/components/require-admin';
 import { BrandMark } from '@/components/brand-mark';
 import { BackButton, useCanGoBack } from '@/components/back-button';
 import { useAuth } from '@/components/auth-provider';
+import { NotificationBell } from '@/components/notification-bell';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 /**
@@ -110,6 +111,7 @@ function AdminChrome({ children }: { children: React.ReactNode }) {
               >
                 Marketplace
               </Link>
+              <NotificationBell />
               <ThemeToggle />
               <button
                 type="button"

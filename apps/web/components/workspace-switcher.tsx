@@ -9,6 +9,7 @@ import { WORKSPACE_TYPE_LABEL } from '@/lib/workspace-nav';
 import { BrandMark } from '@/components/brand-mark';
 import { BackButton, useCanGoBack } from '@/components/back-button';
 import { useAuth } from '@/components/auth-provider';
+import { NotificationBell } from '@/components/notification-bell';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 // spec §1: "A user may own or belong to multiple workspaces and switch
@@ -238,6 +239,7 @@ export function WorkspaceShell({
         </button>
         {canGoBack && <BackButton variant="icon" label="Go back" className="-ml-1 hidden sm:inline-flex" />}
         <div className="min-w-0 flex-1">{identity}</div>
+        <NotificationBell />
         <ThemeToggle className="shrink-0" />
         <Link
           href="/account"
@@ -280,8 +282,9 @@ export function WorkspaceShell({
       {/* Desktop sidebar */}
       <div className="lg:flex">
         <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-ink-200 bg-surface p-4 lg:flex">
-          <div className="mb-5">
+          <div className="mb-5 flex items-center justify-between gap-2">
             <BrandMark />
+            <NotificationBell align="left" />
           </div>
 
           {canGoBack && (

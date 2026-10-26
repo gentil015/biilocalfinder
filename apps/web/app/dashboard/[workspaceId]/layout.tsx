@@ -4,9 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { providerOnboardingApi, workspacesApi, type Workspace, type WorkspaceMembershipSummary } from '@/lib/api';
 import { onboardingStepPath } from '@/lib/onboarding';
-import { WORKSPACE_NAV, WORKSPACE_TYPE_LABEL } from '@/lib/workspace-nav';
-import { WorkspaceShell, WorkspaceSwitcher } from '@/components/workspace-switcher';
-import { VerificationBadge } from '@/components/verification-badge';
+import { WorkspaceFrame } from '@/components/workspace-frame';
 import { LoadingBlock } from '@/components/ui/page';
 
 // The shared dashboard foundation (spec §6): one shell, type-specific nav
@@ -116,32 +114,10 @@ export default function WorkspaceDashboardLayout({
   }
 
   const workspace: Workspace = active.workspace;
-  const navItems = WORKSPACE_NAV[workspace.type];
 
   return (
-    <WorkspaceShell
-      navLabel={`${WORKSPACE_TYPE_LABEL[workspace.type]} dashboard navigation`}
-      nav={navItems.map((item) => ({ label: item.label, href: item.href(workspaceId), icon: item.icon }))}
-      identity={
-        <div className="flex min-w-0 items-center gap-2.5">
-          <WorkspaceSwitcher
-            memberships={memberships}
-            activeWorkspaceId={workspaceId}
-          />
-        </div>
-      }
-    >
-      {workspace.provider && (
-        <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-ink-200 bg-surface px-4 py-3">
-          <VerificationBadge status={workspace.provider.verificationStatus} />
-          <p className="text-sm text-ink-600">
-            {workspace.provider.verificationStatus === 'VERIFIED'
-              ? 'Your profile is verified — you appear with a trust badge in search.'
-              : 'Complete verification to appear with a trust badge in search.'}
-          </p>
-        </div>
-      )}
+    <WorkspaceFrame workspace={workspace} memberships={memberships}>
       {children}
-    </WorkspaceShell>
+    </WorkspaceFrame>
   );
 }

@@ -147,8 +147,8 @@ export interface ShellNavItem {
  * is hidden behind a horizontally scrolling track.
  *
  * The sidebar also replaces the site header for these routes (AppChrome treats
- * /dashboard, /provider/onboarding and /admin as app-shell paths), so it
- * carries the only sign-out affordance a provider sees all session.
+ * /dashboard, /provider and /admin as app-shell paths), so it carries the only
+ * sign-out affordance a provider sees all session.
  */
 export function WorkspaceShell({
   nav,

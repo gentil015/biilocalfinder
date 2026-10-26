@@ -15,7 +15,8 @@ function isAuthPath(pathname: string) {
 function isAppShellPath(pathname: string) {
   return (
     pathname.startsWith('/dashboard') ||
-    pathname.startsWith('/provider/onboarding') ||
+    pathname === '/provider' ||
+    pathname.startsWith('/provider/') ||
     pathname.startsWith('/admin')
   );
 }

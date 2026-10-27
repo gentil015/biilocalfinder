@@ -178,79 +178,122 @@ function CompareContent() {
         {providers.length} providers. The strongest figure in each row is highlighted.
       </p>
 
-      <div className="table-wrap mt-6 overflow-hidden rounded-xl border border-ink-200 bg-surface shadow-xs">
-        <table className="table min-w-[640px] table-fixed">
-          <caption className="sr-only">Comparison of selected providers</caption>
-          <thead>
-            <tr>
-              <th scope="col" className="w-40">
-                <span className="sr-only">Attribute</span>
-              </th>
-              {providers.map((p) => {
-                const initial = p.businessName?.charAt(0)?.toUpperCase() ?? 'P';
-                return (
-                  <th key={p.id} scope="col" className="p-4 text-center align-bottom">
-                    <Link href={`/providers/${p.id}`} className="group block">
-                      <span className="mx-auto mb-2.5 block h-14 w-14 overflow-hidden rounded-xl bg-gradient-to-br from-brand-600 to-brand-800">
-                        {p.avatarUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={p.avatarUrl} alt="" className="h-full w-full object-cover" />
-                        ) : (
-                          <span className="flex h-full w-full items-center justify-center font-display text-lg font-extrabold text-white dark:text-home-night">
-                            {initial}
-                          </span>
-                        )}
+      <>
+        {/* Mobile stacked comparison */}
+        <div className="mt-6 grid gap-4 md:hidden">
+          {providers.map((p) => {
+            const initial = p.businessName?.charAt(0)?.toUpperCase() ?? 'P';
+            return (
+              <section key={p.id} className="surface-card overflow-hidden">
+                <Link href={`/providers/${p.id}`} className="flex items-center gap-3 border-b border-ink-100 p-4">
+                  <span className="h-12 w-12 overflow-hidden rounded-xl bg-gradient-to-br from-brand-600 to-brand-800">
+                    {p.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.avatarUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center font-display text-base font-extrabold text-white dark:text-home-night">
+                        {initial}
                       </span>
-                      <span className="block text-sm font-bold leading-tight text-ink-950 group-hover:text-brand-700">
-                        {p.businessName}
-                      </span>
-                      {p.city && <span className="mt-0.5 block text-2xs font-medium text-ink-400">{p.city}</span>}
-                    </Link>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-
-          <tbody>
-            {ROWS.map((row) => {
-              const best = bestIndex(row, providers);
-              return (
-                <tr key={row.key}>
-                  <th
-                    scope="row"
-                    className="border-b border-ink-100 bg-ink-50/60 px-4 py-3.5 text-left align-middle text-xs font-semibold text-ink-500"
-                  >
-                    {row.label}
-                  </th>
-                  {providers.map((p, idx) => (
-                    <td
-                      key={p.id}
-                      className={`border-b border-ink-100 px-4 py-3.5 text-center align-middle text-sm ${
-                        idx === best ? 'bg-success-50/70 font-semibold text-ink-900' : 'text-ink-700'
-                      }`}
-                    >
-                      {row.render(p)}
-                    </td>
+                    )}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="font-bold text-ink-950">{p.businessName}</p>
+                    {p.city && <p className="text-xs text-ink-400">{p.city}</p>}
+                  </div>
+                </Link>
+                <dl className="divide-y divide-ink-100">
+                  {ROWS.map((row) => (
+                    <div key={row.key} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                      <dt className="text-xs font-medium text-ink-500">{row.label}</dt>
+                      <dd className="text-sm text-ink-900">{row.render(p)}</dd>
+                    </div>
                   ))}
-                </tr>
-              );
-            })}
-            <tr>
-              <th scope="row" className="bg-ink-50/60 px-4 py-4 text-left align-middle">
-                <span className="text-xs font-semibold text-ink-500">Next step</span>
-              </th>
-              {providers.map((p) => (
-                <td key={p.id} className="px-4 py-4 text-center align-middle">
-                  <Link href={`/requests/new?providerId=${p.id}`} className="btn-primary btn-sm whitespace-nowrap">
+                </dl>
+                <div className="border-t border-ink-100 p-3">
+                  <Link href={`/requests/new?providerId=${p.id}`} className="btn-primary btn-sm w-full">
                     Request service
                   </Link>
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
-      </div>
+                </div>
+              </section>
+            );
+          })}
+        </div>
+
+        {/* Desktop table */}
+        <div className="table-wrap mt-6 hidden overflow-hidden rounded-xl border border-ink-200 bg-surface shadow-xs md:block">
+          <table className="table min-w-[640px] table-fixed">
+            <caption className="sr-only">Comparison of selected providers</caption>
+            <thead>
+              <tr>
+                <th scope="col" className="w-40">
+                  <span className="sr-only">Attribute</span>
+                </th>
+                {providers.map((p) => {
+                  const initial = p.businessName?.charAt(0)?.toUpperCase() ?? 'P';
+                  return (
+                    <th key={p.id} scope="col" className="p-4 text-center align-bottom">
+                      <Link href={`/providers/${p.id}`} className="group block">
+                        <span className="mx-auto mb-2.5 block h-14 w-14 overflow-hidden rounded-xl bg-gradient-to-br from-brand-600 to-brand-800">
+                          {p.avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={p.avatarUrl} alt="" className="h-full w-full object-cover" />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center font-display text-lg font-extrabold text-white dark:text-home-night">
+                              {initial}
+                            </span>
+                          )}
+                        </span>
+                        <span className="block text-sm font-bold leading-tight text-ink-950 group-hover:text-brand-700">
+                          {p.businessName}
+                        </span>
+                        {p.city && <span className="mt-0.5 block text-2xs font-medium text-ink-400">{p.city}</span>}
+                      </Link>
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+
+            <tbody>
+              {ROWS.map((row) => {
+                const best = bestIndex(row, providers);
+                return (
+                  <tr key={row.key}>
+                    <th
+                      scope="row"
+                      className="border-b border-ink-100 bg-ink-50/60 px-4 py-3.5 text-left align-middle text-xs font-semibold text-ink-500"
+                    >
+                      {row.label}
+                    </th>
+                    {providers.map((p, idx) => (
+                      <td
+                        key={p.id}
+                        className={`border-b border-ink-100 px-4 py-3.5 text-center align-middle text-sm ${
+                          idx === best ? 'bg-success-50/70 font-semibold text-ink-900' : 'text-ink-700'
+                        }`}
+                      >
+                        {row.render(p)}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+              <tr>
+                <th scope="row" className="bg-ink-50/60 px-4 py-4 text-left align-middle">
+                  <span className="text-xs font-semibold text-ink-500">Next step</span>
+                </th>
+                {providers.map((p) => (
+                  <td key={p.id} className="px-4 py-4 text-center align-middle">
+                    <Link href={`/requests/new?providerId=${p.id}`} className="btn-primary btn-sm whitespace-nowrap">
+                      Request service
+                    </Link>
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </>
     </main>
   );
 }

@@ -10,7 +10,7 @@ import {
   UploadCloud,
   type LucideIcon,
 } from 'lucide-react';
-import { verificationApi, contactVerificationApi, ApiError } from '@/lib/api';
+import { verificationApi, contactVerificationApi, providersApi, ApiError } from '@/lib/api';
 import { PageHeader, Panel, LoadingBlock } from '@/components/ui/page';
 
 const IDENTITY_DOC_OPTIONS = [
@@ -251,12 +251,38 @@ function ContactVerify({ channel, label }: { channel: 'EMAIL' | 'PHONE'; label: 
 export default function ProviderVerificationPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [phone, setPhone] = useState('');
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [phoneSaved, setPhoneSaved] = useState(false);
 
   const refresh = () => verificationApi.myStatus().then(setData).finally(() => setLoading(false));
 
   useEffect(() => {
     refresh();
+    providersApi.getMe().then((p) => {
+      if (p?.phone || p?.user?.phone) setPhone(p.phone || p.user.phone);
+    }).catch(() => {});
   }, []);
+
+  async function savePhone() {
+    if (!phone.trim()) {
+      setPhoneError('Enter a phone number');
+      return;
+    }
+    setSavingPhone(true);
+    setPhoneError(null);
+    setPhoneSaved(false);
+    try {
+      await providersApi.updateMe({ phone: phone.trim() });
+      setPhoneSaved(true);
+      refresh();
+    } catch (err) {
+      setPhoneError(err instanceof ApiError ? err.message : 'Could not save phone');
+    } finally {
+      setSavingPhone(false);
+    }
+  }
 
   if (loading)
     return (
@@ -379,7 +405,19 @@ export default function ProviderVerificationPage() {
             {data.hasPhone ? (
               <ContactVerify channel="PHONE" label="Phone" />
             ) : (
-              <span className="text-xs text-ink-400">Add a phone number to your profile to verify it.</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+250788000000"
+                  className="w-40"
+                />
+                <button onClick={savePhone} disabled={savingPhone} className="btn-secondary btn-sm">
+                  {savingPhone ? 'Saving…' : 'Add & save'}
+                </button>
+                {phoneSaved && <span className="text-xs text-success-600">Saved</span>}
+                {phoneError && <span className="text-xs font-medium text-danger-600">{phoneError}</span>}
+              </div>
             )}
           </div>
         </div>

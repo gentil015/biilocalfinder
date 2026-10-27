@@ -537,6 +537,7 @@ export const usersApi = {
     authRequest<{
       id: string;
       email: string;
+      phone?: string | null;
       firstName: string;
       lastName: string;
       avatarUrl: string | null;
@@ -544,6 +545,8 @@ export const usersApi = {
       status: string;
       locale: string;
     }>('/users/me'),
+  updateMe: (data: { phone?: string; firstName?: string; lastName?: string; avatarUrl?: string }) =>
+    authRequest<any>('/users/me', { method: 'PATCH', body: JSON.stringify(data) }),
   // Returns the updated user, same shape as `me`, so the caller can update its
   // session copy without a second request.
   updateLocale: (locale: string) =>

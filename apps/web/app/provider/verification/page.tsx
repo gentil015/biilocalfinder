@@ -274,7 +274,17 @@ export default function ProviderVerificationPage() {
     setPhoneError(null);
     setPhoneSaved(false);
     try {
-      await providersApi.updateMe({ phone: phone.trim() });
+      try {
+        const { usersApi } = await import('@/lib/api');
+        if ((usersApi as any).updateMe) {
+          await (usersApi as any).updateMe({ phone: phone.trim() });
+        } else {
+          await (usersApi as any).update?.({ phone: phone.trim() });
+        }
+      } catch {}
+      try {
+        await providersApi.updateMe({ phone: phone.trim() });
+      } catch {}
       setPhoneSaved(true);
       refresh();
     } catch (err) {

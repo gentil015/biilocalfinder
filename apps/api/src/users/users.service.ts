@@ -28,6 +28,24 @@ export class UsersService {
     return user;
   }
 
+  async updateMe(id: string, data: { phone?: string; firstName?: string; lastName?: string; avatarUrl?: string }) {
+    const update: any = {};
+    if (data.phone !== undefined) update.phone = data.phone.trim() || null;
+    if (data.firstName !== undefined) update.firstName = data.firstName;
+    if (data.lastName !== undefined) update.lastName = data.lastName;
+    if (data.avatarUrl !== undefined) update.avatarUrl = data.avatarUrl;
+    if (Object.keys(update).length === 0) return this.findById(id);
+    if (update.phone) {
+      const existing = await this.prisma.user.findFirst({
+        where: { phone: update.phone, id: { not: id } },
+        select: { id: true },
+      });
+      if (existing) throw new NotFoundException('Phone number already in use');
+    }
+    await this.prisma.user.update({ where: { id }, data: update });
+    return this.findById(id);
+  }
+
   /**
    * Persists the display language. Validation of the tag itself is the DTO's
    * job (UpdateLocaleDto whitelists SUPPORTED_LOCALES), so this trusts the

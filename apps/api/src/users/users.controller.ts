@@ -18,6 +18,12 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Patch('me')
+  updateMe(@CurrentUser() user: { id: string }, @Body() dto: any) {
+    return this.usersService.updateMe(user.id, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Patch('me/locale')
   @ApiOperation({ summary: 'Set the account display language' })
   updateLocale(@CurrentUser() user: { id: string }, @Body() dto: UpdateLocaleDto) {

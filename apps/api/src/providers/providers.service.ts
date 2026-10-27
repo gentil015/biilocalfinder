@@ -177,12 +177,19 @@ export class ProvidersService {
 
   async updateProfile(userId: string, dto: UpdateProviderProfileDto) {
     const provider = await this.getByUserId(userId);
+    const { phone, ...rest } = dto as any;
+    if (phone !== undefined) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { phone: phone?.trim() ? phone.trim() : null },
+      });
+    }
     return this.prisma.provider.update({
       where: { id: provider.id },
       data: {
-        ...dto,
+        ...rest,
         // An empty logo means "clear it", not "store an empty string".
-        ...(dto.logoUrl !== undefined ? { logoUrl: dto.logoUrl.trim() || null } : {}),
+        ...(rest.logoUrl !== undefined ? { logoUrl: rest.logoUrl.trim() || null } : {}),
       },
     });
   }

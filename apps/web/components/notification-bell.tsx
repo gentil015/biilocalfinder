@@ -172,8 +172,8 @@ export function NotificationBell({ align = 'right' }: { align?: 'left' | 'right'
           role="dialog"
           aria-modal="false"
           aria-label="Notifications"
-          className={`animate-scale-in absolute z-40 mt-2 w-[20rem] max-w-[calc(100vw-1.5rem)] origin-top overflow-hidden rounded-xl border border-ink-200 bg-surface shadow-xl ${
-            align === 'left' ? 'left-0 origin-top-left' : 'right-0 origin-top-right'
+          className={`animate-scale-in fixed inset-x-2 top-14 z-50 max-h-[70vh] overflow-auto rounded-xl border border-ink-200 bg-surface shadow-xl sm:absolute sm:inset-auto sm:top-auto sm:mt-2 sm:w-[22rem] sm:max-h-[70vh] ${
+            align === 'left' ? 'sm:left-0 sm:origin-top-left' : 'sm:right-0 sm:origin-top-right'
           }`}
         >
           <div className="flex items-center justify-between gap-3 border-b border-ink-200 px-4 py-3">

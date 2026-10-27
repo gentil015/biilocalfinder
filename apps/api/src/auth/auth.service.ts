@@ -14,20 +14,20 @@ import { PrismaService } from '../prisma/prisma.service';
 import { slugify } from '../common/utils/slugify';
 import { RegisterDto, REGISTERABLE_ROLES } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { passwordResetEmail } from './auth-email-templates';
+import { passwordResetCodeEmail } from './auth-email-templates';
 import { EMAIL_SENDER, EmailSender } from '../notifications/channels/email-sender';
 
 const ACCESS_EXPIRES_IN = process.env.JWT_ACCESS_EXPIRES_IN ?? '15m';
 const REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN ?? '30d';
 const REFRESH_EXPIRES_MS = 30 * 24 * 60 * 60 * 1000;
 const PASSWORD_RESET_EXPIRES_MS =
-  Number(process.env.PASSWORD_RESET_EXPIRES_MINUTES ?? 60) * 60 * 1000;
+  Number(process.env.PASSWORD_RESET_EXPIRES_MINUTES ?? 10) * 60 * 1000;
 
 // Returned verbatim whether or not the address belongs to an account — see
 // requestPasswordReset for why that uniformity is the whole point.
 const RESET_REQUEST_RESPONSE = {
   success: true,
-  message: 'If that email exists, a reset link has been sent.',
+  message: 'If that email exists, a reset code has been sent.',
 };
 
 // Floor on how long the request endpoint takes, so "account exists" (a DB
@@ -210,17 +210,17 @@ export class AuthService {
           data: { usedAt: new Date() },
         });
 
-        const token = crypto.randomBytes(32).toString('hex');
+        const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
         await this.prisma.passwordResetToken.create({
           data: {
             userId: user.id,
-            tokenHash: this.hashToken(token),
+            tokenHash: this.hashToken(code),
             expiresAt: new Date(Date.now() + PASSWORD_RESET_EXPIRES_MS),
           },
         });
 
         try {
-          await this.emailSender.send(passwordResetEmail(user.email, user.firstName, token));
+          await this.emailSender.send(passwordResetCodeEmail(user.email, user.firstName, code));
         } catch (err) {
           // Swallowed on purpose. Letting the SMTP failure become a 503 would
           // hand back an oracle: real accounts would fail while unknown
@@ -243,13 +243,13 @@ export class AuthService {
   // BadRequest for "unknown / already used / expired" so a caller can't
   // probe which tokens exist.
   async resetPassword(token: string, newPassword: string) {
-    const tokenHash = this.hashToken(token);
+    const tokenHash = this.hashToken(token.trim());
     const stored = await this.prisma.passwordResetToken.findFirst({
       where: { tokenHash, usedAt: null, expiresAt: { gt: new Date() } },
       select: { id: true, userId: true },
     });
     if (!stored) {
-      throw new BadRequestException('This reset link is invalid or has expired.');
+      throw new BadRequestException('This reset code is invalid or has expired.');
     }
 
     const passwordHash = await bcrypt.hash(newPassword, 12);

@@ -50,8 +50,11 @@ export default function ForgotPasswordPage() {
       {sent ? (
         <div className="mt-8 flex flex-col gap-4">
           <div className="alert alert-success" role="status">
-            {t('forgot.sent')}
+            {t('forgot.sentCode')}
           </div>
+          <Link href="/reset-password" className="btn-primary btn-lg w-full text-center">
+            {t('forgot.enterCode')}
+          </Link>
           <p className="text-sm text-ink-500">
             {t('forgot.nothing')}{' '}
             <button

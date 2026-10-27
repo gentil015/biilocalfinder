@@ -1,33 +1,19 @@
 import { EmailMessage } from '../notifications/channels/email-sender';
 
-const EXPIRY_MINUTES = Number(process.env.PASSWORD_RESET_EXPIRES_MINUTES ?? 60);
+const EXPIRY_MINUTES = Number(process.env.PASSWORD_RESET_EXPIRES_MINUTES ?? 10);
 
-// The link the user clicks. Built from WEB_URL (the web app), not the API,
-// because this is the one link a password-reset email sends a human to.
-export function passwordResetUrl(token: string): string {
-  const base = (process.env.WEB_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
-  return `${base}/reset-password?token=${encodeURIComponent(token)}`;
-}
-
-// Auth-critical mail is composed here rather than in the notifications queue:
-// that queue is preference-gated and skips unverified addresses, and a reset
-// link must go out regardless of either. Text + HTML are both built from the
-// same values so they can't drift apart.
-export function passwordResetEmail(to: string, firstName: string, token: string): EmailMessage {
-  const url = passwordResetUrl(token);
-
+export function passwordResetCodeEmail(to: string, firstName: string, code: string): EmailMessage {
   return {
     to,
-    subject: 'Reset your Bii Localfinder password',
+    subject: 'Your Bii Localfinder password reset code',
     body: [
       `Hi ${firstName},`,
       '',
       'We received a request to reset the password for your Bii Localfinder account.',
       '',
-      `Open this link to choose a new password:`,
-      url,
+      `Your verification code: ${code}`,
       '',
-      `The link expires in ${EXPIRY_MINUTES} minutes and can only be used once.`,
+      `The code expires in ${EXPIRY_MINUTES} minutes and can only be used once.`,
       '',
       "If you didn't request this, you can ignore this email — your current password still works and nothing has changed.",
     ].join('\n'),
@@ -38,12 +24,8 @@ export function passwordResetEmail(to: string, firstName: string, token: string)
       <h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;">Reset your password</h1>
       <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">Hi ${escapeHtml(firstName)},</p>
       <p style="margin:0 0 24px;font-size:15px;line-height:1.6;">We received a request to reset the password for your Bii Localfinder account.</p>
-      <p style="margin:0 0 24px;">
-        <a href="${escapeHtml(url)}" style="display:inline-block;background:#1c1917;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:8px;font-size:15px;font-weight:600;">Choose a new password</a>
-      </p>
-      <p style="margin:0 0 8px;font-size:13px;line-height:1.6;color:#57534e;">Or paste this link into your browser:</p>
-      <p style="margin:0 0 24px;font-size:13px;line-height:1.6;word-break:break-all;"><a href="${escapeHtml(url)}" style="color:#2563eb;">${escapeHtml(url)}</a></p>
-      <p style="margin:0;font-size:13px;line-height:1.6;color:#57534e;">This link expires in ${EXPIRY_MINUTES} minutes and can only be used once. If you didn't request it, ignore this email — your current password still works and nothing has changed.</p>
+      <p style="margin:0 0 28px;text-align:center;font-size:32px;letter-spacing:12px;font-weight:700;">${escapeHtml(code)}</p>
+      <p style="margin:0;font-size:13px;line-height:1.6;color:#57534e;">This code expires in ${EXPIRY_MINUTES} minutes and can only be used once. If you didn't request it, ignore this email — your current password still works and nothing has changed.</p>
     </div>
   </body>
 </html>`,

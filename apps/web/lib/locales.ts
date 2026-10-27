@@ -182,25 +182,32 @@ const EN = {
   'forgot.description':
     'Enter the email you signed up with and we’ll send you a link to choose a new password.',
   'forgot.sent':
-    'If that email exists, a reset link is on its way. The link expires in 60 minutes and can only be used once.',
+    'If an account with that email exists, we sent a password reset link. It may take a minute to arrive.',
+  'forgot.sentCode':
+    'If an account with that email exists, we sent a 6-digit reset code to your email.',
+  'forgot.enterCode': 'Enter reset code',
   'forgot.nothing': 'Nothing after a few minutes? Check your spam folder, or',
   'forgot.tryDifferent': 'try a different email',
-  'forgot.submit': 'Send reset link',
+  'forgot.submit': 'Send reset code',
   'forgot.sending': 'Sending…',
   'forgot.failed': 'Could not send the reset email. Please try again.',
   'forgot.footer': 'Remembered it?',
   'forgot.footerAction': 'Back to log in',
 
   'reset.eyebrow': 'Account recovery',
-  'reset.headingIncomplete': 'That link is incomplete.',
+  'reset.headingIncomplete': 'Something’s missing.',
   'reset.heading': 'Choose a new password.',
-  'reset.noTokenTitle': 'Missing reset token',
+  'reset.noTokenTitle': 'Reset code missing or invalid',
   'reset.noTokenBody':
-    'This page needs to be opened from the link in your reset email. Request a fresh one and try again.',
-  'reset.requestNew': 'Request a new link',
+    'Enter the 6-digit code from your email to continue. You can request a new one below.',
+  'reset.requestNew': 'Request a new reset code',
+  'reset.requestNewCode': 'Request a new reset code',
   'reset.title': 'Set a new password',
   'reset.description':
     'You’ll be signed out everywhere and asked to log in again afterwards.',
+  'reset.descriptionCode': 'Enter the 6-digit code from your email and choose a new password.',
+  'reset.code': 'Reset code',
+  'reset.noCode': 'Enter the 6-digit reset code from your email.',
   'reset.done': 'Password updated. Taking you to the login page…',
   'reset.newPassword': 'New password',
   'reset.confirmPassword': 'Confirm new password',
@@ -208,7 +215,7 @@ const EN = {
   'reset.submit': 'Update password',
   'reset.updating': 'Updating…',
   'reset.mismatch': 'The two passwords do not match.',
-  'reset.failed': 'Could not reset your password. Please try again.',
+  'reset.failed': 'Could not reset your password. Try requesting a new code.',
   'reset.footer': 'Changed your mind?',
   'reset.footerAction': 'Back to log in',
 

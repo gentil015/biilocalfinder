@@ -77,9 +77,10 @@ export function BookingAssistant({
       // client can retry, or just fill the form manually below.
       setMessages((prev) => prev.slice(0, -1));
       setInput(text);
+      const msg = err instanceof ApiError ? err.message : '';
       setError(
-        err instanceof ApiError
-          ? `${err.message} — ${t('reqAssist.failedSuffix')}`
+        msg
+          ? `${msg} — ${t('reqAssist.failedSuffix')}`
           : t('reqAssist.unavailable'),
       );
     } finally {

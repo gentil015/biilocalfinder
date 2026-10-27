@@ -88,6 +88,7 @@ export const WORKSPACE_NAV: Record<WorkspaceType, WorkspaceNavItem[]> = {
     members('Members'),
     messages,
     reviews,
+    verification,
     billing,
     settings,
   ],

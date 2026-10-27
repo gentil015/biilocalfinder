@@ -983,6 +983,13 @@ const RW = {
   'aiSearch.urgencyUrgent': 'Ihutirwa — bamaze ubu',
   'aiSearch.skipped': ' ({count} ntibyashoboye gukoreshwa kandi byagabanyijwe).',
   'aiSearch.skippedPlural': ' ({count} ntibyashoboye gukoreshwa kandi byagabanyijwe).',
+
+  'forgot.sentCode': 'Niba konti ifite iyi imeri ibaho, twohereje kode y\'ibiciro 6 kuri imeri yawe.',
+  'forgot.enterCode': 'Andika kode yo gusubiramo',
+  'reset.requestNewCode': 'Saba kode nshya yo gusubiramo',
+  'reset.descriptionCode': 'Andika kode y\'ibiciro 6 yo muri imeri yawe hanyuma uhitamo ijambo ryibanga rishya.',
+  'reset.code': 'Kode yo gusubiramo',
+  'reset.noCode': 'Andika kode y\'ibiciro 6 yo muri imeri yawe.',
 } as const;
 
 export const MESSAGES: Record<LocaleCode, Record<MessageKey, string>> = {

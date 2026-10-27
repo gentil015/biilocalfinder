@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { Star, BadgeCheck, AlertCircle } from 'lucide-react';
 import { reviewsApi, ApiError } from '@/lib/api';
 import { PageHeader, EmptyState, LoadingBlock } from '@/components/ui/page';
-import Link from 'next/link';
 
 export default function ProviderReviewsPage() {
   const [data, setData] = useState<any>(null);

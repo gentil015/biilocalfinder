@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Check, ChevronDown, LogOut, Menu, X, ArrowLeft, type LucideIcon } from 'lucide-react';
+import { Check, ChevronDown, LogOut, Menu, X, ArrowLeft, HelpCircle, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { WorkspaceMembershipSummary } from '@/lib/api';
 import { WORKSPACE_TYPE_LABEL } from '@/lib/workspace-nav';
@@ -91,7 +91,10 @@ export function WorkspaceSwitcher({
           aria-label="Switch workspace"
           className="animate-scale-in absolute left-0 z-50 mt-1.5 w-72 origin-top-left overflow-hidden rounded-xl border border-ink-200 bg-surface p-1.5 shadow-xl"
         >
-          <p className="eyebrow-muted px-2.5 py-2">Switch workspace</p>
+          <p className="eyebrow-muted px-2.5 py-2 flex items-center gap-1.5">
+            Switch workspace
+            <HelpCircle className="h-3.5 w-3.5" aria-label="Switch between workspaces you own or belong to" />
+          </p>
           {switchable.map((m) => (
             <button
               key={m.workspace.id}

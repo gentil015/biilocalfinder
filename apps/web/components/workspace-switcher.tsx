@@ -176,7 +176,16 @@ export function WorkspaceShell({
   }, [pathname]);
 
   const navList = (
-    <nav aria-label={navLabel} className="space-y-0.5">
+    <nav
+      aria-label={navLabel}
+      className="space-y-0.5"
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('a') && typeof window !== 'undefined' && window.innerWidth < 1024) {
+          setNavOpen(false);
+        }
+      }}
+    >
       {nav.map((item) => {
         const active = pathname === item.href;
         return (
@@ -261,8 +270,8 @@ export function WorkspaceShell({
             className="absolute inset-0 bg-home-night/50 backdrop-blur-sm"
             onClick={() => setNavOpen(false)}
           />
-          <div className="animate-fade-in absolute inset-y-0 left-0 flex w-[84%] max-w-xs flex-col bg-surface p-4 shadow-2xl">
-            <div className="mb-5 flex items-center justify-between">
+          <div className="animate-fade-in absolute inset-y-0 left-0 flex w-[88%] max-w-sm flex-col bg-surface p-4 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
               <BrandMark />
               <button
                 type="button"
@@ -273,11 +282,11 @@ export function WorkspaceShell({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pb-4">
               <div className="rounded-xl bg-ink-50 px-2.5 py-2">{identity}</div>
               {navList}
             </div>
-            {shellFooter}
+            <div className="mt-auto pt-3">{shellFooter}</div>
           </div>
         </div>
       )}

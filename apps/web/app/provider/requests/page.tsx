@@ -41,7 +41,12 @@ export default function IncomingRequestsPage() {
         <EmptyState
           icon={Inbox}
           title="No service requests yet"
-          body="When a client posts work that matches your services, it shows up here ready for you to quote."
+          body="Requests are matched to the services you list. Add a service so clients can find you, then check back here to quote."
+          action={
+            <Link href="/provider/offerings/new" className="btn-primary btn-sm">
+              Add a service
+            </Link>
+          }
         />
       )}
 

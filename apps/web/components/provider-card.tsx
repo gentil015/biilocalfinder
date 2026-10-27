@@ -67,6 +67,12 @@ export function ProviderCard({ provider, compare }: { provider: ProviderSearchIt
             )}
           </div>
 
+          {(provider.description || provider.bio) && (
+            <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-ink-600">
+              {provider.description || provider.bio}
+            </p>
+          )}
+
           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-ink-500">
             {provider.distanceKm != null && (
               <span className="inline-flex items-center gap-1 font-medium">

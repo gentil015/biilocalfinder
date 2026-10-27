@@ -1,7 +1,17 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Eye, MessageSquare, Percent, Search, ShoppingBag, TrendingUp, AlertCircle } from 'lucide-react';
+import Link from 'next/link';
+import {
+  ArrowRight,
+  Eye,
+  MessageSquare,
+  Percent,
+  Search,
+  ShoppingBag,
+  TrendingUp,
+  AlertCircle,
+} from 'lucide-react';
 import { providerAnalyticsApi, ProviderAnalyticsSummary } from '@/lib/api';
 import { PageHeader, Panel, StatCard, LoadingBlock } from '@/components/ui/page';
 
@@ -46,6 +56,32 @@ export default function ProviderAnalyticsPage() {
         <StatCard icon={TrendingUp} label="Bookings" value={String(data.bookings)} />
         <StatCard icon={Percent} label="Conversion" value={`${data.conversionRate}%`} />
       </div>
+
+      {data.profileViews === 0 && (
+        <Panel
+          className="mb-6"
+          title="Get your first views"
+          description="Your numbers will fill in as clients find you. These are the quickest ways to get noticed."
+        >
+          <ul className="divide-y divide-ink-100">
+            {[
+              { href: '/provider/offerings/new', label: 'List a service clients can search for' },
+              { href: '/provider/profile', label: 'Add a description and profile photo' },
+              { href: '/provider/portfolio', label: 'Upload a few photos of past work' },
+            ].map((item) => (
+              <li key={item.href}>
+                <Link href={item.href} className="group flex items-center gap-2.5 py-3 first:pt-0 last:pb-0">
+                  <span className="min-w-0 flex-1 text-sm font-medium text-ink-700">{item.label}</span>
+                  <ArrowRight
+                    className="h-4 w-4 shrink-0 text-ink-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600"
+                    aria-hidden="true"
+                  />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      )}
 
       <Panel title="Trending services" description="Which of your services are drawing the most attention." className="mb-6">
         <dl className="detail-list">

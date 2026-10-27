@@ -148,6 +148,8 @@ export interface ProviderSearchItem {
   id: string;
   businessName: string;
   avatarUrl: string | null;
+  description?: string | null;
+  bio?: string | null;
   rating: number;
   reviewCount: number;
   verifiedReviewCount?: number;

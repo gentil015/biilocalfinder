@@ -6,13 +6,9 @@ import Link from 'next/link';
 import {
   BarChart3,
   CalendarClock,
-  CheckCircle2,
-  ChevronRight,
-  Circle,
   Clock,
   Image as ImageIcon,
   Inbox,
-  ListChecks,
   MapPin,
   ShieldCheck,
   Star,
@@ -22,6 +18,12 @@ import {
 } from 'lucide-react';
 import { providerInsightsApi, providerOnboardingApi } from '@/lib/api';
 import { onboardingStepPath } from '@/lib/onboarding';
+import {
+  ChecklistLink,
+  ProviderNextActions,
+  ProviderQuickStart,
+  isQuickStartComplete,
+} from '@/components/provider-getting-started';
 import { PageHeader, Panel, LoadingBlock } from '@/components/ui/page';
 
 interface ProviderInsights {
@@ -43,19 +45,6 @@ const QUICK_LINKS: { href: string; label: string; hint: string; icon: LucideIcon
 ];
 
 // Profile strength ring — a plain SVG progress ring, no chart library.
-// Each incomplete profile-strength item links to the page that actually fixes
-// it — the checklist used to be inert text, so a provider told "add a
-// business description" had no way to act on it.
-const CHECKLIST_HREF: Record<string, string> = {
-  DESCRIPTION: '/provider/profile#description',
-  PHONE_VERIFIED: '/provider/verification',
-  LOCATION: '/provider/service-areas',
-  SERVICES: '/provider/offerings',
-  PORTFOLIO: '/provider/portfolio',
-  AVAILABILITY: '/provider/availability',
-  PRICING: '/provider/offerings',
-};
-
 function StrengthRing({ percent }: { percent: number }) {
   const radius = 28;
   const circumference = 2 * Math.PI * radius;
@@ -131,15 +120,24 @@ export default function ProviderDashboardPage() {
 
   const hasActions = !!insights?.recommendedActions?.length;
   const hasOpportunities = !!insights?.opportunities?.length;
+  const checklist = insights?.profileStrength.checklist ?? [];
+  const hasQuickStart = checklist.length > 0;
+  const quickStartDone = isQuickStartComplete(checklist);
+  const showProfileGuidance = !hasQuickStart || quickStartDone;
 
   return (
     <main className="page-narrow py-6 md:py-8">
       <PageHeader
         eyebrow="Provider"
         title="Business overview"
-        description="Quick links and opportunities based on marketplace-wide activity — never any individual client's private searches or messages."
+        description="Your business at a glance. New here? Follow the five-step setup below — recommendations use marketplace-wide activity, never any client's private searches or messages."
       />
 
+      {!loading && hasQuickStart && (
+        <ProviderQuickStart checklist={checklist} className="mb-6" />
+      )}
+
+      <h2 className="mb-3 text-sm font-bold text-ink-950">Shortcuts</h2>
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {QUICK_LINKS.map((link) => (
           <Link
@@ -162,7 +160,7 @@ export default function ProviderDashboardPage() {
 
       {loading && <LoadingBlock label="Loading insights…" />}
 
-      {!loading && insights?.profileStrength && (
+      {!loading && showProfileGuidance && insights?.profileStrength && (
         <Panel
           className="mb-6"
           title="Profile strength"
@@ -180,51 +178,16 @@ export default function ProviderDashboardPage() {
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
             <StrengthRing percent={insights.profileStrength.percent} />
             <ul className="flex-1 space-y-2">
-              {insights.profileStrength.checklist.map((item) => {
-                const href = CHECKLIST_HREF[item.id];
-                const label = (
-                  <span className={item.checked ? 'text-ink-500' : 'font-medium text-ink-800'}>
-                    {item.label}
-                  </span>
-                );
-                return (
-                  <li key={item.id} className="flex items-center gap-2.5 text-sm">
-                    {item.checked ? (
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-success-600" aria-hidden="true" />
-                    ) : (
-                      <Circle className="h-4 w-4 shrink-0 text-ink-300" aria-hidden="true" />
-                    )}
-                    {/* Completed items stay plain text — there is nothing left to do. */}
-                    {item.checked || !href ? (
-                      label
-                    ) : (
-                      <Link href={href} className="group flex items-center gap-1 hover:underline">
-                        {label}
-                        <ChevronRight
-                          className="h-3.5 w-3.5 text-ink-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600"
-                          aria-hidden="true"
-                        />
-                      </Link>
-                    )}
-                  </li>
-                );
-              })}
+              {insights.profileStrength.checklist.map((item) => (
+                <ChecklistLink key={item.id} item={item} />
+              ))}
             </ul>
           </div>
         </Panel>
       )}
 
-      {!loading && hasActions && (
-        <Panel className="mb-6" title="Recommended next steps">
-          <ul className="space-y-2">
-            {insights!.recommendedActions.map((a) => (
-              <li key={a.action} className="flex items-center gap-2.5 text-sm text-ink-700">
-                <ListChecks className="h-4 w-4 shrink-0 text-brand-600" aria-hidden="true" />
-                {a.label}
-              </li>
-            ))}
-          </ul>
-        </Panel>
+      {!loading && showProfileGuidance && hasActions && (
+        <ProviderNextActions actions={insights!.recommendedActions} className="mb-6" />
       )}
 
       {!loading && hasOpportunities && (
@@ -255,7 +218,7 @@ export default function ProviderDashboardPage() {
         </Panel>
       )}
 
-      {!loading && !hasActions && !hasOpportunities && (
+      {!loading && showProfileGuidance && !hasActions && !hasOpportunities && (
         <div className="surface-panel px-4 py-3 text-sm text-ink-600">
           <span className="mr-1.5 inline-flex h-2 w-2 rounded-full bg-success-500" aria-hidden="true" />
           Your profile looks complete — check back later for new opportunities.

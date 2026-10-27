@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Star, BadgeCheck, AlertCircle } from 'lucide-react';
 import { reviewsApi, ApiError } from '@/lib/api';
 import { PageHeader, EmptyState, LoadingBlock } from '@/components/ui/page';
@@ -73,7 +74,12 @@ export default function ProviderReviewsPage() {
         <EmptyState
           icon={Star}
           title="No reviews yet"
-          body="Once a client finishes a booking they can leave a review here — and you can respond to every one."
+          body="Reviews appear here after clients complete a booking with you. Keep your services and availability up to date to get your first one."
+          action={
+            <Link href="/provider/availability" className="btn-secondary btn-sm">
+              Check your availability
+            </Link>
+          }
         />
       )}
 

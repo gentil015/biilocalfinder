@@ -14,6 +14,7 @@ import {
 import { categoryGroups, type CategoryNode } from '@/lib/categories';
 import { DynamicAttributeForm } from '@/components/attributes/dynamic-attribute-form';
 import { LocationPickerMap } from '@/components/location-picker-map';
+import { OnboardingProgress } from '@/components/onboarding-progress';
 import { PageHeader, Panel } from '@/components/ui/page';
 
 const DEFAULT_LOCATION = { lat: -1.9441, lng: 30.0619 }; // Kigali
@@ -139,6 +140,8 @@ function NewServiceOfferingForm() {
 
   return (
     <main className="page-narrow py-6 pb-28 md:py-8">
+      {isOnboarding && <OnboardingProgress step={3} label="First service" />}
+
       <PageHeader
         eyebrow="Services"
         title={skipOffering ? 'Finish setting up' : 'Add a service'}

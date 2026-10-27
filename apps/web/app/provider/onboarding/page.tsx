@@ -6,6 +6,7 @@ import { Briefcase, Building, User, Users } from 'lucide-react';
 import { ApiError, ProviderType, providerOnboardingApi } from '@/lib/api';
 import { onboardingStepPath } from '@/lib/onboarding';
 import { ProviderTypeCard } from '@/components/provider-type-card';
+import { OnboardingProgress } from '@/components/onboarding-progress';
 import { LoadingBlock } from '@/components/ui/page';
 
 const OPTIONS: { type: ProviderType; icon: typeof User; title: string; description: string; examples: string }[] = [
@@ -89,12 +90,7 @@ export default function ProviderTypeSelectionPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col px-4 py-8">
-      <div className="mb-2 flex items-center gap-1.5" aria-hidden="true">
-        {['bg-brand-600', 'bg-ink-200'].map((c, i) => (
-          <span key={i} className={`h-1.5 flex-1 rounded-full ${c}`} />
-        ))}
-      </div>
-      <p className="mb-6 text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">Step 1 of 2</p>
+      <OnboardingProgress step={1} label="Account type" />
 
       <h1 className="mb-1 font-display text-2xl font-semibold text-ink-950">How will you provide services?</h1>
       <p className="mb-6 text-sm text-ink-500">Choose the option that best describes you or your team.</p>

@@ -11,12 +11,15 @@ import {
   Inbox,
   CalendarClock,
   ArrowRight,
-  CheckCircle2,
-  Circle,
   TrendingUp,
-  Check,
 } from 'lucide-react';
 import { providerInsightsApi, workspacesApi, type Workspace, type WorkspaceMember } from '@/lib/api';
+import {
+  ChecklistLink,
+  ProviderNextActions,
+  ProviderQuickStart,
+  isQuickStartComplete,
+} from '@/components/provider-getting-started';
 import { PageHeader, Panel, StatCard, LoadingBlock } from '@/components/ui/page';
 
 interface ProviderInsights {
@@ -55,14 +58,26 @@ export default function WorkspaceOverviewPage({ params }: { params: { workspaceI
 
   const provider = workspace.provider;
   const activeMemberCount = members?.filter((m) => m.status === 'ACTIVE').length ?? null;
+  const checklist = insights?.profileStrength.checklist ?? [];
+  const hasQuickStart = checklist.length > 0;
+  const quickStartDone = isQuickStartComplete(checklist);
+  const showProfileGuidance = !hasQuickStart || quickStartDone;
 
   return (
     <>
       <PageHeader
         eyebrow={`${typeLabel(workspace.type)} workspace`}
         title={workspace.name}
-        description="Quick links and opportunities based on marketplace-wide activity — never any individual client's private searches or messages."
+        description={
+          provider
+            ? "Your workspace at a glance. New here? Follow the five-step setup below — recommendations use marketplace-wide activity, never any client's private searches or messages."
+            : "Your workspace at a glance. Recommendations use marketplace-wide activity — never any client's private searches or messages."
+        }
       />
+
+      {provider && hasQuickStart && (
+        <ProviderQuickStart checklist={checklist} className="mb-6" />
+      )}
 
       {provider && (
         <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -150,7 +165,7 @@ export default function WorkspaceOverviewPage({ params }: { params: { workspaceI
         />
       )}
 
-      {insights && (
+      {insights && showProfileGuidance && (
         <Panel
           className="mt-6"
           title="Profile strength"
@@ -182,16 +197,7 @@ export default function WorkspaceOverviewPage({ params }: { params: { workspaceI
           </div>
           <ul className="grid gap-2 sm:grid-cols-2">
             {insights.profileStrength.checklist.map((item) => (
-              <li key={item.id} className="flex items-center gap-2.5 text-sm">
-                {item.checked ? (
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-success-600" aria-hidden="true" />
-                ) : (
-                  <Circle className="h-4 w-4 shrink-0 text-ink-300" aria-hidden="true" />
-                )}
-                <span className={item.checked ? 'text-ink-500' : 'font-medium text-ink-800'}>
-                  {item.label}
-                </span>
-              </li>
+              <ChecklistLink key={item.id} item={item} />
             ))}
           </ul>
         </Panel>
@@ -225,17 +231,8 @@ export default function WorkspaceOverviewPage({ params }: { params: { workspaceI
         </Panel>
       )}
 
-      {insights && insights.recommendedActions?.length > 0 && (
-        <Panel className="mt-6" title="Recommended next steps">
-          <ul className="space-y-2">
-            {insights.recommendedActions.map((a) => (
-              <li key={a.action} className="flex items-center gap-2.5 text-sm text-ink-700">
-                <Check className="h-3.5 w-3.5 shrink-0 text-brand-600" aria-hidden="true" />
-                {a.label}
-              </li>
-            ))}
-          </ul>
-        </Panel>
+      {insights && showProfileGuidance && insights.recommendedActions?.length > 0 && (
+        <ProviderNextActions actions={insights.recommendedActions} className="mt-6" />
       )}
     </>
   );

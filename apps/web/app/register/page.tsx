@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { UserRound, Wrench } from 'lucide-react';
+import { Eye, EyeOff, UserRound, Wrench } from 'lucide-react';
 import { authApi, ApiError } from '@/lib/api';
 import { AuthShell, AUTH_POINTS_CLIENT, AUTH_POINTS_PROVIDER } from '@/components/auth-shell';
 import { useAuth, homeForRole } from '@/components/auth-provider';
@@ -28,6 +28,7 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   // Set while we are creating an account on this very page. `adoptSession`
   // populates `user`, which would otherwise trip the redirect below and
   // bounce a brand-new provider to their (empty) workspace dashboard instead
@@ -162,16 +163,27 @@ export default function RegisterPage() {
           <label htmlFor="password" className="label">
             {t('auth.password')}
           </label>
-          <input
-            id="password"
-            required
-            type="password"
-            autoComplete="new-password"
-            minLength={8}
-            placeholder={t('register.passwordHint')}
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-          />
+          <div className="relative">
+            <input
+              id="password"
+              required
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              minLength={8}
+              placeholder={t('register.passwordHint')}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-ink-400 transition hover:text-ink-700"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
 
         {error && (

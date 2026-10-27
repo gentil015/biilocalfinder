@@ -68,6 +68,18 @@ export default function ProviderAvailabilityPage() {
       r.startTime !== baseline[i]?.startTime ||
       r.endTime !== baseline[i]?.endTime,
   );
+  const activeDayCount = rows.filter((row) => row.isActive).length;
+
+  function useWeekdayHours() {
+    setRows((prev) =>
+      prev.map((row) => ({
+        ...row,
+        isActive: row.dayOfWeek >= 1 && row.dayOfWeek <= 5,
+        startTime: '09:00',
+        endTime: '17:00',
+      })),
+    );
+  }
 
   function updateRow(dayOfWeek: number, patch: Partial<DayRow>) {
     setRows((prev) => prev.map((r) => (r.dayOfWeek === dayOfWeek ? { ...r, ...patch } : r)));
@@ -177,6 +189,18 @@ export default function ProviderAvailabilityPage() {
           ) : null
         }
       >
+        {activeDayCount === 0 && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-warning-50 px-3.5 py-3 text-sm text-warning-800">
+            <span className="flex items-center gap-2">
+              <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
+              No working days selected yet. Tick at least one day so clients know when to book you.
+            </span>
+            <button type="button" onClick={useWeekdayHours} className="btn-secondary btn-sm shrink-0">
+              Use Mon–Fri, 9–5
+            </button>
+          </div>
+        )}
+
         <div className="divide-y divide-ink-100 rounded-xl border border-ink-200">
           {rows.map((row) => (
             <div

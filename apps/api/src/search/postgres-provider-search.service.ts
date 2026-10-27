@@ -46,6 +46,8 @@ interface Row {
   id: string;
   businessName: string;
   avatarUrl: string | null;
+  description: string | null;
+  bio: string | null;
   rating: Prisma.Decimal;
   reviewCount: number;
   verifiedReviewCount: number;
@@ -373,6 +375,8 @@ export class PostgresProviderSearchService implements ProviderSearchService {
         p.id,
         p."businessName",
         COALESCE(p."logoUrl", u."avatarUrl") AS "avatarUrl",
+        p.description,
+        p.bio,
         p.rating,
         p."reviewCount",
         p."verifiedReviewCount",
@@ -426,6 +430,8 @@ export class PostgresProviderSearchService implements ProviderSearchService {
         id: r.id,
         businessName: r.businessName,
         avatarUrl: r.avatarUrl,
+        description: r.description,
+        bio: r.bio,
         rating,
         reviewCount: r.reviewCount,
         verifiedReviewCount: r.verifiedReviewCount,

@@ -8,11 +8,19 @@ import { VerificationService } from './verification.service';
 import { ContactVerificationService } from './contact-verification.service';
 import { VerificationSweepProcessor } from './verification-sweep.processor';
 import { LoggingOtpSender, OTP_SENDER } from './otp-sender';
+import { WaapiOtpSender } from './waapi-otp-sender';
 import {
   AdminVerificationController,
   ContactVerificationController,
   ProviderVerificationController,
 } from './verification.controller';
+
+function getOtpSender() {
+  if (process.env.WAAPI_API_KEY || process.env.WA_API_KEY) {
+    return WaapiOtpSender;
+  }
+  return LoggingOtpSender;
+}
 
 @Module({
   imports: [NotificationsModule, FilesModule, BullModule.registerQueue({ name: VERIFICATION_QUEUE })],
@@ -21,8 +29,8 @@ import {
     VerificationService,
     ContactVerificationService,
     VerificationSweepProcessor,
-    // Swap this binding for a real SMS/email provider when one is chosen.
-    { provide: OTP_SENDER, useClass: LoggingOtpSender },
+    WaapiOtpSender,
+    { provide: OTP_SENDER, useClass: getOtpSender() },
   ],
   exports: [VerificationService],
 })

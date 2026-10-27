@@ -21,6 +21,7 @@ import {
   isQuickStartComplete,
 } from '@/components/provider-getting-started';
 import { PageHeader, Panel, StatCard, LoadingBlock } from '@/components/ui/page';
+import { HelpHint } from '@/components/help-hint';
 
 interface ProviderInsights {
   recommendedActions: { action: string; label: string }[];
@@ -73,6 +74,7 @@ export default function WorkspaceOverviewPage({ params }: { params: { workspaceI
             ? "Your workspace at a glance. New here? Follow the five-step setup below — recommendations use marketplace-wide activity, never any client's private searches or messages."
             : "Your workspace at a glance. Recommendations use marketplace-wide activity — never any client's private searches or messages."
         }
+        actions={provider ? <HelpHint text="Overview shows requests, bookings, and quick actions. Complete setup steps to improve visibility in search." /> : undefined}
       />
 
       {provider && hasQuickStart && (

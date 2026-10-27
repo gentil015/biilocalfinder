@@ -6,6 +6,7 @@ import { Inbox, AlertCircle, Lock, Globe } from 'lucide-react';
 import { requestsApi } from '@/lib/api';
 import { StatusBadge } from '@/components/status-badge';
 import { PageHeader, EmptyState, LoadingBlock } from '@/components/ui/page';
+import { HelpHint } from '@/components/help-hint';
 
 export default function IncomingRequestsPage() {
   const [requests, setRequests] = useState<any[]>([]);
@@ -26,6 +27,7 @@ export default function IncomingRequestsPage() {
         eyebrow="Provider"
         title="Incoming requests"
         description="Service requests that match your services, and where each one stands."
+        actions={<HelpHint text="Private requests are sent only to you. Open requests can go to matching providers — send a quote to respond." />}
       />
 
       {loading && <LoadingBlock label="Loading requests…" />}

@@ -16,6 +16,7 @@ import { DynamicAttributeForm } from '@/components/attributes/dynamic-attribute-
 import { LocationPickerMap } from '@/components/location-picker-map';
 import { OnboardingProgress } from '@/components/onboarding-progress';
 import { PageHeader, Panel } from '@/components/ui/page';
+import { HelpHint } from '@/components/help-hint';
 
 const DEFAULT_LOCATION = { lat: -1.9441, lng: 30.0619 }; // Kigali
 
@@ -150,6 +151,7 @@ function NewServiceOfferingForm() {
             ? 'Your first service is already listed. Set your base location to finish setting up your workspace.'
             : 'Tell clients about this service — the details below adjust automatically based on what you pick.'
         }
+        actions={!skipOffering ? <HelpHint text="Pick a category, describe your service, add price and answer any questions. These details appear when clients request this exact offering." /> : undefined}
       />
 
       <form onSubmit={onSubmit}>

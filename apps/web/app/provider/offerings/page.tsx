@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Plus, Trash2, Package, AlertCircle } from 'lucide-react';
 import { offeringsApi, ApiError } from '@/lib/api';
 import { PageHeader, EmptyState, LoadingBlock } from '@/components/ui/page';
+import { HelpHint } from '@/components/help-hint';
 
 function OfferingPrice({ offering }: { offering: any }) {
   if (offering.basePrice == null) {
@@ -77,13 +78,17 @@ export default function MyOfferingsPage() {
   return (
     <main className="page-narrow py-6 md:py-8">
       <PageHeader
-        eyebrow="Provider"
+        eyebrow="Services"
         title="Your services"
         description="The services clients can request and quote against. Pricing and details live here."
         actions={
-          <Link href="/provider/offerings/new" className="btn-primary">
-            <Plus className="h-4 w-4" aria-hidden="true" /> Add service
-          </Link>
+          <>
+            <HelpHint text="A service offering is what appears when clients book/request you. Fill in price, details and attributes so clients know exactly what you offer." />
+            <Link href="/provider/offerings/new" className="btn-primary">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Add service
+            </Link>
+          </>
         }
       />
 

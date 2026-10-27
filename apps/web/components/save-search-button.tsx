@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useId, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { BookmarkPlus, CheckCircle2, X } from 'lucide-react';
 import { categoriesApi, servicesApi, savedSearchesApi, ApiError } from '@/lib/api';
 import { categoryGroups, type CategoryNode } from '@/lib/categories';
 import { useAuth } from '@/components/auth-provider';
 
 export function SaveSearchButton() {
+  const router = useRouter();
   // Auth state comes from context, not isLoggedIn(). isLoggedIn() reads
   // localStorage, which is empty on the server and populated on the client's
   // first render — so gating render on it made the server emit `null` while
@@ -48,7 +50,19 @@ export function SaveSearchButton() {
     setServiceId('');
   }, [categoryId]);
 
-  if (loading || !user) return null;
+  if (loading) return null;
+  if (!user) {
+    return (
+      <button
+        type="button"
+        onClick={() => router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`)}
+        className="btn-secondary btn-sm"
+      >
+        <BookmarkPlus className="h-4 w-4" aria-hidden="true" />
+        Save search
+      </button>
+    );
+  }
 
   async function submit() {
     if (!name.trim()) {

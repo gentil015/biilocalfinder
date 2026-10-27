@@ -106,16 +106,44 @@ async function request<T>(path: string, init?: RequestInit, auth = false): Promi
   // and replay the original request rather than bouncing the user to /login.
   // Only retried for authenticated calls, and never for the refresh call
   // itself (that would recurse).
-  if (auth && res.status === 401 && !path.startsWith('/auth/refresh') && getRefreshToken()) {
-    try {
-      const { accessToken } = await refreshTokens();
-      res = await send(accessToken);
-    } catch {
+  if (auth && res.status === 401 && !path.startsWith('/auth/refresh')) {
+    if (getRefreshToken()) {
+      try {
+        const { accessToken } = await refreshTokens();
+        res = await send(accessToken);
+      } catch {
+        clearTokens();
+        if (typeof window !== 'undefined') {
+          const current = window.location.pathname + window.location.search;
+          if (current && current !== '/login') {
+            window.location.href = `/login?next=${encodeURIComponent(current)}`;
+          } else {
+            window.location.href = '/login';
+          }
+        }
+      }
+    } else {
       clearTokens();
+      if (typeof window !== 'undefined') {
+        const current = window.location.pathname + window.location.search;
+        if (current && current !== '/login') {
+          window.location.href = `/login?next=${encodeURIComponent(current)}`;
+        } else {
+          window.location.href = '/login';
+        }
+      }
     }
   }
 
   if (!res.ok) {
+    if (res.status === 401 && auth && typeof window !== 'undefined') {
+      const current = window.location.pathname + window.location.search;
+      if (current && current !== '/login') {
+        window.location.href = `/login?next=${encodeURIComponent(current)}`;
+      } else {
+        window.location.href = '/login';
+      }
+    }
     const body = await res.json().catch(() => ({}));
     const message =
       typeof body.message === 'string'

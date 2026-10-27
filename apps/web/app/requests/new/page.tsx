@@ -30,6 +30,7 @@ import { BookingAssistant } from '@/components/requests/booking-assistant';
 import { useI18n } from '@/components/locale-provider';
 import type { MessageKey } from '@/lib/locales';
 import { PageHeader, Panel } from '@/components/ui/page';
+import { useAuth } from '@/components/auth-provider';
 
 const TITLE_MAX = 90;
 const DESCRIPTION_MAX = 2000;
@@ -70,8 +71,17 @@ function NewServiceRequestForm() {
   const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { user, loading: authLoading } = useAuth();
   const providerId = searchParams.get('providerId') ?? undefined;
   const serviceOfferingId = searchParams.get('serviceOfferingId') ?? undefined;
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      const next = `${window.location.pathname}${window.location.search}`;
+      router.replace(`/login?next=${encodeURIComponent(next)}`);
+    }
+  }, [authLoading, user, router]);
 
   const [services, setServices] = useState<any[]>([]);
   const [attributes, setAttributes] = useState<any[]>([]);

@@ -1,14 +1,23 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Heart } from 'lucide-react';
 import { favoritesApi } from '@/lib/api';
+import { useAuth } from '@/components/auth-provider';
 
 export function FavoriteButton({ providerId, className }: { providerId: string; className?: string }) {
+  const router = useRouter();
+  const { user, loading } = useAuth();
   const [favorited, setFavorited] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function toggle() {
+    if (loading) return;
+    if (!user) {
+      router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+      return;
+    }
     setBusy(true);
     try {
       if (favorited) {
@@ -18,9 +27,11 @@ export function FavoriteButton({ providerId, className }: { providerId: string; 
         await favoritesApi.add(providerId);
         setFavorited(true);
       }
-    } catch {
-      // Most likely not logged in as a client — silently ignore; a real
-      // app would redirect to /login here.
+    } catch (err: any) {
+      if (err?.status === 401 || err?.status === 403) {
+        router.push(`/login?next=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+        return;
+      }
     } finally {
       setBusy(false);
     }

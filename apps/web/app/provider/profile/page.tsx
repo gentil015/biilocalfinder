@@ -137,6 +137,10 @@ export default function ProviderProfilePage() {
         // Always sent: an empty string clears the logo server-side.
         logoUrl: form.logoUrl.trim(),
       });
+      try {
+        const { usersApi } = await import('@/lib/api');
+        await (usersApi as any).updateMe?.({ phone: form.phone.trim() || null });
+      } catch {}
       setSaved(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not save your profile');

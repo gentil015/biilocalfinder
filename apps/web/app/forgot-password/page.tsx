@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { authApi, ApiError } from '@/lib/api';
 import { AuthShell, AUTH_POINTS_CLIENT } from '@/components/auth-shell';
 import { useI18n } from '@/components/locale-provider';
 
 export default function ForgotPasswordPage() {
   const { t } = useI18n();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -20,6 +22,7 @@ export default function ForgotPasswordPage() {
     try {
       await authApi.requestPasswordReset(email);
       setSent(true);
+      router.push('/reset-password');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('forgot.failed'));
     } finally {
@@ -53,6 +56,9 @@ export default function ForgotPasswordPage() {
             {t('forgot.sentCode')}
           </div>
           <Link href="/reset-password" className="btn-primary btn-lg w-full text-center">
+            {t('forgot.enterCode')}
+          </Link>
+          <Link href="/reset-password" className="text-link text-center text-sm">
             {t('forgot.enterCode')}
           </Link>
           <p className="text-sm text-ink-500">

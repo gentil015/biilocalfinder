@@ -42,12 +42,17 @@ export default function IncomingRequestsPage() {
       {!loading && !error && requests.length === 0 && (
         <EmptyState
           icon={Inbox}
-          title="No service requests yet"
-          body="Requests are matched to the services you list. Add a service so clients can find you, then check back here to quote."
+          title="No incoming requests yet"
+          body="When a client posts a request that matches your services, you'll see it here. To get more requests: add your services, complete verification, and keep your profile updated."
           action={
-            <Link href="/provider/offerings/new" className="btn-primary btn-sm">
-              Add a service
-            </Link>
+            <>
+              <Link href="/provider/offerings/new" className="btn-primary">
+                Add your first service
+              </Link>
+              <Link href="/provider/verification" className="btn-secondary">
+                Get verified
+              </Link>
+            </>
           }
         />
       )}

@@ -104,12 +104,17 @@ export default function MyOfferingsPage() {
       {!loading && !error && offerings.length === 0 && (
         <EmptyState
           icon={Package}
-          title="You haven't added any services yet"
-          body="Add a service you provide — clients search by service, so listing the work you do is what gets you found."
+          title="No services yet"
+          body="Add the services you offer so clients can find and request you. Include a price, description, and details to build trust and get quoted faster."
           action={
-            <Link href="/provider/offerings/new" className="btn-primary btn-sm">
-              <Plus className="h-4 w-4" aria-hidden="true" /> Add your first service
-            </Link>
+            <>
+              <Link href="/provider/offerings/new" className="btn-primary">
+                Add your first service
+              </Link>
+              <Link href="/provider/profile" className="btn-secondary">
+                Complete your profile
+              </Link>
+            </>
           }
         />
       )}

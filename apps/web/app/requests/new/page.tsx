@@ -131,7 +131,19 @@ function NewServiceRequestForm() {
     }
     offeringsApi
       .getPublic(serviceOfferingId)
-      .then(setOffering)
+      .then((o) => {
+        setOffering(o);
+        setForm((prev) => {
+          const next = { ...prev };
+          if (!prev.title && o.title) next.title = o.title;
+          if (!prev.description && o.description) next.description = o.description;
+          if (!prev.serviceId && o.serviceId) next.serviceId = o.serviceId;
+          if (o.basePrice != null && !prev.budgetMax && o.priceType !== 'HOURLY') {
+            next.budgetMax = String(o.basePrice);
+          }
+          return next;
+        });
+      })
       .catch(() => setOffering(null));
   }, [serviceOfferingId]);
 

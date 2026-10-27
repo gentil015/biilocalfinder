@@ -24,31 +24,65 @@ export class WaapiOtpSender implements OtpSender {
 
     try {
       let res: Response;
+      const attempts: Array<{ url: string; body: any; headers: Record<string, string> }> = [];
+
       if (instanceId) {
-        res = await fetch(`${baseUrl}/instances/${instanceId}/send-text`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            to: target,
-            message,
-          }),
+        attempts.push({
+          url: `${baseUrl}/instances/${instanceId}/send-text`,
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: { to: target, message },
         });
-      } else {
-        res = await fetch(`${baseUrl}/send-text`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            to: target,
-            message,
-          }),
+        attempts.push({
+          url: `https://waapi.app/api/v1/instances/${instanceId}/messages`,
+          headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
+          body: { to: target, type: 'text', text: message },
         });
       }
+      attempts.push(
+        {
+          url: `${baseUrl}/send-text`,
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: { to: target, message },
+        },
+        {
+          url: `https://waapi.app/api/v1/messages/text`,
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: { to: target, body: message },
+        },
+        {
+          url: `https://waapi.app/api/send`,
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: { phone: target, message },
+        },
+      );
+
+      let lastText = '';
+      for (const attempt of attempts) {
+        try {
+          res = await fetch(attempt.url, {
+            method: 'POST',
+            headers: attempt.headers,
+            body: JSON.stringify(attempt.body),
+          });
+          if (res.ok) return;
+          lastText = await res.text().catch(() => '');
+          if (res.status !== 404) {
+            this.logger.error(`WAAPI send failed (${res.status}): ${lastText}`);
+            if (process.env.NODE_ENV === 'production') {
+              throw new ServiceUnavailableException('Verification messages cannot be sent right now. Please try again later.');
+            }
+            return;
+          }
+        } catch (e) {
+          // try next
+        }
+      }
+
+      this.logger.error(`WAAPI send failed: ${lastText}`);
+      if (process.env.NODE_ENV === 'production') {
+        throw new ServiceUnavailableException('Verification messages cannot be sent right now. Please try again later.');
+      }
+      return;
 
       if (!res.ok) {
         const text = await res.text().catch(() => '');

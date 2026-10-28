@@ -13,8 +13,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { RequireWorkspacePermission } from '../common/workspace/require-workspace-permission.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ProvidersService } from './providers.service';
 import { UpdateProviderProfileDto } from './dto/update-provider-profile.dto';
@@ -55,16 +54,16 @@ export class ProvidersController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.profile.manage')
   @Get('me/profile')
   getMe(@CurrentUser() user: { id: string }) {
     return this.providersService.getByUserId(user.id);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.profile.manage')
   @Patch('me/profile')
   updateMe(@CurrentUser() user: { id: string }, @Body() dto: UpdateProviderProfileDto) {
     return this.providersService.updateProfile(user.id, dto);
@@ -74,24 +73,24 @@ export class ProvidersController {
   // own module: POST/GET/PATCH/DELETE /provider/service-offerings.
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.profile.manage')
   @Patch('me/location')
   setLocation(@CurrentUser() user: { id: string }, @Body() dto: SetLocationDto) {
     return this.providersService.setLocation(user.id, dto);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.profile.manage')
   @Post('me/service-areas')
   addServiceArea(@CurrentUser() user: { id: string }, @Body() dto: AddServiceAreaDto) {
     return this.providersService.addServiceArea(user.id, dto);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.profile.manage')
   @Delete('me/service-areas/:id')
   removeServiceArea(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.providersService.removeServiceArea(user.id, id);
@@ -103,56 +102,56 @@ export class ProvidersController {
   // endpoints update it rather than creating anything.
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.profile.manage')
   @Get('me/onboarding')
   getOnboarding(@CurrentUser() user: { id: string }) {
     return this.providersService.getOnboardingState(user.id);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.profile.manage')
   @Patch('me/onboarding/type')
   selectProviderType(@CurrentUser() user: { id: string }, @Body() dto: SelectProviderTypeDto) {
     return this.providersService.selectProviderType(user.id, dto);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.profile.manage')
   @Patch('me/onboarding/profile')
   updateOnboardingProfile(@CurrentUser() user: { id: string }, @Body() dto: UpdateOnboardingProfileDto) {
     return this.providersService.updateOnboardingProfile(user.id, dto);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.profile.manage')
   @Post('me/onboarding/complete')
   completeOnboarding(@CurrentUser() user: { id: string }) {
     return this.providersService.completeOnboarding(user.id);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.profile.manage')
   @Get('me/onboarding/team-members')
   listTeamMembers(@CurrentUser() user: { id: string }) {
     return this.providersService.listTeamMembers(user.id);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.profile.manage')
   @Post('me/onboarding/team-members')
   addTeamMember(@CurrentUser() user: { id: string }, @Body() dto: AddTeamMemberDto) {
     return this.providersService.addTeamMember(user.id, dto);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.profile.manage')
   @Delete('me/onboarding/team-members/:id')
   removeTeamMember(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.providersService.removeTeamMember(user.id, id);

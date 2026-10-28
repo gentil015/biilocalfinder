@@ -4,6 +4,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { InteractionService } from '../personalization/interactions/interaction.service';
 import { ServiceOfferingsService } from '../service-offerings/service-offerings.service';
 import { ProviderContextService } from '../providers/provider-context.service';
+import { WorkspaceContextService } from '../common/workspace/workspace-context.service';
 import { CreateServiceRequestDto } from './dto/create-service-request.dto';
 
 const REQUEST_INCLUDE = {
@@ -19,6 +20,14 @@ const REQUEST_INCLUDE = {
   images: true,
   location: true,
   client: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
+  assignedMembership: {
+    select: {
+      id: true,
+      userId: true,
+      role: true,
+      user: { select: { firstName: true, lastName: true, email: true } },
+    },
+  },
   attributeSnapshots: true,
 } as const;
 
@@ -34,6 +43,7 @@ interface MarketRequestShape {
   serviceId: string;
   status: string;
   isPublic: boolean;
+  assignedMembershipId?: string | null;
 }
 
 @Injectable()
@@ -44,6 +54,7 @@ export class ServiceRequestsService {
     private interactions: InteractionService,
     private offerings: ServiceOfferingsService,
     private providerContext: ProviderContextService,
+    private workspaceContext?: WorkspaceContextService,
   ) {}
 
   async create(clientUserId: string, dto: CreateServiceRequestDto) {
@@ -173,9 +184,12 @@ export class ServiceRequestsService {
     });
 
     const serviceIds = provider.services.map((s: (typeof provider.services)[number]) => s.serviceId);
+    const active = this.workspaceContext?.getForUser(providerUserId);
+    const memberScope = active?.role === 'MEMBER' ? { assignedMembershipId: active.membershipId } : {};
 
     return this.prisma.serviceRequest.findMany({
       where: {
+        ...memberScope,
         OR: [
           // Requests explicitly addressed to this provider.
           { providerId: provider.id },
@@ -246,6 +260,11 @@ export class ServiceRequestsService {
 
     const providerIds = await this.providerContext.getProviderIdsForUser(userId);
     if (providerIds.length === 0) throw new ForbiddenException('Not authorized to view this request');
+
+    const active = this.workspaceContext?.getForUser(userId);
+    if (active?.role === 'MEMBER' && request.assignedMembershipId !== active.membershipId) {
+      throw new ForbiddenException('This request is not assigned to you');
+    }
 
     if (request.providerId && providerIds.includes(request.providerId)) return;
 

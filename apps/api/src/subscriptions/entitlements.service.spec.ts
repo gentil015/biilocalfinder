@@ -21,7 +21,8 @@ describe('EntitlementsService', () => {
       subscriptionPlan: { findFirst: jest.fn().mockResolvedValue(freePlan) },
       serviceOffering: { count: jest.fn().mockResolvedValue(0) },
       portfolioImage: { count: jest.fn().mockResolvedValue(0) },
-      workspaceMembership: { count: jest.fn().mockResolvedValue(0) },
+      workspaceMembership: { count: jest.fn().mockResolvedValue(0), findMany: jest.fn().mockResolvedValue([]) },
+      workspaceInvitation: { count: jest.fn().mockResolvedValue(0) },
       providerTeamMember: { count: jest.fn().mockResolvedValue(0) },
     };
     service = new EntitlementsService(prisma);
@@ -68,7 +69,7 @@ describe('EntitlementsService', () => {
       // "unlimited" for services/portfolio — but teamMembers isn't
       // applicable to INDIVIDUAL at all, so it must resolve to a hard 0,
       // not unlimited.
-      prisma.workspaceMembership.count.mockResolvedValue(0);
+      prisma.workspaceMembership.findMany.mockResolvedValue([]);
       await expect(
         service.assertCanAdd({ id: 'p1', providerType: 'INDIVIDUAL', workspaceId: 'ws1' } as any, 'teamMembers'),
       ).rejects.toBeInstanceOf(BadRequestException);
@@ -76,13 +77,18 @@ describe('EntitlementsService', () => {
 
     it('respects a real maxTeamMembers limit for TEAM', async () => {
       prisma.subscriptionPlan.findFirst.mockResolvedValue({ ...freePlan, workspaceType: 'TEAM', maxTeamMembers: 2 });
-      prisma.workspaceMembership.count.mockResolvedValue(1);
+      prisma.workspaceMembership.findMany.mockResolvedValue([
+        { invitedEmail: null, user: { email: 'member@example.com' } },
+      ]);
 
       await expect(
         service.assertCanAdd({ id: 'p1', providerType: 'TEAM', workspaceId: 'ws1' } as any, 'teamMembers'),
       ).resolves.toBeUndefined();
 
-      prisma.workspaceMembership.count.mockResolvedValue(2);
+      prisma.workspaceMembership.findMany.mockResolvedValue([
+        { invitedEmail: null, user: { email: 'member@example.com' } },
+        { invitedEmail: null, user: { email: 'manager@example.com' } },
+      ]);
       await expect(
         service.assertCanAdd({ id: 'p1', providerType: 'TEAM', workspaceId: 'ws1' } as any, 'teamMembers'),
       ).rejects.toBeInstanceOf(BadRequestException);

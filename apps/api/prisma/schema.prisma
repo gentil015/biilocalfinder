@@ -326,6 +326,7 @@ model User {
   savedSearches           SavedSearch[]
   ownedWorkspaces         Workspace[]
   workspaceMemberships    WorkspaceMembership[]
+  workspaceInvitationsSent WorkspaceInvitation[] @relation("WorkspaceInvitationInviter")
   // Two relations to the same model, hence the explicit names.
   providerApplications    ProviderApplication[] @relation("ProviderApplicationApplicant")
   providerApplicationsReviewed ProviderApplication[] @relation("ProviderApplicationReviewer")
@@ -629,6 +630,7 @@ model Workspace {
 
   owner       User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   memberships WorkspaceMembership[]
+  invitations WorkspaceInvitation[]
   provider    Provider?
 
   @@index([ownerId])
@@ -665,10 +667,40 @@ model WorkspaceMembership {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  assignedServiceRequests ServiceRequest[] @relation("ServiceRequestAssignee")
+  assignedBookings        Booking[]        @relation("BookingAssignee")
+
   @@unique([workspaceId, userId])
   @@index([workspaceId])
   @@index([userId])
   @@map("workspace_memberships")
+}
+
+// A token-based invitation that works even when the invitee has no account
+// yet. Only the hash of the token is stored (same pattern as password-reset
+// tokens). If the email already belongs to a user, the parallel
+// WorkspaceMembership row is left INVITED so /workspaces can show it; the
+// token is still the thing that proves control of the email before access is
+// activated.
+model WorkspaceInvitation {
+  id          String              @id @default(uuid())
+  workspaceId String
+  email       String
+  role        WorkspaceMemberRole
+  tokenHash   String              @unique
+  invitedById String
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy User      @relation("WorkspaceInvitationInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, email])
+  @@index([email])
+  @@map("workspace_invitations")
 }
 
 enum WorkspaceMemberRole {
@@ -986,10 +1018,14 @@ model ServiceRequest {
   budgetMax        Decimal?             @db.Decimal(12, 2)
   additionalNotes String?
   status          ServiceRequestStatus  @default(OPEN)
+  assignedMembershipId String?
+  assignedAt           DateTime?
+  assignedById         String?
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
   client   ClientProfile             @relation(fields: [clientId], references: [id])
+  assignedMembership WorkspaceMembership? @relation("ServiceRequestAssignee", fields: [assignedMembershipId], references: [id], onDelete: SetNull)
   provider Provider?                 @relation(fields: [providerId], references: [id])
   service  Service                   @relation(fields: [serviceId], references: [id])
   serviceOffering ServiceOffering?   @relation(fields: [serviceOfferingId], references: [id])
@@ -1003,6 +1039,7 @@ model ServiceRequest {
   @@index([clientId])
   @@index([providerId])
   @@index([status])
+  @@index([assignedMembershipId])
   @@map("service_requests")
 }
 
@@ -1164,6 +1201,9 @@ model Booking {
   reminderSentAt         DateTime?
   completedAt            DateTime?
   cancelledAt            DateTime?
+  assignedMembershipId   String?
+  assignedAt             DateTime?
+  assignedById           String?
   createdAt              DateTime      @default(now())
   updatedAt              DateTime      @updatedAt
 
@@ -1171,6 +1211,7 @@ model Booking {
   quote          Quote                  @relation(fields: [quoteId], references: [id])
   client         ClientProfile          @relation(fields: [clientId], references: [id])
   provider       Provider               @relation(fields: [providerId], references: [id])
+  assignedMembership WorkspaceMembership? @relation("BookingAssignee", fields: [assignedMembershipId], references: [id], onDelete: SetNull)
   statusHistory  BookingStatusHistory[]
   review         Review?
   disputes       Dispute[]
@@ -1178,6 +1219,7 @@ model Booking {
   @@index([clientId])
   @@index([providerId])
   @@index([status])
+  @@index([assignedMembershipId])
   @@map("bookings")
 }
 

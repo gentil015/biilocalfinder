@@ -22,6 +22,8 @@ export class ApiError extends Error {
 
 const SESSION_HINT_KEY = 'bii_session';
 const CSRF_TOKEN_KEY = 'bii_csrf';
+const WORKSPACE_ID_KEY = 'bii_workspace';
+const WORKSPACE_ROLE_KEY = 'bii_workspace_role';
 
 // Actual credentials live in HttpOnly cookies set by the API. This flag is
 // only a client-side hint so the UI can render the signed-in shell without a
@@ -33,6 +35,29 @@ export function isLoggedIn(): boolean {
 
 export function getSessionHint(): boolean {
   return isLoggedIn();
+}
+
+export function getActiveWorkspaceId(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(WORKSPACE_ID_KEY);
+}
+
+export function getActiveWorkspaceRole(): WorkspaceMemberRole | null {
+  if (typeof window === 'undefined') return null;
+  const role = localStorage.getItem(WORKSPACE_ROLE_KEY);
+  return role === 'OWNER' || role === 'MANAGER' || role === 'MEMBER' ? role : null;
+}
+
+export function setActiveWorkspace(workspaceId: string, role?: WorkspaceMemberRole) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(WORKSPACE_ID_KEY, workspaceId);
+  if (role) localStorage.setItem(WORKSPACE_ROLE_KEY, role);
+}
+
+export function clearActiveWorkspace() {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(WORKSPACE_ID_KEY);
+  localStorage.removeItem(WORKSPACE_ROLE_KEY);
 }
 
 function getCsrfToken(): string | null {
@@ -79,6 +104,7 @@ export function clearTokens() {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(SESSION_HINT_KEY);
   localStorage.removeItem(CSRF_TOKEN_KEY);
+  clearActiveWorkspace();
 }
 
 // A single in-flight refresh shared by every 401 that lands while it runs,
@@ -189,9 +215,22 @@ async function request<T>(path: string, init?: RequestInit, auth = false): Promi
   return (text ? JSON.parse(text) : null) as T;
 }
 
-// Authenticated convenience wrapper — attaches the stored access token.
+// Authenticated convenience wrapper — attaches the active workspace header
+// used by the API to resolve the actor's workspace role and provider scope.
 function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
-  return request<T>(path, init, true);
+  const workspaceId = getActiveWorkspaceId();
+  if (!workspaceId) return request<T>(path, init, true);
+  return request<T>(
+    path,
+    {
+      ...init,
+      headers: {
+        'x-workspace-id': workspaceId,
+        ...(init?.headers ?? {}),
+      },
+    },
+    true,
+  );
 }
 
 export interface AuthTokens {
@@ -695,6 +734,37 @@ export interface WorkspaceMember {
   user: { id: string; firstName: string; lastName: string; email: string; avatarUrl: string | null };
 }
 
+export interface WorkspaceInvitation {
+  id: string;
+  workspaceId: string;
+  email: string;
+  role: WorkspaceMemberRole;
+  invitedById: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+  createdAt: string;
+  invitedBy?: { id: string; firstName: string; lastName: string; email: string };
+}
+
+export interface WorkspaceInvitationPreview {
+  workspace: { id: string; name: string; type: WorkspaceType };
+  email: string;
+  role: WorkspaceMemberRole;
+  inviterName: string;
+  expiresAt: string;
+}
+
+export interface WorkspaceAuditEntry {
+  id: string;
+  action: string;
+  entity: string;
+  entityId: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  actor: { id: string; firstName: string; lastName: string; email: string } | null;
+}
+
 // The workspace switcher's data source (spec §1/§6) plus per-workspace
 // membership management. Mirrors the backend's WorkspacesModule 1:1 — see
 // apps/api/src/workspaces.
@@ -708,7 +778,14 @@ export const workspacesApi = {
     authRequest<Workspace>(`/workspaces/${workspaceId}`, { method: 'PATCH', body: JSON.stringify(data) }),
   listMembers: (workspaceId: string) => authRequest<WorkspaceMember[]>(`/workspaces/${workspaceId}/members`),
   inviteMember: (workspaceId: string, data: { email: string; role: 'MANAGER' | 'MEMBER' }) =>
-    authRequest<WorkspaceMember>(`/workspaces/${workspaceId}/members`, { method: 'POST', body: JSON.stringify(data) }),
+    authRequest<WorkspaceInvitation>(`/workspaces/${workspaceId}/members`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  listInvitations: (workspaceId: string) =>
+    authRequest<WorkspaceInvitation[]>(`/workspaces/${workspaceId}/invitations`),
+  revokeInvitation: (workspaceId: string, invitationId: string) =>
+    authRequest<{ success: boolean }>(`/workspaces/${workspaceId}/invitations/${invitationId}`, { method: 'DELETE' }),
   updateMemberRole: (workspaceId: string, membershipId: string, role: 'MANAGER' | 'MEMBER') =>
     authRequest<WorkspaceMember>(`/workspaces/${workspaceId}/members/${membershipId}`, {
       method: 'PATCH',
@@ -716,8 +793,31 @@ export const workspacesApi = {
     }),
   removeMember: (workspaceId: string, membershipId: string) =>
     authRequest<WorkspaceMember>(`/workspaces/${workspaceId}/members/${membershipId}`, { method: 'DELETE' }),
+  transferOwnership: (workspaceId: string, membershipId: string) =>
+    authRequest<Workspace>(`/workspaces/${workspaceId}/ownership/transfer`, {
+      method: 'POST',
+      body: JSON.stringify({ membershipId }),
+    }),
   acceptInvite: (workspaceId: string, membershipId: string) =>
     authRequest<WorkspaceMember>(`/workspaces/${workspaceId}/members/${membershipId}/accept`, { method: 'POST' }),
+  listAudit: (workspaceId: string) => authRequest<WorkspaceAuditEntry[]>(`/workspaces/${workspaceId}/audit`),
+  assignRequest: (workspaceId: string, requestId: string, membershipId: string | null) =>
+    authRequest<unknown>(`/workspaces/${workspaceId}/assignments/requests/${requestId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ membershipId }),
+    }),
+  assignBooking: (workspaceId: string, bookingId: string, membershipId: string | null) =>
+    authRequest<unknown>(`/workspaces/${workspaceId}/assignments/bookings/${bookingId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ membershipId }),
+    }),
+  getInvitation: (token: string) =>
+    request<WorkspaceInvitationPreview>(`/workspace-invitations/${encodeURIComponent(token)}`),
+  acceptInvitation: (token: string) =>
+    authRequest<Workspace & { memberships: { id: string; userId: string; role: WorkspaceMemberRole }[] }>(
+      `/workspace-invitations/${encodeURIComponent(token)}/accept`,
+      { method: 'POST' },
+    ),
 };
 
 export interface SubscriptionPlan {

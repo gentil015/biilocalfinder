@@ -74,7 +74,11 @@ describe('AuthService', () => {
       user: { create: jest.fn().mockResolvedValue(createdUser) },
       workspace: { create: jest.fn().mockResolvedValue({ id: 'ws-1' }), findUnique: jest.fn().mockResolvedValue(null) },
       provider: { create: jest.fn().mockResolvedValue({ id: 'provider-1' }) },
-      workspaceMembership: { create: jest.fn().mockResolvedValue({ id: 'm-1' }) },
+      workspaceMembership: {
+        create: jest.fn().mockResolvedValue({ id: 'm-1' }),
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+      workspaceInvitation: { findMany: jest.fn().mockResolvedValue([]) },
     };
     prisma.$transaction = jest.fn((cb: any) => cb(tx));
     jest.spyOn(service as any, 'issueTokens').mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });

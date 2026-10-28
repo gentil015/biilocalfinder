@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InteractionService } from '../personalization/interactions/interaction.service';
 import { ProviderContextService } from '../providers/provider-context.service';
+import { WorkspaceContextService } from '../common/workspace/workspace-context.service';
 import { BookingStateMachine } from './booking-state-machine';
 import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
 
@@ -10,6 +11,14 @@ const BOOKING_INCLUDE = {
   serviceRequest: { include: { service: true } },
   provider: { select: { id: true, businessName: true } },
   client: { include: { user: { select: { firstName: true, lastName: true } } } },
+  assignedMembership: {
+    select: {
+      id: true,
+      userId: true,
+      role: true,
+      user: { select: { firstName: true, lastName: true, email: true } },
+    },
+  },
   statusHistory: { orderBy: { createdAt: 'asc' as const } },
 };
 
@@ -21,6 +30,7 @@ export class BookingsService {
     private notifications: NotificationsService,
     private interactions: InteractionService,
     private providerContext: ProviderContextService,
+    private workspaceContext?: WorkspaceContextService,
   ) {}
 
   async findMine(userId: string, role: 'CLIENT' | 'PROVIDER') {
@@ -37,8 +47,12 @@ export class BookingsService {
 
     const providerIds = await this.providerContext.getProviderIdsForUser(userId);
     if (providerIds.length === 0) throw new ForbiddenException('Provider profile not found');
+    const active = this.workspaceContext?.getForUser(userId);
     return this.prisma.booking.findMany({
-      where: { providerId: { in: providerIds } },
+      where: {
+        providerId: { in: providerIds },
+        ...(active?.role === 'MEMBER' ? { assignedMembershipId: active.membershipId } : {}),
+      },
       include: BOOKING_INCLUDE,
       orderBy: { createdAt: 'desc' },
       take: 100,
@@ -106,12 +120,18 @@ export class BookingsService {
   }
 
   private async assertParticipant(
-    booking: { clientId: string; providerId: string },
+    booking: { clientId: string; providerId: string; assignedMembershipId?: string | null },
     userId: string,
   ): Promise<{ role: 'CLIENT' | 'PROVIDER' }> {
     const clientProfile = await this.prisma.clientProfile.findUnique({ where: { userId } });
     if (clientProfile && booking.clientId === clientProfile.id) return { role: 'CLIENT' };
-    if (await this.providerContext.userHasAccessToProvider(userId, booking.providerId)) return { role: 'PROVIDER' };
+    if (await this.providerContext.userHasAccessToProvider(userId, booking.providerId)) {
+      const active = this.workspaceContext?.getForUser(userId);
+      if (active?.role === 'MEMBER' && booking.assignedMembershipId !== active.membershipId) {
+        throw new ForbiddenException('This booking is not assigned to you');
+      }
+      return { role: 'PROVIDER' };
+    }
     throw new ForbiddenException('Not authorized for this booking');
   }
 

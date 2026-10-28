@@ -41,3 +41,40 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+
+export function workspaceInviteEmail(
+  to: string,
+  workspaceName: string,
+  inviterName: string,
+  role: string,
+  token: string,
+): EmailMessage {
+  const base = (process.env.WEB_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
+  const href = `${base}/invite/${encodeURIComponent(token)}`;
+  return {
+    to,
+    subject: `You're invited to join ${workspaceName}`,
+    body: [
+      `Hi,`,
+      '',
+      `${inviterName} invited you to join ${workspaceName} on Bii Localfinder as ${role.toLowerCase()}.`,
+      '',
+      'Accept the invitation:',
+      href,
+      '',
+      'This invitation expires in 7 days. If you were not expecting it, you can ignore this email.',
+    ].join('\n'),
+    html: `<!doctype html>
+<html>
+  <body style="margin:0;padding:24px;background:#f6f6f4;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#1c1917;">
+    <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;padding:32px;">
+      <h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;">Join ${escapeHtml(workspaceName)}</h1>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.6;">${escapeHtml(inviterName)} invited you to join ${escapeHtml(workspaceName)} on Bii Localfinder as ${escapeHtml(role.toLowerCase())}.</p>
+      <p style="margin:0 0 24px;"><a href="${escapeHtml(href)}" style="display:inline-block;background:#166534;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:10px;font-size:15px;font-weight:600;">Accept invitation</a></p>
+      <p style="margin:0;font-size:13px;line-height:1.6;color:#57534e;">This invitation expires in 7 days. If you were not expecting it, you can ignore this email.</p>
+    </div>
+  </body>
+</html>`,
+  };
+}

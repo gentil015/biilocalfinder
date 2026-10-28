@@ -17,6 +17,8 @@ function LoginForm() {
   // Sent here by /reset-password after a successful change, so the user knows
   // the sign-out they're seeing is expected and not a bug.
   const justReset = searchParams.get('reset') === '1';
+  const requestedNext = searchParams.get('next');
+  const next = requestedNext && requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : null;
   const { login: adoptSession } = useAuth();
   // `session` re-renders once adoptSession has resolved the user, so
   // homeForRole below always reads the real role rather than the null it was
@@ -38,7 +40,7 @@ function LoginForm() {
       await adoptSession(tokens);
       // Route by role. Sending everyone to '/' is what dropped a signed-in
       // admin into the provider onboarding wizard.
-      router.push(homeForRole(session.user?.role));
+      router.push(next ?? homeForRole(session.user?.role));
       router.refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('login.failed'));
@@ -54,7 +56,7 @@ function LoginForm() {
       footer={
         <>
           {t('login.footer')}{' '}
-          <Link href="/register" className="text-link">
+          <Link href={next ? `/register?next=${encodeURIComponent(next)}` : '/register'} className="text-link">
             {t('login.footerAction')}
           </Link>
         </>

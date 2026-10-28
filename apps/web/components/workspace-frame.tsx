@@ -1,6 +1,6 @@
 'use client';
 
-import type { Workspace, WorkspaceMembershipSummary } from '@/lib/api';
+import { setActiveWorkspace, type Workspace, type WorkspaceMembershipSummary } from '@/lib/api';
 import { WORKSPACE_NAV, WORKSPACE_TYPE_LABEL } from '@/lib/workspace-nav';
 import { WorkspaceShell, WorkspaceSwitcher } from '@/components/workspace-switcher';
 import { VerificationBadge } from '@/components/verification-badge';
@@ -23,7 +23,9 @@ export function WorkspaceFrame({
   overviewHref?: string;
   children: React.ReactNode;
 }) {
-  const navItems = WORKSPACE_NAV[workspace.type];
+  const role = memberships.find((m) => m.workspace.id === workspace.id)?.role ?? 'MEMBER';
+  setActiveWorkspace(workspace.id, role);
+  const navItems = WORKSPACE_NAV[workspace.type].filter((item) => !item.roles || item.roles.includes(role));
 
   return (
     <WorkspaceShell

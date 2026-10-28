@@ -43,11 +43,10 @@ the brief without destabilizing ~60 already-working backend modules.
 - Unit tests: `workspaces/workspaces.service.spec.ts`,
   `common/guards/workspace-membership.guard.spec.ts`.
 
-**Known simplification**: `POST /workspaces/:id/members` only invites an
-*existing* BII LocalFinder account by email — inviting someone with no
-account yet (email-only invite + registration linking) isn't built. This
-is a small, separate follow-up; it doesn't change the workspace/
-membership model.
+**Known simplification (superseded by Phase 6)**: Phase 2's
+`POST /workspaces/:id/members` only invited *existing* BII LocalFinder
+accounts. Phase 6 replaced it with a tokenised email-only invite flow
+that also links pending invitations during registration.
 
 ## What Phase 2 did NOT do yet (resolved in Phase 5, below)
 
@@ -118,10 +117,11 @@ Delivered under `apps/web/app/dashboard/`:
   (member/staff count for Team/Business, managed-provider count for
   Agency) — reuses the existing provider-insights endpoint rather than
   adding new aggregation endpoints (that's Phase 4/5 analytics work).
-- **Members page** (`[workspaceId]/members/page.tsx`): invite (by email,
-  existing accounts only — see the Phase 2 simplification above), role
-  change, and removal, calling the Phase 2 `workspacesApi` directly. Used
-  by TEAM ("Members") and BUSINESS ("Staff & Permissions").
+- **Members page** (`[workspaceId]/members/page.tsx`): invite, role
+  change, removal, pending-invite revocation, and ownership transfer.
+  Phase 6 extended the original existing-accounts-only version to the
+  email-only invite flow and role-aware controls. Used by TEAM
+  ("Members"), BUSINESS ("Staff & Permissions"), and AGENCY ("Members").
 - **Managed-providers page** (`[workspaceId]/managed-providers/page.tsx`,
   AGENCY only): reuses the *pre-existing* `ProviderTeamMember` roster
   (`providerOnboardingApi.listTeamMembers/addTeamMember/removeTeamMember`)
@@ -282,3 +282,64 @@ the exact same way). `auth.service.spec.ts` and `workspaces.service.spec.ts`
 transaction, the workspace-creation transaction) — both compiled and
 passed in full. Run `npx prisma generate && npm test` in a networked
 environment for a complete signal.
+
+
+## Phase 6 — centralized permissions, assignments, email invites, audit
+
+This phase closes the remaining collaboration gaps from the original
+brief. It is additive on top of Phases 2–5.
+
+- **Central permission model** (`workspaces/workspace-permissions.ts`):
+  one `WORKSPACE_PERMISSIONS` map for `OWNER` / `MANAGER` / `MEMBER`
+  instead of controllers inventing their own role checks.
+  `@RequireWorkspacePermission(...)` plus a global
+  `WorkspaceContextInterceptor` resolve the active workspace from
+  `x-workspace-id`, verify an ACTIVE membership, and run the handler
+  inside an `AsyncLocalStorage` context. `ProviderContextService` now
+  reads that context first, so every upgraded provider endpoint is
+  workspace-aware without guessing when a user has several workspaces.
+- **Permission coverage**: provider profile/branding, catalog, portfolio,
+  availability, reviews, verification, billing, analytics, incoming
+  requests, quotes, provider bookings, and messaging are covered.
+  Members may only see requests/bookings/conversations assigned to their
+  membership; client-owned conversations remain visible to a user who is
+  also a client. The socket gateway applies the same conversation check
+  without relying on an HTTP workspace header.
+- **Assignments**: `ServiceRequest` and `Booking` carry
+  `assignedMembershipId`, `assignedAt`, and `assignedById`. Owners and
+  managers assign work from the provider request/booking detail pages via
+  `PATCH /workspaces/:id/assignments/{requests|bookings}/:id`.
+  `INDIVIDUAL` workspaces reject assignments; `TEAM`, `BUSINESS`, and
+  `AGENCY` support them. Every change is audit-logged.
+- **Email-only invitations**: `WorkspaceInvitation` stores only a
+  HMAC-SHA256 `tokenHash` (never the raw token), with a 7-day expiry and
+  revoke/accept timestamps. Invite emails link to
+  `${WEB_URL}/invite/:token`; the public preview endpoint masks nothing
+  because the token is the bearer secret. Registration links any pending
+  invitation by normalized email and creates an `INVITED` membership.
+- **Ownership transfer**: owners can promote an ACTIVE member to `OWNER`;
+  the previous owner becomes `MANAGER` and `Workspace.ownerId` moves in
+  the same transaction.
+- **Audit viewer**: `/dashboard/[workspaceId]/audit` (owners + managers)
+  reads `GET /workspaces/:id/audit`, covering workspace, membership,
+  invitation, request-assignment, and booking-assignment events.
+- **Navigation**: workspace-nav entries declare the roles that may see
+  them, and the nav filters against the active membership role. Members
+  see Overview, Members, Requests, Messages, Bookings, and Settings;
+  billing/ownership/role controls stay owner-only.
+- **API surface**: `GET/DELETE /workspaces/:id/invitations`,
+  `POST /workspaces/:id/ownership/transfer`,
+  `GET /workspaces/:id/audit`, the assignment endpoints above, and the
+  public `/workspace-invitations/:token` preview/accept pair.
+- **Seat counting**: `EntitlementsService` counts ACTIVE + INVITED
+  memberships plus email-only pending invitations, de-duplicated by
+  email, so a known-account invite is not charged twice.
+- **Migration**: run `prisma/manual-sql/015_workspace_invitations_and_assignments.sql`
+  after the earlier phases. It is idempotent. Set
+  `WORKSPACE_INVITE_PEPPER` in production (falling back to
+  `JWT_SECRET`, then a development-only constant) so invite hashes are
+  independent of JWT rotation.
+
+**Verified**: API `tsc` clean; API Jest 303/303; web `tsc` clean; web
+`next lint` has no errors (the existing warnings are unrelated to this
+phase).

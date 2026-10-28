@@ -6,12 +6,14 @@ import { MessagingService } from './messaging.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { StartConversationDto } from './dto/start-conversation.dto';
 import { SocketServerRegistry } from '../realtime/socket-server-registry.service';
+import { WorkspaceScoped } from '../common/workspace/workspace-scoped.decorator';
 
 // REST fallback for message history and sending — the socket gateway is
 // the low-latency path, but nothing here depends on a live connection.
 @ApiTags('messaging')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
+@WorkspaceScoped()
 @Controller()
 export class MessagingController {
   constructor(

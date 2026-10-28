@@ -79,9 +79,7 @@ export class EntitlementsService {
     const [services, portfolioItems, teamMembers, managedProviders] = await Promise.all([
       this.prisma.serviceOffering.count({ where: { providerId: provider.id } }),
       this.prisma.portfolioImage.count({ where: { portfolio: { providerId: provider.id } } }),
-      provider.workspaceId
-        ? this.prisma.workspaceMembership.count({ where: { workspaceId: provider.workspaceId, status: 'ACTIVE' } })
-        : Promise.resolve(0),
+      provider.workspaceId ? this.countTeamSeats(provider.workspaceId) : Promise.resolve(0),
       this.prisma.providerTeamMember.count({ where: { providerId: provider.id } }),
     ]);
 
@@ -130,6 +128,26 @@ export class EntitlementsService {
     }
   }
 
+  private async countTeamSeats(workspaceId: string): Promise<number> {
+    const members = await this.prisma.workspaceMembership.findMany({
+      where: { workspaceId, status: { in: ['ACTIVE', 'INVITED'] } },
+      select: { invitedEmail: true, user: { select: { email: true } } },
+    });
+    const emails = members
+      .map((member) => (member.invitedEmail ?? member.user.email).toLowerCase())
+      .filter(Boolean);
+    const emailOnlyInvitations = await this.prisma.workspaceInvitation.count({
+      where: {
+        workspaceId,
+        acceptedAt: null,
+        revokedAt: null,
+        expiresAt: { gt: new Date() },
+        email: { notIn: emails },
+      },
+    });
+    return members.length + emailOnlyInvitations;
+  }
+
   private resolveLimit(plan: SubscriptionPlan | null, providerType: ProviderType | null, resource: EntitlementResource): number | null {
     const type = effectiveProviderType(providerType);
     if (!plan) return HARD_FALLBACK[resource];
@@ -152,11 +170,7 @@ export class EntitlementsService {
       case 'portfolioItems':
         return this.prisma.portfolioImage.count({ where: { portfolio: { providerId: provider.id } } });
       case 'teamMembers':
-        return provider.workspaceId
-          ? this.prisma.workspaceMembership.count({
-              where: { workspaceId: provider.workspaceId, status: { in: ['ACTIVE', 'INVITED'] } },
-            })
-          : Promise.resolve(0);
+        return provider.workspaceId ? this.countTeamSeats(provider.workspaceId) : Promise.resolve(0);
       case 'managedProviders':
         return this.prisma.providerTeamMember.count({ where: { providerId: provider.id } });
     }

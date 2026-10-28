@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { RequireWorkspacePermission } from '../common/workspace/require-workspace-permission.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PersonalizationService } from './personalization.service';
 import { RecommendationService } from './recommendation/recommendation.service';
@@ -65,8 +66,7 @@ export class PersonalizationController {
 
   // Provider dashboard insights (spec §14-15) — aggregated, never
   // exposing any individual client's identity or activity.
-  @UseGuards(RolesGuard)
-  @Roles('PROVIDER')
+  @RequireWorkspacePermission('analytics.view')
   @Get('provider-insights')
   providerInsights(@CurrentUser() user: { id: string }) {
     return this.personalizationService.getProviderInsights(user.id);
@@ -74,8 +74,7 @@ export class PersonalizationController {
 
   // Provider analytics dashboard (spec §7): profile/service views, requests,
   // quotes sent, bookings, conversion, top searched + most viewed service.
-  @UseGuards(RolesGuard)
-  @Roles('PROVIDER')
+  @RequireWorkspacePermission('analytics.view')
   @Get('provider-analytics')
   providerAnalytics(@CurrentUser() user: { id: string }) {
     return this.providerAnalyticsService.getMonthlySummary(user.id);

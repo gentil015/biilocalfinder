@@ -9,6 +9,7 @@ import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { InviteMemberDto } from './dto/invite-member.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
+import { AssignResourceDto, TransferOwnershipDto } from './dto/assign-resource.dto';
 
 // Every route here requires a logged-in user; per-workspace routes
 // additionally require WorkspaceMembershipGuard, which re-derives
@@ -54,6 +55,24 @@ export class WorkspacesController {
   }
 
   @UseGuards(WorkspaceMembershipGuard)
+  @WorkspaceRoles('OWNER', 'MANAGER')
+  @Get(':workspaceId/invitations')
+  listInvitations(@Param('workspaceId') workspaceId: string) {
+    return this.workspacesService.listInvitations(workspaceId);
+  }
+
+  @UseGuards(WorkspaceMembershipGuard)
+  @WorkspaceRoles('OWNER', 'MANAGER')
+  @Delete(':workspaceId/invitations/:invitationId')
+  revokeInvitation(
+    @Param('workspaceId') workspaceId: string,
+    @Param('invitationId') invitationId: string,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.workspacesService.revokeInvitation(workspaceId, invitationId, user.id);
+  }
+
+  @UseGuards(WorkspaceMembershipGuard)
   @Get(':workspaceId/members')
   listMembers(@Param('workspaceId') workspaceId: string) {
     return this.workspacesService.listMembers(workspaceId);
@@ -84,6 +103,48 @@ export class WorkspacesController {
 
   // Role changes are OWNER-only (spec §3: "Do not give every team member
   // owner permissions") — a MANAGER can invite/remove but not promote.
+  @UseGuards(WorkspaceMembershipGuard)
+  @WorkspaceRoles('OWNER')
+  @Post(':workspaceId/ownership/transfer')
+  transferOwnership(
+    @Param('workspaceId') workspaceId: string,
+    @Body() dto: TransferOwnershipDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.workspacesService.transferOwnership(workspaceId, dto.membershipId, user.id);
+  }
+
+  @UseGuards(WorkspaceMembershipGuard)
+  @WorkspaceRoles('OWNER', 'MANAGER')
+  @Get(':workspaceId/audit')
+  audit(@Param('workspaceId') workspaceId: string) {
+    return this.workspacesService.listAudit(workspaceId);
+  }
+
+  @UseGuards(WorkspaceMembershipGuard)
+  @WorkspaceRoles('OWNER', 'MANAGER')
+  @Patch(':workspaceId/assignments/requests/:requestId')
+  assignRequest(
+    @Param('workspaceId') workspaceId: string,
+    @Param('requestId') requestId: string,
+    @Body() dto: AssignResourceDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.workspacesService.assignRequest(workspaceId, requestId, dto.membershipId, user.id);
+  }
+
+  @UseGuards(WorkspaceMembershipGuard)
+  @WorkspaceRoles('OWNER', 'MANAGER')
+  @Patch(':workspaceId/assignments/bookings/:bookingId')
+  assignBooking(
+    @Param('workspaceId') workspaceId: string,
+    @Param('bookingId') bookingId: string,
+    @Body() dto: AssignResourceDto,
+    @CurrentUser() user: { id: string },
+  ) {
+    return this.workspacesService.assignBooking(workspaceId, bookingId, dto.membershipId, user.id);
+  }
+
   @UseGuards(WorkspaceMembershipGuard)
   @WorkspaceRoles('OWNER')
   @Patch(':workspaceId/members/:membershipId')

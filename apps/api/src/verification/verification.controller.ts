@@ -16,6 +16,7 @@ import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { RequireWorkspacePermission } from '../common/workspace/require-workspace-permission.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { MAX_UPLOAD_BYTES } from '../files/storage.interface';
 import { VerificationService } from './verification.service';
@@ -33,8 +34,8 @@ import { ConfirmContactCodeDto, RequestContactCodeDto } from './dto/contact-veri
 
 @ApiTags('verification')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('PROVIDER')
+@UseGuards(JwtAuthGuard)
+@RequireWorkspacePermission('verification.manage')
 @Controller('provider/verification')
 export class ProviderVerificationController {
   constructor(private verification: VerificationService) {}

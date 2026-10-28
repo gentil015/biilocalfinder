@@ -3,6 +3,8 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { RequireWorkspacePermission } from '../common/workspace/require-workspace-permission.decorator';
+import { WorkspaceScoped } from '../common/workspace/workspace-scoped.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { BookingsService } from './bookings.service';
 import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
@@ -14,6 +16,7 @@ import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
 @ApiTags('bookings')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
+@WorkspaceScoped()
 @Controller('bookings')
 export class BookingsController {
   constructor(private bookingsService: BookingsService) {}
@@ -24,7 +27,7 @@ export class BookingsController {
     return this.bookingsService.findMine(user.id, 'CLIENT');
   }
 
-  @Roles('PROVIDER')
+  @RequireWorkspacePermission('bookings.view')
   @Get('provider/mine')
   findMineAsProvider(@CurrentUser() user: { id: string }) {
     return this.bookingsService.findMine(user.id, 'PROVIDER');

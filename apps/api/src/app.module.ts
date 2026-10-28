@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { BullModule } from '@nestjs/bullmq';
 import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
 import { AuthModule } from './auth/auth.module';
 import { CsrfGuard } from './auth/guards/csrf.guard';
+import { WorkspaceContextInterceptor } from './common/workspace/workspace-context.interceptor';
 import { UsersModule } from './users/users.module';
 import { ClientsModule } from './clients/clients.module';
 import { ProvidersModule } from './providers/providers.module';
@@ -114,6 +115,7 @@ function parseRedisUrl(url: string) {
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: CsrfGuard },
+    { provide: APP_INTERCEPTOR, useClass: WorkspaceContextInterceptor },
   ],
 })
 export class AppModule {}

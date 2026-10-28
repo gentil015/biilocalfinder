@@ -17,6 +17,8 @@ import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { RequireWorkspacePermission } from '../common/workspace/require-workspace-permission.decorator';
+import { WorkspaceScoped } from '../common/workspace/workspace-scoped.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ALLOWED_IMAGE_MIME_TYPES, MAX_UPLOAD_BYTES } from '../files/storage.interface';
 import { sniffMime } from '../verification/file-sniffer';
@@ -64,6 +66,7 @@ export class ReviewsController {
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('CLIENT', 'PROVIDER')
+  @WorkspaceScoped()
   @Get('bookings/:id/review')
   forBooking(@CurrentUser() user: { id: string }, @Param('id', ParseUUIDPipe) bookingId: string) {
     return this.reviewsService.forBooking(bookingId, user.id);
@@ -84,16 +87,16 @@ export class ReviewsController {
   // ---- Provider ----
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('reviews.respond')
   @Get('provider/reviews')
   mine(@CurrentUser() user: { id: string }, @Query() query: ListReviewsQueryDto) {
     return this.reviewsService.findMineAsProvider(user.id, query);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('reviews.respond')
   @Post('reviews/:id/response')
   respond(
     @CurrentUser() user: { id: string },

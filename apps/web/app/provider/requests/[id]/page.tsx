@@ -7,6 +7,7 @@ import { requestsApi, quotesApi, ApiError } from '@/lib/api';
 import { StatusBadge } from '@/components/status-badge';
 import { QuoteThread } from '@/components/quote-thread';
 import { SendQuoteForm } from '@/components/send-quote-form';
+import { WorkspaceAssignment } from '@/components/workspace-assignment';
 import { PageHeader, Panel, LoadingBlock } from '@/components/ui/page';
 
 export default function ProviderRequestDetailPage() {
@@ -109,6 +110,15 @@ export default function ProviderRequestDetailPage() {
           </dl>
         )}
       </Panel>
+
+      <WorkspaceAssignment
+        resource="request"
+        resourceId={request.id}
+        providerId={request.providerId}
+        assignedMembershipId={request.assignedMembershipId}
+        assignedMembership={request.assignedMembership}
+        onAssigned={load}
+      />
 
       {!myQuote ? (
         <SendQuoteForm requestId={request.id} onSent={load} />

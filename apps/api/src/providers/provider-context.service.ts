@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Provider } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { WorkspaceContextService } from '../common/workspace/workspace-context.service';
 
 // Replaces every `prisma.provider.findUnique({ where: { userId } })` now
 // that Provider.userId isn't @unique (see
@@ -21,9 +22,19 @@ import { PrismaService } from '../prisma/prisma.service';
 // meantime, rather than silently correct only by accident.
 @Injectable()
 export class ProviderContextService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private workspaceContext: WorkspaceContextService,
+  ) {}
 
   async resolveForUser(userId: string): Promise<Provider> {
+    const active = this.workspaceContext.getForUser(userId);
+    if (active) {
+      if (!active.providerId) throw new NotFoundException('Provider profile not found');
+      const provider = await this.prisma.provider.findUnique({ where: { id: active.providerId } });
+      if (!provider) throw new NotFoundException('Provider profile not found');
+      return provider;
+    }
     const memberships = await this.prisma.workspaceMembership.findMany({
       where: { userId, status: 'ACTIVE' },
       include: { workspace: { include: { provider: true } } },
@@ -49,6 +60,8 @@ export class ProviderContextService {
   // list back, which is exactly what an OR-across-my-providers query
   // needs.
   async getProviderIdsForUser(userId: string): Promise<string[]> {
+    const active = this.workspaceContext.getForUser(userId);
+    if (active) return active.providerId ? [active.providerId] : [];
     const memberships = await this.prisma.workspaceMembership.findMany({
       where: { userId, status: 'ACTIVE' },
       include: { workspace: { select: { provider: { select: { id: true } } } } },
@@ -64,6 +77,8 @@ export class ProviderContextService {
   // who owns more than one workspace, since it doesn't need to pick
   // "the" provider, just confirm X is one of theirs.
   async userHasAccessToProvider(userId: string, providerId: string): Promise<boolean> {
+    const active = this.workspaceContext.getForUser(userId);
+    if (active) return active.providerId === providerId;
     const provider = await this.prisma.provider.findUnique({ where: { id: providerId }, select: { workspaceId: true } });
     if (!provider) return false;
     const membership = await this.prisma.workspaceMembership.findUnique({

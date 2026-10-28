@@ -2,8 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@n
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { RequireWorkspacePermission } from '../common/workspace/require-workspace-permission.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { ServiceOfferingsService } from './service-offerings.service';
 import { CreateOfferingDto } from './dto/create-offering.dto';
@@ -25,40 +24,40 @@ export class ServiceOfferingsController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('catalog.manage')
   @Post('provider/service-offerings')
   create(@CurrentUser() user: { id: string }, @Body() dto: CreateOfferingDto) {
     return this.offeringsService.create(user.id, dto);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('catalog.manage')
   @Get('provider/service-offerings')
   findMine(@CurrentUser() user: { id: string }) {
     return this.offeringsService.findMine(user.id);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('catalog.manage')
   @Get('provider/service-offerings/:id')
   findOne(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.offeringsService.findOneForOwner(user.id, id);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('catalog.manage')
   @Patch('provider/service-offerings/:id')
   update(@CurrentUser() user: { id: string }, @Param('id') id: string, @Body() dto: UpdateOfferingDto) {
     return this.offeringsService.update(user.id, id, dto);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('catalog.manage')
   @Delete('provider/service-offerings/:id')
   remove(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.offeringsService.remove(user.id, id);

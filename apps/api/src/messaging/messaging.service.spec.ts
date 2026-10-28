@@ -22,6 +22,7 @@ describe('MessagingService.startConversation', () => {
         update: jest.fn(),
       },
       conversationParticipant: { findFirst: jest.fn(), findMany: jest.fn(), update: jest.fn() },
+      workspaceMembership: { findUnique: jest.fn() },
       message: { create: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
       $transaction: jest.fn(),
     };
@@ -176,5 +177,56 @@ describe('MessagingService.startConversation', () => {
       ForbiddenException,
     );
     expect(prisma.conversation.create).not.toHaveBeenCalled();
+  });
+});
+describe('MessagingService.assertParticipant without a workspace context', () => {
+  let service: MessagingService;
+  let prisma: any;
+  let providerContext: any;
+
+  beforeEach(() => {
+    prisma = {
+      clientProfile: { findUnique: jest.fn().mockResolvedValue(null) },
+      provider: { findUnique: jest.fn().mockResolvedValue({ workspaceId: 'ws-1' }) },
+      conversationParticipant: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'part-2', providerId: 'provider-1' }),
+      },
+      conversation: { findUnique: jest.fn() },
+      workspaceMembership: { findUnique: jest.fn() },
+    };
+    providerContext = { getProviderIdsForUser: jest.fn().mockResolvedValue(['provider-1']) };
+    // Socket path: no WorkspaceContextService, like the gateway.
+    service = new MessagingService(prisma, providerContext, { notify: jest.fn() } as any);
+  });
+
+  it('rejects an unassigned conversation for a MEMBER', async () => {
+    prisma.workspaceMembership.findUnique.mockResolvedValue({ id: 'mem-1', role: 'MEMBER', status: 'ACTIVE' });
+    prisma.conversation.findUnique.mockResolvedValue({
+      id: 'conv-1',
+      serviceRequest: { assignedMembershipId: 'mem-2' },
+    });
+
+    await expect(service.assertParticipant('conv-1', 'provider-user-1')).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('allows a conversation assigned to that MEMBER', async () => {
+    prisma.workspaceMembership.findUnique.mockResolvedValue({ id: 'mem-1', role: 'MEMBER', status: 'ACTIVE' });
+    prisma.conversation.findUnique.mockResolvedValue({
+      id: 'conv-1',
+      serviceRequest: { assignedMembershipId: 'mem-1' },
+    });
+
+    await expect(service.assertParticipant('conv-1', 'provider-user-1')).resolves.toEqual(
+      expect.objectContaining({ id: 'part-2' }),
+    );
+  });
+
+  it('does not restrict an OWNER', async () => {
+    prisma.workspaceMembership.findUnique.mockResolvedValue({ id: 'mem-1', role: 'OWNER', status: 'ACTIVE' });
+
+    await expect(service.assertParticipant('conv-1', 'provider-user-1')).resolves.toEqual(
+      expect.objectContaining({ id: 'part-2' }),
+    );
+    expect(prisma.conversation.findUnique).not.toHaveBeenCalled();
   });
 });

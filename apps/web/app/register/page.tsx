@@ -54,7 +54,10 @@ export default function RegisterPage() {
       const tokens = await authApi.register({ ...form, role });
       justRegistered.current = true;
       await adoptSession(tokens);
-      router.push(role === 'PROVIDER' ? '/provider/onboarding' : '/');
+      const requestedNext = new URLSearchParams(window.location.search).get('next');
+      const next =
+        requestedNext && requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : null;
+      router.push(next ?? (role === 'PROVIDER' ? '/provider/onboarding' : '/'));
     } catch (err) {
       justRegistered.current = false;
       setError(err instanceof ApiError ? err.message : t('register.failed'));

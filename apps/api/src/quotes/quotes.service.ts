@@ -12,6 +12,7 @@ import { InteractionService } from '../personalization/interactions/interaction.
 import { ALLOWED_DOCUMENT_MIME_TYPES, MAX_UPLOAD_BYTES, STORAGE_SERVICE, StorageService } from '../files/storage.interface';
 import { sniffMime } from '../verification/file-sniffer';
 import { ProviderContextService } from '../providers/provider-context.service';
+import { WorkspaceContextService } from '../common/workspace/workspace-context.service';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 import { ProposeRevisionDto } from './dto/propose-revision.dto';
 
@@ -36,6 +37,7 @@ export class QuotesService {
     private interactions: InteractionService,
     @Inject(STORAGE_SERVICE) private storage: StorageService,
     private providerContext: ProviderContextService,
+    private workspaceContext?: WorkspaceContextService,
   ) {}
 
   // Quote attachments (reference photos, spec sheets) are namespaced per
@@ -60,6 +62,10 @@ export class QuotesService {
 
     const request = await this.prisma.serviceRequest.findUnique({ where: { id: dto.requestId } });
     if (!request) throw new NotFoundException('Service request not found');
+    const active = this.workspaceContext?.getForUser(providerUserId);
+    if (active?.role === 'MEMBER' && request.assignedMembershipId !== active.membershipId) {
+      throw new ForbiddenException('This request is not assigned to you');
+    }
 
     // Direct requests are private to the pinned provider — unless the client
     // opened them to the marketplace (isPublic), in which case any provider
@@ -161,6 +167,10 @@ export class QuotesService {
 
     const providerIds = await this.providerContext.getProviderIdsForUser(userId);
     if (providerIds.length === 0) throw new ForbiddenException('Not authorized');
+    const active = this.workspaceContext?.getForUser(userId);
+    if (active?.role === 'MEMBER' && request.assignedMembershipId !== active.membershipId) {
+      throw new ForbiddenException('This request is not assigned to you');
+    }
 
     const isPinned = !!request.providerId && providerIds.includes(request.providerId);
     const hasQuote =
@@ -374,6 +384,13 @@ export class QuotesService {
 
   private async assertQuoteParticipant(quote: { providerId: string; requestId: string }, userId: string) {
     if (await this.providerContext.userHasAccessToProvider(userId, quote.providerId)) {
+      const active = this.workspaceContext?.getForUser(userId);
+      if (active?.role === 'MEMBER') {
+        const request = await this.prisma.serviceRequest.findUnique({ where: { id: quote.requestId } });
+        if (request?.assignedMembershipId !== active.membershipId) {
+          throw new ForbiddenException('This request is not assigned to you');
+        }
+      }
       return { role: 'PROVIDER' as const };
     }
 

@@ -83,6 +83,36 @@ export class AuthService {
           },
         });
 
+        // An invitation may have been sent before this person had an
+        // account. Surface it as a pending membership immediately; the
+        // token in the email is still what activates access.
+        const pendingInvites = await tx.workspaceInvitation.findMany({
+          where: {
+            email: created.email.toLowerCase(),
+            acceptedAt: null,
+            revokedAt: null,
+            expiresAt: { gt: new Date() },
+          },
+          select: { workspaceId: true, role: true },
+        });
+        for (const invite of pendingInvites) {
+          const existingMembership = await tx.workspaceMembership.findUnique({
+            where: { workspaceId_userId: { workspaceId: invite.workspaceId, userId: created.id } },
+          });
+          if (!existingMembership) {
+            await tx.workspaceMembership.create({
+              data: {
+                workspaceId: invite.workspaceId,
+                userId: created.id,
+                role: invite.role,
+                status: 'INVITED',
+                invitedEmail: created.email.toLowerCase(),
+                invitedAt: new Date(),
+              },
+            });
+          }
+        }
+
         if (dto.role === 'PROVIDER') {
           const businessName = `${dto.firstName} ${dto.lastName}`;
           const workspace = await tx.workspace.create({

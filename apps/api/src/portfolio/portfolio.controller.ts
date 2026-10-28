@@ -1,8 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../common/guards/roles.guard';
-import { Roles } from '../common/decorators/roles.decorator';
+import { RequireWorkspacePermission } from '../common/workspace/require-workspace-permission.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PortfolioService } from './portfolio.service';
 import { CreatePortfolioDto } from './dto/create-portfolio.dto';
@@ -11,8 +10,8 @@ import { AddPortfolioImageDto } from './dto/add-portfolio-image.dto';
 
 @ApiTags('portfolio')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('PROVIDER')
+@UseGuards(JwtAuthGuard)
+@RequireWorkspacePermission('catalog.manage')
 @Controller('providers/me/portfolios')
 export class PortfolioController {
   constructor(private portfolioService: PortfolioService) {}

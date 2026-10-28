@@ -7,6 +7,7 @@ import { AlertCircle, ArrowLeft, CheckCircle2, Flag, Info, Star, Wallet } from '
 import { bookingsApi, reviewsApi, ApiError } from '@/lib/api';
 import { StatusBadge } from '@/components/status-badge';
 import { ReviewForm } from '@/components/review-form';
+import { WorkspaceAssignment } from '@/components/workspace-assignment';
 import { EmptyState, Panel, Skeleton } from '@/components/ui/page';
 import { BackButton } from '@/components/back-button';
 import {
@@ -136,6 +137,17 @@ export default function BookingDetailPage() {
           </div>
         )}
       </Panel>
+
+      {booking.viewerRole === 'PROVIDER' && (
+        <WorkspaceAssignment
+          resource="booking"
+          resourceId={booking.id}
+          providerId={booking.providerId}
+          assignedMembershipId={booking.assignedMembershipId}
+          assignedMembership={booking.assignedMembership}
+          onAssigned={load}
+        />
+      )}
 
       {error && (
         <div className="alert alert-error mt-5" role="alert">

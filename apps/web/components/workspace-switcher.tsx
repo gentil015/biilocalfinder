@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Check, ChevronDown, LogOut, Menu, X, ArrowLeft, HelpCircle, type LucideIcon } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import type { WorkspaceMembershipSummary } from '@/lib/api';
+import { setActiveWorkspace, type WorkspaceMembershipSummary } from '@/lib/api';
 import { WORKSPACE_TYPE_LABEL } from '@/lib/workspace-nav';
 import { BrandMark } from '@/components/brand-mark';
 import { BackButton, useCanGoBack } from '@/components/back-button';
@@ -103,6 +103,7 @@ export function WorkspaceSwitcher({
               aria-selected={m.workspace.id === activeWorkspaceId}
               onClick={() => {
                 setOpen(false);
+                setActiveWorkspace(m.workspace.id, m.role);
                 router.push(`/dashboard/${m.workspace.id}`);
               }}
               className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition hover:bg-ink-50 ${

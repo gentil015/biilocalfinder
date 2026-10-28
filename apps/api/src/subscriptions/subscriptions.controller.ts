@@ -4,6 +4,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { RequireWorkspacePermission } from '../common/workspace/require-workspace-permission.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { SubscriptionsService } from './subscriptions.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
@@ -39,40 +40,40 @@ export class SubscriptionsController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.billing.manage')
   @Post('subscriptions')
   subscribe(@CurrentUser() user: { id: string }, @Body() dto: CreateSubscriptionDto) {
     return this.subscriptionsService.subscribe(user.id, dto.planId);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.billing.manage')
   @Get('subscriptions/current')
   current(@CurrentUser() user: { id: string }) {
     return this.subscriptionsService.current(user.id);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.billing.manage')
   @Get('subscriptions/history')
   history(@CurrentUser() user: { id: string }) {
     return this.subscriptionsService.history(user.id);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.billing.manage')
   @Get('subscriptions/usage')
   usage(@CurrentUser() user: { id: string }) {
     return this.subscriptionsService.usage(user.id);
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('PROVIDER')
+  @UseGuards(JwtAuthGuard)
+  @RequireWorkspacePermission('workspace.billing.manage')
   @Post('subscriptions/:id/cancel')
   cancel(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.subscriptionsService.cancel(user.id, id);

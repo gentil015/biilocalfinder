@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProviderContextService } from '../providers/provider-context.service';
+import { WorkspaceContextService } from '../common/workspace/workspace-context.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { StartConversationDto } from './dto/start-conversation.dto';
 
@@ -33,6 +34,7 @@ export class MessagingService {
     private prisma: PrismaService,
     private providerContext: ProviderContextService,
     private notifications: NotificationsService,
+    private workspaceContext?: WorkspaceContextService,
   ) {}
 
   // Single conversation per (client, provider) pair. A client who already has
@@ -115,8 +117,24 @@ export class MessagingService {
       this.providerContext.getProviderIdsForUser(userId),
     ]);
 
+    const active = this.workspaceContext?.getForUser(userId);
+    const isMember = active?.role === 'MEMBER';
+    const memberScope = isMember
+      ? {
+          AND: [
+            {
+              OR: [
+                { serviceRequest: { assignedMembershipId: active.membershipId } },
+                ...(clientProfile ? [{ participants: { some: { clientId: clientProfile.id } } }] : []),
+              ],
+            },
+          ],
+        }
+      : {};
+
     return this.prisma.conversation.findMany({
       where: {
+        ...memberScope,
         participants: {
           some: {
             OR: [
@@ -218,6 +236,42 @@ export class MessagingService {
       },
     });
     if (!participant) throw new ForbiddenException('Not a participant in this conversation');
+    const active = this.workspaceContext?.getForUser(userId);
+    const isOwnClientThread = !!clientProfile && participant.clientId === clientProfile.id;
+    if (!isOwnClientThread) {
+      // The REST controller supplies a workspace context; the socket gateway
+      // does not. Fall back to the membership for the provider on this thread
+      // so a MEMBER cannot bypass assignment scoping by using the socket.
+      let memberScope: { membershipId: string } | null = null;
+      if (active?.role === 'MEMBER') {
+        memberScope = { membershipId: active.membershipId };
+      } else if (!active && participant.providerId) {
+        const provider = await this.prisma.provider.findUnique({
+          where: { id: participant.providerId },
+          select: { workspaceId: true },
+        });
+        const membership = provider
+          ? await this.prisma.workspaceMembership.findUnique({
+              where: {
+                workspaceId_userId: { workspaceId: provider.workspaceId, userId },
+              },
+              select: { id: true, role: true, status: true },
+            })
+          : null;
+        if (membership?.status === 'ACTIVE' && membership.role === 'MEMBER') {
+          memberScope = { membershipId: membership.id };
+        }
+      }
+      if (memberScope) {
+        const conversation = await this.prisma.conversation.findUnique({
+          where: { id: conversationId },
+          select: { serviceRequest: { select: { assignedMembershipId: true } } },
+        });
+        if (conversation?.serviceRequest?.assignedMembershipId !== memberScope.membershipId) {
+          throw new ForbiddenException('This conversation is not assigned to you');
+        }
+      }
+    }
     return participant;
   }
 

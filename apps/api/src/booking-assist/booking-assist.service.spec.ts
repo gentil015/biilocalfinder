@@ -65,7 +65,7 @@ describe('BookingAssistService.suggest', () => {
     const provider = fakeProvider({});
     const service = makeService(provider);
 
-    await expect(service.suggest({ message: '   ' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.suggest({ consentToProcess: true, message: '   ' })).rejects.toBeInstanceOf(BadRequestException);
     expect(provider.suggest).not.toHaveBeenCalled();
   });
 
@@ -83,7 +83,7 @@ describe('BookingAssistService.suggest', () => {
       }),
     );
 
-    const result = await service.suggest({ message: 'My sink pipe is leaking' });
+    const result = await service.suggest({ consentToProcess: true, message: 'My sink pipe is leaking' });
 
     expect(result.fields).toMatchObject({
       serviceId: 'svc-plumbing',
@@ -101,7 +101,7 @@ describe('BookingAssistService.suggest', () => {
   it('never resolves a service key that is not in the catalog', async () => {
     const service = makeService(fakeProvider({ serviceKey: 'plumbing/made-up-service', title: 'x', description: 'y' }));
 
-    const result = await service.suggest({ message: 'anything' });
+    const result = await service.suggest({ consentToProcess: true, message: 'anything' });
 
     expect(result.fields.serviceId).toBeUndefined();
     expect(result.missingFields).toContain('service');
@@ -111,7 +111,7 @@ describe('BookingAssistService.suggest', () => {
   it('ignores a model attempt to swap a service the form already pinned', async () => {
     const service = makeService(fakeProvider({ serviceKey: PLUMBING_KEY, title: 't', description: 'd' }));
 
-    const result = await service.suggest({ message: 'clean my office', serviceId: 'svc-cleaning' });
+    const result = await service.suggest({ consentToProcess: true, message: 'clean my office', serviceId: 'svc-cleaning' });
 
     expect(result.fields.serviceId).toBeUndefined();
     // The pinned service counts as answered — the model cannot make it
@@ -125,7 +125,7 @@ describe('BookingAssistService.suggest', () => {
     const servicesService = { findAll: jest.fn().mockResolvedValue(SERVICES) };
     const service = new BookingAssistService(servicesService as any, categoriesService, fakeProvider({}));
 
-    await service.suggest({ message: 'hello', serviceId: 'svc-cleaning' });
+    await service.suggest({ consentToProcess: true, message: 'hello', serviceId: 'svc-cleaning' });
 
     expect(spy).toHaveBeenCalledWith('cat-cleaning', { publicOnly: true });
   });
@@ -138,12 +138,12 @@ describe('BookingAssistService.suggest', () => {
         description: 'd',
       }),
     );
-    const past = await service.suggest({ message: 'x', filledFields: ['service', 'title', 'description'] });
+    const past = await service.suggest({ consentToProcess: true, message: 'x', filledFields: ['service', 'title', 'description'] });
     expect(past.fields.preferredDate).toBeUndefined();
     expect(past.skippedCount).toBe(1);
 
     const service2 = makeService(fakeProvider({ preferredDate: yesterday, title: 't', description: 'd' }));
-    const result2 = await service2.suggest({ message: 'x', filledFields: ['service', 'title', 'description'] });
+    const result2 = await service2.suggest({ consentToProcess: true, message: 'x', filledFields: ['service', 'title', 'description'] });
     expect(result2.fields.preferredDate).toBeUndefined();
     expect(result2.skippedCount).toBe(1);
   });
@@ -151,7 +151,7 @@ describe('BookingAssistService.suggest', () => {
   it('keeps a well-formed future date and 24h time', async () => {
     const service = makeService(fakeProvider({ preferredDate: tomorrow, preferredTime: '07:05' }));
 
-    const result = await service.suggest({ message: 'x', filledFields: ['service', 'title', 'description'] });
+    const result = await service.suggest({ consentToProcess: true, message: 'x', filledFields: ['service', 'title', 'description'] });
 
     expect(result.fields.preferredDate).toBe(tomorrow);
     expect(result.fields.preferredTime).toBe('07:05');
@@ -160,7 +160,7 @@ describe('BookingAssistService.suggest', () => {
   it('drops an inverted budget pair rather than guessing which end is wrong', async () => {
     const service = makeService(fakeProvider({ budgetMin: 60000, budgetMax: 30000 }));
 
-    const result = await service.suggest({ message: 'x', filledFields: ['service', 'title', 'description'] });
+    const result = await service.suggest({ consentToProcess: true, message: 'x', filledFields: ['service', 'title', 'description'] });
 
     expect(result.fields.budgetMin).toBeUndefined();
     expect(result.fields.budgetMax).toBeUndefined();
@@ -170,7 +170,7 @@ describe('BookingAssistService.suggest', () => {
   it('drops budgets that are not non-negative numbers', async () => {
     const service = makeService(fakeProvider({ budgetMin: -5, budgetMax: 'lots' as any }));
 
-    const result = await service.suggest({ message: 'x', filledFields: ['service', 'title', 'description'] });
+    const result = await service.suggest({ consentToProcess: true, message: 'x', filledFields: ['service', 'title', 'description'] });
 
     expect(result.fields.budgetMin).toBeUndefined();
     expect(result.fields.budgetMax).toBeUndefined();
@@ -180,7 +180,7 @@ describe('BookingAssistService.suggest', () => {
     const service = makeService(fakeProvider({ values: { urgency: 'High', 'not-a-field': 1 } }));
 
     const result = await service.suggest({
-      message: 'urgent',
+      consentToProcess: true, message: 'urgent',
       serviceId: 'svc-plumbing',
       filledFields: ['title', 'description'],
     });
@@ -193,7 +193,7 @@ describe('BookingAssistService.suggest', () => {
     const service = makeService(fakeProvider({ values: { urgency: 'Extremely High' } }));
 
     const result = await service.suggest({
-      message: 'urgent',
+      consentToProcess: true, message: 'urgent',
       serviceId: 'svc-plumbing',
       filledFields: ['title', 'description'],
     });
@@ -205,7 +205,7 @@ describe('BookingAssistService.suggest', () => {
   it('drops attribute values when no service is known — they cannot belong anywhere', async () => {
     const service = makeService(fakeProvider({ values: { urgency: 'High' } }));
 
-    const result = await service.suggest({ message: 'urgent', filledFields: ['service', 'title', 'description'] });
+    const result = await service.suggest({ consentToProcess: true, message: 'urgent', filledFields: ['service', 'title', 'description'] });
 
     expect(result.fields.attributeValues).toBeUndefined();
     expect(result.skippedCount).toBe(1);
@@ -214,7 +214,7 @@ describe('BookingAssistService.suggest', () => {
   it('asks canned follow-up questions for every missing required field, in French', async () => {
     const service = makeService(fakeProvider({ language: 'fr' }));
 
-    const result = await service.suggest({ message: "j'ai besoin d'aide" });
+    const result = await service.suggest({ consentToProcess: true, message: "j'ai besoin d'aide" });
 
     expect(result.language).toBe('fr');
     expect(result.missingFields).toEqual(['service', 'title', 'description']);
@@ -226,7 +226,7 @@ describe('BookingAssistService.suggest', () => {
   it('asks in Kinyarwanda when the model detected rw', async () => {
     const service = makeService(fakeProvider({ language: 'rw' }));
 
-    const result = await service.suggest({ message: 'nshaka umuvugangi' });
+    const result = await service.suggest({ consentToProcess: true, message: 'nshaka umuvugangi' });
 
     expect(result.language).toBe('rw');
     expect(result.questions[0]).toContain('Ni servisi iki ukeneye');
@@ -237,7 +237,7 @@ describe('BookingAssistService.suggest', () => {
     const service = makeService(fakeProvider({}));
 
     const result = await service.suggest({
-      message: 'and the date?',
+      consentToProcess: true, message: 'and the date?',
       serviceId: 'svc-plumbing',
       filledFields: ['service', 'title', 'description'],
     });
@@ -251,7 +251,7 @@ describe('BookingAssistService.suggest', () => {
       fakeProvider({ questions: ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7'].filter(Boolean) }),
     );
 
-    const result = await service.suggest({ message: 'x' });
+    const result = await service.suggest({ consentToProcess: true, message: 'x' });
 
     // 4 model questions + canned service/title/description, sliced to 6.
     expect(result.questions).toHaveLength(6);
@@ -264,7 +264,7 @@ describe('BookingAssistService.suggest', () => {
     const service = makeService(fakeProvider({ questions: ['keep me', '', 42, null, '  '] } as any));
 
     const result = await service.suggest({
-      message: 'x',
+      consentToProcess: true, message: 'x',
       filledFields: ['service', 'title', 'description'],
     });
 
@@ -276,7 +276,7 @@ describe('BookingAssistService.suggest', () => {
     const service = makeService(provider);
 
     await service.suggest({
-      message: 'tomorrow then',
+      consentToProcess: true, message: 'tomorrow then',
       history: [
         { role: 'user', text: 'I need a plumber' },
         { role: 'assistant', text: 'What day works?' },

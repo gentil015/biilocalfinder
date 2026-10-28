@@ -25,6 +25,16 @@ export class S3StorageService implements StorageService {
   private privateBucket = process.env.S3_PRIVATE_BUCKET ?? process.env.S3_BUCKET ?? 'bii-localfinder';
 
   constructor() {
+    if (process.env.NODE_ENV === 'production') {
+      if (!process.env.S3_PRIVATE_BUCKET) {
+        throw new Error(
+          'S3_PRIVATE_BUCKET must be set in production; identity and dispute files cannot share the public bucket',
+        );
+      }
+      if (process.env.S3_PRIVATE_BUCKET === this.bucket) {
+        throw new Error('S3_PRIVATE_BUCKET must differ from S3_BUCKET in production');
+      }
+    }
     this.s3 = new S3Client({
       endpoint: process.env.S3_ENDPOINT,
       region: process.env.S3_REGION ?? 'us-east-1',

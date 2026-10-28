@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -13,12 +14,15 @@ import {
   LogOut,
   MessagesSquare,
   ShieldCheck,
+  Download,
   Sparkles,
+  Trash2,
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth, useSession } from '@/components/auth-provider';
 import { LoadingBlock } from '@/components/ui/page';
+import { usersApi } from '@/lib/api';
 import { localeMeta } from '@/lib/locales';
 import { useI18n } from '@/components/locale-provider';
 import type { MessageKey } from '@/lib/locales';
@@ -119,6 +123,38 @@ export default function AccountPage() {
   const router = useRouter();
   const { user, loading, logout } = useAuth();
   const { isProvider, isAdmin, isClient } = useSession();
+  const [exporting, setExporting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function downloadExport() {
+    setExporting(true);
+    try {
+      const data = await usersApi.exportMe();
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'bii-account-export.json';
+      link.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function confirmDelete() {
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await usersApi.deleteMe(deletePassword);
+      await logout();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Could not delete the account');
+      setDeleting(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -338,6 +374,88 @@ export default function AccountPage() {
           </section>
         </div>
       </div>
+
+      <section className="surface-card mt-6 border-danger-200/70">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-900/10 px-5 py-4">
+          <h2 className="card-title">Privacy and data</h2>
+          <span className="text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">Your rights</span>
+        </div>
+        <div className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
+          <div>
+            <p className="text-sm font-semibold text-ink-900">Download your data</p>
+            <p className="mt-1 text-xs leading-relaxed text-ink-500">
+              Get a portable JSON copy of your profile, requests, bookings, reviews, messages and provider records.
+            </p>
+            <button
+              type="button"
+              onClick={() => void downloadExport()}
+              disabled={exporting}
+              className="btn-secondary btn-sm mt-3"
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+              {exporting ? 'Preparing export…' : 'Download my data'}
+            </button>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-ink-900">Delete your account</p>
+            <p className="mt-1 text-xs leading-relaxed text-ink-500">
+              Your identity and personal content are removed and the account is deactivated. Records the other
+              party needs (bookings, reviews, disputes) stay, with your details anonymised.
+            </p>
+            <button
+              type="button"
+              onClick={() => setDeleteOpen(true)}
+              className="btn-secondary btn-sm mt-3 border-danger-200 text-danger-700 hover:bg-danger-50"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              Delete account
+            </button>
+          </div>
+        </div>
+        {deleteOpen && (
+          <div className="border-t border-danger-200 bg-danger-50/40 p-5 sm:p-6">
+            <label htmlFor="delete-password" className="text-sm font-semibold text-ink-900">
+              Confirm with your password
+            </label>
+            <p className="mt-1 text-xs text-ink-500">This cannot be undone.</p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <input
+                id="delete-password"
+                type="password"
+                autoComplete="current-password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                className="min-w-0 flex-1 rounded-xl border border-ink-200 bg-surface px-3 py-2 text-sm outline-none focus:border-danger-400"
+              />
+              <button
+                type="button"
+                disabled={deleting || !deletePassword}
+                onClick={() => void confirmDelete()}
+                className="btn-primary btn-sm bg-danger-600 hover:bg-danger-700 disabled:opacity-50"
+              >
+                {deleting ? 'Deleting…' : 'Delete permanently'}
+              </button>
+              <button
+                type="button"
+                disabled={deleting}
+                onClick={() => {
+                  setDeleteOpen(false);
+                  setDeletePassword('');
+                  setDeleteError(null);
+                }}
+                className="btn-secondary btn-sm"
+              >
+                Cancel
+              </button>
+            </div>
+            {deleteError && (
+              <p className="mt-2 text-xs font-medium text-danger-700" role="alert">
+                {deleteError}
+              </p>
+            )}
+          </div>
+        )}
+      </section>
     </main>
   );
 }

@@ -65,7 +65,10 @@ export function AiRequestAssist({
   return (
     <div className="rounded-xl border border-dashed border-brand-300 bg-brand-50/40 p-4">
       <h2 className="mb-1 text-sm font-semibold text-ink-900">{t('aiAssist.title')}</h2>
-      <p className="mb-3 text-xs text-ink-500">{t('aiAssist.description')}</p>
+      <p className="mb-2 text-xs text-ink-500">{t('aiAssist.description')}</p>
+      <p className="mb-3 text-2xs leading-relaxed text-ink-400">
+        AI processing: your message (and any attached photo) is sent to a third-party AI provider. Do not include ID numbers, passwords, or payment details.
+      </p>
 
       <textarea
         rows={3}

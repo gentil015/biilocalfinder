@@ -185,10 +185,13 @@ describe('AuthService', () => {
       const emailed = emailSender.send.mock.calls[0][0].body;
       expect(data.tokenHash).toMatch(/^[0-9a-f]{64}$/);
       expect(data.tokenHash).not.toContain(emailed);
-      // 32 random bytes, hex encoded.
-      const token = /token=([0-9a-f]+)/.exec(emailed)![1];
-      expect(token).toHaveLength(64);
-      expect(data.tokenHash).toBe(require('crypto').createHash('sha256').update(token).digest('hex'));
+      const code = /Your verification code: (\d{6})/.exec(emailed)![1];
+      expect(code).toHaveLength(6);
+      // Keyed HMAC, not a plain digest: the 6-digit space is trivially
+      // reversible if a database dump contains only SHA-256(code).
+      expect(data.tokenHash).toBe(
+        require('crypto').createHmac('sha256', 'test-secret').update(code).digest('hex'),
+      );
       expect(data.expiresAt.getTime()).toBeGreaterThan(Date.now());
     });
 
@@ -211,7 +214,7 @@ describe('AuthService', () => {
 
       expect(result).toEqual({
         success: true,
-        message: 'If that email exists, a reset link has been sent.',
+        message: 'If that email exists, a reset code has been sent.',
       });
       expect(emailSender.send).not.toHaveBeenCalled();
       expect(prisma.passwordResetToken.create).not.toHaveBeenCalled();
@@ -226,7 +229,7 @@ describe('AuthService', () => {
 
       expect(result).toEqual({
         success: true,
-        message: 'If that email exists, a reset link has been sent.',
+        message: 'If that email exists, a reset code has been sent.',
       });
     });
 
@@ -244,7 +247,10 @@ describe('AuthService', () => {
       expect(prisma.passwordResetToken.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            tokenHash: require('crypto').createHash('sha256').update('raw-token').digest('hex'),
+            tokenHash: require('crypto')
+              .createHmac('sha256', 'test-secret')
+              .update('raw-token')
+              .digest('hex'),
             usedAt: null,
           }),
         }),

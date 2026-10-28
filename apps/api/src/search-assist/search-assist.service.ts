@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { CategoryAttribute } from '@prisma/client';
 import { ServicesService } from '../services/services.service';
 import { CategoriesService } from '../categories/categories.service';
+import { redactPII } from '../common/utils/pii-redaction';
 import { ParseSearchDto } from './dto/parse-search.dto';
 import { resolveRwandaLocation } from './rwanda-locations';
 import {
@@ -94,6 +95,9 @@ export class SearchAssistService {
     if (!message) {
       throw new BadRequestException('Describe what you are looking for');
     }
+    if (dto.consentToProcess !== true) {
+      throw new BadRequestException('Consent to AI processing is required');
+    }
 
     // The catalog is loaded fresh from the database: the model may only ever
     // select services that are really active right now, and it only ever sees
@@ -115,7 +119,7 @@ export class SearchAssistService {
 
     const output = await this.provider.parse({
       language,
-      message,
+      message: redactPII(message),
       services: catalog.map((c) => ({ key: c.key, name: c.name })),
       attributes: schema,
       locationHint:

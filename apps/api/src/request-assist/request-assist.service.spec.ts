@@ -57,7 +57,7 @@ describe('RequestAssistService.suggest', () => {
     const service = makeService(
       fakeProvider({ title: 'Deep clean 3-bedroom house', values: { 'number-of-rooms': 3, urgency: 'High' } }),
     );
-    const result = await service.suggest({ serviceId: 'svc-1', description: 'Need my 3 bedroom house cleaned asap' });
+    const result = await service.suggest({ consentToProcess: true, serviceId: 'svc-1', description: 'Need my 3 bedroom house cleaned asap' });
 
     expect(result.attributeValues).toEqual({ 'attr-rooms': 3, 'attr-urgent': 'High' });
     expect(result.skippedCount).toBe(0);
@@ -68,7 +68,7 @@ describe('RequestAssistService.suggest', () => {
     const service = makeService(
       fakeProvider({ values: { urgency: 'Extremely High' /* not one of the allowed options */ } }),
     );
-    const result = await service.suggest({ serviceId: 'svc-1', description: 'Please help urgently' });
+    const result = await service.suggest({ consentToProcess: true, serviceId: 'svc-1', description: 'Please help urgently' });
 
     expect(result.attributeValues).toEqual({});
     expect(result.skippedCount).toBe(1);
@@ -76,7 +76,7 @@ describe('RequestAssistService.suggest', () => {
 
   it('silently drops a suggestion for a slug that does not belong to this category', async () => {
     const service = makeService(fakeProvider({ values: { 'not-a-real-field': 'x' } }));
-    const result = await service.suggest({ serviceId: 'svc-1', description: 'hello' });
+    const result = await service.suggest({ consentToProcess: true, serviceId: 'svc-1', description: 'hello' });
 
     expect(result.attributeValues).toEqual({});
     expect(result.skippedCount).toBe(1);

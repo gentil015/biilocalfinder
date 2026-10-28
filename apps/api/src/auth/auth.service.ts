@@ -214,7 +214,7 @@ export class AuthService {
         await this.prisma.passwordResetToken.create({
           data: {
             userId: user.id,
-            tokenHash: this.hashToken(code),
+            tokenHash: this.hashResetCode(code),
             expiresAt: new Date(Date.now() + PASSWORD_RESET_EXPIRES_MS),
           },
         });
@@ -243,7 +243,7 @@ export class AuthService {
   // BadRequest for "unknown / already used / expired" so a caller can't
   // probe which tokens exist.
   async resetPassword(token: string, newPassword: string) {
-    const tokenHash = this.hashToken(token.trim());
+    const tokenHash = this.hashResetCode(token.trim());
     const stored = await this.prisma.passwordResetToken.findFirst({
       where: { tokenHash, usedAt: null, expiresAt: { gt: new Date() } },
       select: { id: true, userId: true },
@@ -300,5 +300,15 @@ export class AuthService {
   // Refresh tokens are never stored in plaintext.
   private hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
+  }
+
+  // Reset codes are only six digits, so a plain SHA-256 digest of the whole
+  // space is trivially reversible from a database dump. A keyed HMAC keeps
+  // the column useless without the server-side secret, which lives outside
+  // the database (same reasoning as password hashing).
+  private hashResetCode(code: string): string {
+    const secret =
+      process.env.PASSWORD_RESET_PEPPER ?? process.env.JWT_SECRET ?? 'insecure-reset-pepper';
+    return crypto.createHmac('sha256', secret).update(code).digest('hex');
   }
 }

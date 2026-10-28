@@ -64,7 +64,7 @@ describe('SearchAssistService.parse', () => {
     const provider = fakeProvider({});
     const service = makeService(provider);
 
-    await expect(service.parse({ message: '   ' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.parse({ consentToProcess: true, message: '   ' })).rejects.toBeInstanceOf(BadRequestException);
     expect(provider.parse).not.toHaveBeenCalled();
   });
 
@@ -72,7 +72,7 @@ describe('SearchAssistService.parse', () => {
     const provider = fakeProvider({});
     const service = makeService(provider);
 
-    await service.parse({ message: 'need a plumber' });
+    await service.parse({ consentToProcess: true, message: 'need a plumber' });
 
     const input = provider.parse.mock.calls[0][0];
     expect(input.services).toEqual([
@@ -103,7 +103,7 @@ describe('SearchAssistService.parse', () => {
       }),
     );
 
-    const result = await service.parse({ message: 'anything' });
+    const result = await service.parse({ consentToProcess: true, message: 'anything' });
 
     expect(result.filters).toMatchObject({
       serviceId: 'svc-plumbing',
@@ -138,7 +138,7 @@ describe('SearchAssistService.parse', () => {
   it('never resolves a service key that is not in the catalog', async () => {
     const service = makeService(fakeProvider({ serviceKey: 'plumbing/made-up-service', serviceName: 'Plumber' }));
 
-    const result = await service.parse({ message: 'anything' });
+    const result = await service.parse({ consentToProcess: true, message: 'anything' });
 
     expect(result.filters.serviceId).toBeUndefined();
     expect(result.filters.categoryId).toBeUndefined();
@@ -151,7 +151,7 @@ describe('SearchAssistService.parse', () => {
   it('keeps a serviceName without a serviceKey and does not count it as skipped', async () => {
     const service = makeService(fakeProvider({ serviceName: 'CCTV installation' }));
 
-    const result = await service.parse({ message: 'install cctv' });
+    const result = await service.parse({ consentToProcess: true, message: 'install cctv' });
 
     expect(result.filters.serviceId).toBeUndefined();
     expect(result.skippedCount).toBe(0);
@@ -161,7 +161,7 @@ describe('SearchAssistService.parse', () => {
   it('drops an inverted budget pair rather than guessing which end is wrong', async () => {
     const service = makeService(fakeProvider({ budgetMin: 60000, budgetMax: 30000 }));
 
-    const result = await service.parse({ message: 'x' });
+    const result = await service.parse({ consentToProcess: true, message: 'x' });
 
     expect(result.filters.minPrice).toBeUndefined();
     expect(result.filters.maxPrice).toBeUndefined();
@@ -173,7 +173,7 @@ describe('SearchAssistService.parse', () => {
       fakeProvider({ budgetMin: null, budgetMax: null, minExperience: null, minRating: null, verifiedOnly: null } as any),
     );
 
-    const result = await service.parse({ message: 'x' });
+    const result = await service.parse({ consentToProcess: true, message: 'x' });
 
     expect(result.skippedCount).toBe(0);
     expect(result.chips.every((c) => c.key !== 'budget')).toBe(true);
@@ -184,7 +184,7 @@ describe('SearchAssistService.parse', () => {
       fakeProvider({ budgetMin: -1, minRating: 7, minExperience: 400 }),
     );
 
-    const result = await service.parse({ message: 'x' });
+    const result = await service.parse({ consentToProcess: true, message: 'x' });
 
     expect(result.filters.minPrice).toBeUndefined();
     expect(result.filters.minRating).toBeUndefined();
@@ -193,10 +193,10 @@ describe('SearchAssistService.parse', () => {
   });
 
   it('maps only urgency to availableNow and keeps normal searches unfiltered', async () => {
-    const urgent = await makeService(fakeProvider({ urgency: 'urgent' })).parse({ message: 'x' });
+    const urgent = await makeService(fakeProvider({ urgency: 'urgent' })).parse({ consentToProcess: true, message: 'x' });
     expect(urgent.filters.availableNow).toBe(true);
 
-    const normal = await makeService(fakeProvider({ urgency: 'normal' })).parse({ message: 'x' });
+    const normal = await makeService(fakeProvider({ urgency: 'normal' })).parse({ consentToProcess: true, message: 'x' });
     expect(normal.filters.availableNow).toBeUndefined();
     // The chip is always shown so the client sees the criterion either way.
     expect(normal.chips).toContainEqual({ key: 'urgency', value: 'normal' });
@@ -205,7 +205,7 @@ describe('SearchAssistService.parse', () => {
   it('lets a named city win over the searcher\'s own coordinates', async () => {
     const service = makeService(fakeProvider({ city: 'Huye' }));
 
-    const result = await service.parse({ message: 'x', lat: -1.5, lng: 29.9, radiusKm: 5 });
+    const result = await service.parse({ consentToProcess: true, message: 'x', lat: -1.5, lng: 29.9, radiusKm: 5 });
 
     expect(result.filters.lat).not.toBe(-1.5);
     expect(result.filters.lng).not.toBe(29.9);
@@ -215,7 +215,7 @@ describe('SearchAssistService.parse', () => {
   it('falls back to the searcher\'s coordinates only when no city was named', async () => {
     const service = makeService(fakeProvider({}));
 
-    const result = await service.parse({ message: 'x', lat: -1.5, lng: 29.9, radiusKm: 5 });
+    const result = await service.parse({ consentToProcess: true, message: 'x', lat: -1.5, lng: 29.9, radiusKm: 5 });
 
     expect(result.filters).toMatchObject({ lat: -1.5, lng: 29.9, radiusKm: 5 });
   });
@@ -223,7 +223,7 @@ describe('SearchAssistService.parse', () => {
   it('ignores an unresolvable city but still searches near the user', async () => {
     const service = makeService(fakeProvider({ city: 'Nowhereville' }));
 
-    const result = await service.parse({ message: 'x', lat: -1.5, lng: 29.9 });
+    const result = await service.parse({ consentToProcess: true, message: 'x', lat: -1.5, lng: 29.9 });
 
     expect(result.filters.lat).toBe(-1.5);
     expect(result.chips.some((c) => c.key === 'location')).toBe(false);
@@ -235,7 +235,7 @@ describe('SearchAssistService.parse', () => {
       fakeProvider({ keywords: ['CCTV', 'Security', 'Cctv', 'Kigali', 'one', 'two', 'three', 'four', 'five', 'six'] }),
     );
 
-    const result = await service.parse({ message: 'x' });
+    const result = await service.parse({ consentToProcess: true, message: 'x' });
 
     expect(result.filters.q).toBe('cctv security one two three');
   });
@@ -243,7 +243,7 @@ describe('SearchAssistService.parse', () => {
   it('rejects attribute values that fail re-validation, keeping only legal ones', async () => {
     const service = makeService(fakeProvider({ serviceKey: PLUMBING_KEY, values: { urgency: 'High', 'not-a-field': 1 } }));
 
-    const result = await service.parse({ message: 'urgent' });
+    const result = await service.parse({ consentToProcess: true, message: 'urgent' });
 
     expect(result.attributes).toEqual({ urgency: 'High' });
     expect(result.skippedCount).toBe(1);
@@ -253,7 +253,7 @@ describe('SearchAssistService.parse', () => {
   it('drops an option that is not on the allowed list', async () => {
     const service = makeService(fakeProvider({ serviceKey: PLUMBING_KEY, values: { urgency: 'Extremely High' } }));
 
-    const result = await service.parse({ message: 'urgent' });
+    const result = await service.parse({ consentToProcess: true, message: 'urgent' });
 
     expect(result.attributes).toBeUndefined();
     expect(result.skippedCount).toBe(1);
@@ -262,7 +262,7 @@ describe('SearchAssistService.parse', () => {
   it('drops attribute values when no service is known — they cannot belong to a category', async () => {
     const service = makeService(fakeProvider({ values: { urgency: 'High' } }));
 
-    const result = await service.parse({ message: 'urgent' });
+    const result = await service.parse({ consentToProcess: true, message: 'urgent' });
 
     expect(result.attributes).toBeUndefined();
     expect(result.skippedCount).toBe(1);
@@ -281,7 +281,7 @@ describe('SearchAssistService.parse', () => {
       multi,
     ]);
 
-    const result = await service.parse({ message: 'dj with sound and light' });
+    const result = await service.parse({ consentToProcess: true, message: 'dj with sound and light' });
 
     // attributes[slug] holds exactly one value (containment match), and the
     // chip shows the same — never a promise the search cannot keep.
@@ -292,13 +292,13 @@ describe('SearchAssistService.parse', () => {
   });
 
   it('uses the default language reply only when the model gave none, and caps a runaway reply', async () => {
-    const noReply = await makeService(fakeProvider({})).parse({ message: 'x' });
+    const noReply = await makeService(fakeProvider({})).parse({ consentToProcess: true, message: 'x' });
     expect(noReply.reply).toContain('Here is what I understood');
 
-    const rw = await makeService(fakeProvider({})).parse({ message: 'x', language: 'rw' });
+    const rw = await makeService(fakeProvider({})).parse({ consentToProcess: true, message: 'x', language: 'rw' });
     expect(rw.reply).toContain('ndabonye');
 
-    const long = await makeService(fakeProvider({ reply: 'x'.repeat(900) })).parse({ message: 'x' });
+    const long = await makeService(fakeProvider({ reply: 'x'.repeat(900) })).parse({ consentToProcess: true, message: 'x' });
     expect(long.reply).toHaveLength(500);
   });
 });

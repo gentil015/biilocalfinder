@@ -111,6 +111,11 @@ export class DisputesService {
     const evidenceWithUrls = await Promise.all(
       dispute.evidence.map(async (e) => ({ ...e, url: await this.storage.getSignedUrl(e.storageKey, SIGNED_URL_TTL_SECONDS) })),
     );
+    if (isAdmin && evidenceWithUrls.length > 0) {
+      await this.auditLog.log(userId, 'DISPUTE_EVIDENCE_VIEWED', 'Dispute', id, {
+        evidenceCount: evidenceWithUrls.length,
+      });
+    }
     return { ...dispute, evidence: evidenceWithUrls, evidenceLinksExpireInSeconds: SIGNED_URL_TTL_SECONDS };
   }
 

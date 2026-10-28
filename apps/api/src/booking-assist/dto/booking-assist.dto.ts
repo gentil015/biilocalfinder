@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsOptional,
   IsString,
@@ -29,6 +30,13 @@ export class BookingAssistMessageDto {
 }
 
 export class BookingAssistDto {
+  // Explicit opt-in to sending this text to a third-party AI provider.
+  // Defaulting to false would make the endpoint unusable from the web app
+  // without a code change, so the field is required and the web client sets
+  // it after showing the privacy notice.
+  @IsBoolean()
+  consentToProcess!: boolean;
+
   @IsString()
   @MaxLength(MAX_BOOKING_ASSIST_TEXT_LENGTH)
   message!: string;

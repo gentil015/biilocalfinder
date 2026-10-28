@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation';
 import {
   authApi,
   clearTokens,
-  getRefreshToken,
   isLoggedIn,
-  setTokens,
+  setSession,
   usersApi,
   type AuthTokens,
 } from '@/lib/api';
@@ -53,9 +52,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setUser(await usersApi.me());
     } catch {
-      // A 401 here means the stored token is dead. request() already tried to
-      // rotate it once; if that also failed it cleared localStorage, so drop
-      // the user rather than leaving a phantom session behind.
+      // A 401 here means the session cookie is dead. request() already tried
+      // to refresh it once; if that also failed it cleared the local hint, so
+      // drop the user rather than leaving a phantom session behind.
       clearTokens();
       setUser(null);
     } finally {
@@ -69,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (tokens: AuthTokens) => {
-      setTokens(tokens);
+      setSession(tokens);
       setLoading(true);
       await refresh();
     },
@@ -77,12 +76,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    const refreshToken = getRefreshToken();
     // Revoke server-side first, but never let a failure here trap the user in
     // a signed-in state they can't leave — the local clear is unconditional.
-    if (refreshToken) {
-      await authApi.logout(refreshToken).catch(() => undefined);
-    }
+    await authApi.logout().catch(() => undefined);
     clearTokens();
     disconnectSocket();
     setUser(null);

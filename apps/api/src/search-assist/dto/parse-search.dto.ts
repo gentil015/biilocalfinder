@@ -1,9 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsLatitude, IsLongitude, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { MAX_SEARCH_ASSIST_TEXT_LENGTH, SEARCH_ASSIST_LANGUAGES } from '../search-assist.interface';
 
 export class ParseSearchDto {
+  // Explicit opt-in to sending this text to a third-party AI provider.
+  // Defaulting to false would make the endpoint unusable from the web app
+  // without a code change, so the field is required and the web client sets
+  // it after showing the privacy notice.
+  @IsBoolean()
+  consentToProcess!: boolean;
+
   @ApiProperty({
     description: 'Natural-language description of what the client needs, e.g. "install a CCTV system for my small shop in Kigali"',
     maxLength: MAX_SEARCH_ASSIST_TEXT_LENGTH,

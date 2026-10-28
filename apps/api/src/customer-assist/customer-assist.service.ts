@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ServicesService } from '../services/services.service';
+import { redactPII } from '../common/utils/pii-redaction';
 import { CustomerAssistDto } from './dto/customer-assist.dto';
 import {
   CUSTOMER_ASSIST_LINK_KINDS,
@@ -65,6 +66,9 @@ export class CustomerAssistService {
     if (!dto.message?.trim()) {
       throw new BadRequestException('Ask what you need help with');
     }
+    if (dto.consentToProcess !== true) {
+      throw new BadRequestException('Consent to AI processing is required');
+    }
 
     // The catalog is loaded fresh from the database: the model may only
     // ever route to services that are really active right now, and it only
@@ -81,10 +85,10 @@ export class CustomerAssistService {
     const language = isCustomerAssistLanguage(dto.language)
       ? dto.language
       : DEFAULT_CUSTOMER_ASSIST_LANGUAGE;
-    const history = (dto.history ?? []).map((m) => ({ role: m.role, text: m.text.trim() }));
+    const history = (dto.history ?? []).map((m) => ({ role: m.role, text: redactPII(m.text.trim()) }));
     const messages: CustomerAssistMessage[] = [
       ...history.filter((m) => m.text),
-      { role: 'user', text: dto.message.trim() },
+      { role: 'user', text: redactPII(dto.message.trim()) },
     ];
 
     const output = await this.provider.suggest({

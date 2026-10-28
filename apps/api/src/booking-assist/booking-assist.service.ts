@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { CategoryAttribute } from '@prisma/client';
 import { ServicesService } from '../services/services.service';
 import { CategoriesService } from '../categories/categories.service';
+import { redactPII } from '../common/utils/pii-redaction';
 import { BookingAssistDto } from './dto/booking-assist.dto';
 import {
   BOOKING_ASSIST_PROVIDER,
@@ -73,6 +74,9 @@ export class BookingAssistService {
     if (!dto.message?.trim()) {
       throw new BadRequestException('Describe what you need to get started');
     }
+    if (dto.consentToProcess !== true) {
+      throw new BadRequestException('Consent to AI processing is required');
+    }
 
     // The catalog is loaded fresh from the database: the model may only
     // ever suggest services that are really active right now, and it only
@@ -109,8 +113,11 @@ export class BookingAssistService {
     }
 
     const language = isBookingAssistLanguage(dto.language) ? dto.language : DEFAULT_BOOKING_ASSIST_LANGUAGE;
-    const history = (dto.history ?? []).map((m) => ({ role: m.role, text: m.text.trim() }));
-    const messages = [...history.filter((m) => m.text), { role: 'user' as const, text: dto.message.trim() }];
+    const history = (dto.history ?? []).map((m) => ({ role: m.role, text: redactPII(m.text.trim()) }));
+    const messages = [
+      ...history.filter((m) => m.text),
+      { role: 'user' as const, text: redactPII(dto.message.trim()) },
+    ];
 
     const output = await this.provider.suggest({
       language,

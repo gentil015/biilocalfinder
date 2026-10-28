@@ -96,7 +96,10 @@ export function BookingAssistant({
         </span>
         <h2 className="text-sm font-semibold text-ink-900">{t('reqAssist.title')}</h2>
       </div>
-      <p className="mb-3 text-xs text-ink-500">{t('reqAssist.description')}</p>
+      <p className="mb-2 text-xs text-ink-500">{t('reqAssist.description')}</p>
+      <p className="mb-3 text-2xs leading-relaxed text-ink-400">
+        AI processing: your message (and any attached photo) is sent to a third-party AI provider. Do not include ID numbers, passwords, or payment details.
+      </p>
 
       {messages.length > 0 && (
         <div

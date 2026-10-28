@@ -20,40 +20,65 @@ export class ApiError extends Error {
   }
 }
 
-const ACCESS_TOKEN_KEY = 'accessToken';
-const REFRESH_TOKEN_KEY = 'refreshToken';
+const SESSION_HINT_KEY = 'bii_session';
+const CSRF_TOKEN_KEY = 'bii_csrf';
 
+// Actual credentials live in HttpOnly cookies set by the API. This flag is
+// only a client-side hint so the UI can render the signed-in shell without a
+// blocking round-trip; authorization is always decided by the cookie.
 export function isLoggedIn(): boolean {
   if (typeof window === 'undefined') return false;
-  return !!localStorage.getItem(ACCESS_TOKEN_KEY);
+  return localStorage.getItem(SESSION_HINT_KEY) === '1';
 }
 
-export function getAccessToken(): string | null {
+export function getSessionHint(): boolean {
+  return isLoggedIn();
+}
+
+function getCsrfToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem(ACCESS_TOKEN_KEY);
+  return localStorage.getItem(CSRF_TOKEN_KEY);
 }
 
-export function getRefreshToken(): string | null {
+async function ensureCsrfToken(): Promise<string | null> {
+  const existing = getCsrfToken();
+  if (existing) return existing;
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem(REFRESH_TOKEN_KEY);
+  try {
+    const res = await fetch(`${API_URL}/api/auth/csrf`, {
+      credentials: 'include',
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { csrfToken?: string };
+    if (data?.csrfToken) {
+      localStorage.setItem(CSRF_TOKEN_KEY, data.csrfToken);
+      return data.csrfToken;
+    }
+  } catch {
+    // Network failure just means no CSRF header; the API will reject an
+    // unsafe cookie-authenticated request with a clear 403.
+  }
+  return null;
 }
 
+export function setSession(session: AuthTokens) {
+  if (typeof window === 'undefined') return;
+  if (session.csrfToken) localStorage.setItem(CSRF_TOKEN_KEY, session.csrfToken);
+  localStorage.setItem(SESSION_HINT_KEY, '1');
+}
+
+// Kept for callers that used the old token-store API.
 export function setTokens(tokens: AuthTokens) {
-  localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken);
-  localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken);
+  setSession(tokens);
 }
 
-// Without this, `isLoggedIn()` stays true forever: nothing in the app could
-// ever de-authenticate the user. See AuthProvider.logout().
+// The server clears the cookies on logout. Clear the local hint even if that
+// request failed, so the UI cannot remain stuck in a signed-in shell.
 export function clearTokens() {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-}
-
-function authHeader(): Record<string, string> {
-  if (typeof window === 'undefined') return {};
-  const token = localStorage.getItem(ACCESS_TOKEN_KEY);
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(SESSION_HINT_KEY);
+  localStorage.removeItem(CSRF_TOKEN_KEY);
 }
 
 // A single in-flight refresh shared by every 401 that lands while it runs,
@@ -63,15 +88,11 @@ function authHeader(): Record<string, string> {
 let refreshInFlight: Promise<AuthTokens> | null = null;
 
 async function refreshTokens(): Promise<AuthTokens> {
-  const current = getRefreshToken();
-  if (!current) throw new ApiError('Not authenticated', 401);
+  if (!isLoggedIn()) throw new ApiError('Not authenticated', 401);
   if (!refreshInFlight) {
-    refreshInFlight = request<AuthTokens>('/auth/refresh', {
-      method: 'POST',
-      body: JSON.stringify({ refreshToken: current }),
-    })
+    refreshInFlight = request<AuthTokens>('/auth/refresh', { method: 'POST' })
       .then((tokens) => {
-        setTokens(tokens);
+        setSession(tokens);
         return tokens;
       })
       .finally(() => {
@@ -84,18 +105,24 @@ async function refreshTokens(): Promise<AuthTokens> {
 async function request<T>(path: string, init?: RequestInit, auth = false): Promise<T> {
   // FormData sets its own multipart boundary — never force JSON on it.
   const isFormData = typeof FormData !== 'undefined' && init?.body instanceof FormData;
+  const method = (init?.method ?? 'GET').toUpperCase();
+  const safeMethod = method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
+  const csrfExempt = /^\/auth\/(login|register|password-reset\/request|password-reset\/confirm)$/.test(path);
+  const csrfToken = !safeMethod && !csrfExempt ? await ensureCsrfToken() : null;
 
-  const send = (token?: string): Promise<Response> =>
+  const send = (): Promise<Response> =>
     fetch(`${API_URL}/api${path}`, {
       ...init,
+      // Send and receive the HttpOnly session cookies. This is also the only
+      // credential transport now: no access/refresh token ever touches JS.
+      credentials: 'include',
       // Always read live data. Without this, server components (e.g. the
       // public provider page) get Next's Data Cache, which can serve a
       // stale response — so a logo/profile change wouldn't show up.
       cache: 'no-store',
       headers: {
         ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-        ...(auth && !token ? authHeader() : {}),
-        ...(auth && token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
         ...(init?.headers ?? {}),
       },
     });
@@ -107,10 +134,10 @@ async function request<T>(path: string, init?: RequestInit, auth = false): Promi
   // Only retried for authenticated calls, and never for the refresh call
   // itself (that would recurse).
   if (auth && res.status === 401 && !path.startsWith('/auth/refresh')) {
-    if (getRefreshToken()) {
+    if (isLoggedIn()) {
       try {
-        const { accessToken } = await refreshTokens();
-        res = await send(accessToken);
+        await refreshTokens();
+        res = await send();
       } catch {
         clearTokens();
         if (typeof window !== 'undefined') {
@@ -168,8 +195,9 @@ function authRequest<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export interface AuthTokens {
-  accessToken: string;
-  refreshToken: string;
+  accessToken?: string;
+  refreshToken?: string;
+  csrfToken?: string;
 }
 
 export interface ProviderSearchItem {
@@ -554,6 +582,12 @@ export const usersApi = {
       method: 'PATCH',
       body: JSON.stringify({ locale }),
     }),
+  exportMe: () => authRequest<any>('/users/me/export'),
+  deleteMe: (password: string) =>
+    authRequest<{ success: boolean }>('/users/me', {
+      method: 'DELETE',
+      body: JSON.stringify({ password }),
+    }),
 };
 
 export interface ClientProfile {
@@ -804,7 +838,7 @@ export const requestAssistApi = {
       attributeValues: Record<string, unknown>;
       suggestedCount: number;
       skippedCount: number;
-    }>('/request-assist/suggest', { method: 'POST', body: JSON.stringify(data) }),
+    }>('/request-assist/suggest', { method: 'POST', body: JSON.stringify({ ...data, consentToProcess: true }) }),
   // Reuses the same general upload endpoint portfolio photos use — no new
   // upload path, just a new caller of the existing one.
   uploadImage: (file: File) => {
@@ -845,7 +879,11 @@ export const bookingAssistApi = {
     history?: { role: 'user' | 'assistant'; text: string }[];
     serviceId?: string;
     filledFields?: ('service' | 'title' | 'description')[];
-  }) => authRequest<BookingAssistResult>('/booking-assist/suggest', { method: 'POST', body: JSON.stringify(data) }),
+  }) =>
+    authRequest<BookingAssistResult>('/booking-assist/suggest', {
+      method: 'POST',
+      body: JSON.stringify({ ...data, consentToProcess: true }),
+    }),
 };
 
 // --- AI natural-language search (POST /search-assist/parse) ----------------
@@ -903,7 +941,10 @@ export const searchAssistApi = {
   // Public endpoint (same surface as GET /search) — no auth header, but the
   // API throttles it per IP since every call fans out to an AI request.
   parse: (data: { message: string; language?: 'en' | 'rw' | 'fr'; lat?: number; lng?: number; radiusKm?: number }) =>
-    request<ParsedSearchResult>('/search-assist/parse', { method: 'POST', body: JSON.stringify(data) }),
+    request<ParsedSearchResult>('/search-assist/parse', {
+      method: 'POST',
+      body: JSON.stringify({ ...data, consentToProcess: true }),
+    }),
 };
 
 export const requestsApi = {
@@ -1045,7 +1086,12 @@ export const customerAssistApi = {
   ) =>
     request<CustomerAssistResult>('/customer-assist/chat', {
       method: 'POST',
-      body: JSON.stringify({ message, history: options?.history, language: options?.language }),
+      body: JSON.stringify({
+        message,
+        history: options?.history,
+        language: options?.language,
+        consentToProcess: true,
+      }),
     }),
 };
 
@@ -1235,17 +1281,12 @@ export const authApi = {
   login: (data: { email: string; password: string }) =>
     request<AuthTokens>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
 
-  // Revokes the given refresh token server-side so a leaked/stale one can't
-  // be replayed. Best-effort: the caller clears local tokens regardless, so
-  // a failed revoke must never leave the user stuck in a half-signed-out state.
-  logout: (refreshToken: string) =>
-    authRequest<{ success: boolean }>('/auth/logout', {
-      method: 'POST',
-      body: JSON.stringify({ refreshToken }),
-    }),
+  // Revokes the refresh token server-side. The API reads it from the HttpOnly
+  // cookie; clearing the local session hint is handled by the caller so a
+  // failed revoke never leaves the user stuck in a half-signed-out state.
+  logout: () => authRequest<{ success: boolean }>('/auth/logout', { method: 'POST' }),
 
-  refresh: (refreshToken: string) =>
-    request<AuthTokens>('/auth/refresh', { method: 'POST', body: JSON.stringify({ refreshToken }) }),
+  refresh: () => request<AuthTokens>('/auth/refresh', { method: 'POST' }),
 
   // Unauthenticated on purpose: the caller has lost their password. The API
   // answers identically for known and unknown addresses, so the UI must not

@@ -146,6 +146,11 @@ export function HomeSearch({
             </button>
           </div>
         </div>
+        {aiMode && (
+          <p className={`mt-2 text-center text-2xs leading-relaxed ${dark ? 'text-white/40' : 'text-ink-400'}`}>
+            AI processing: your sentence and approximate location are sent to a third-party AI provider.
+          </p>
+        )}
       </form>
 
       {suggestions && suggestions.length > 0 && (

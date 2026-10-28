@@ -178,6 +178,9 @@ export function CustomerAssistWidget() {
             {turns.length === 0 && (
               <>
                 <AssistantBubble text={WELCOME} avatar={<Sparkles className="h-4 w-4" aria-hidden="true" />} />
+                <p className="px-1 text-2xs leading-relaxed text-ink-400">
+                  AI processing: your message (and any attached photo) is sent to a third-party AI provider. Do not include ID numbers, passwords, or payment details.
+                </p>
                 <div className="flex flex-wrap gap-2">
                   {QUICK_STARTS.map((q) => (
                     <button

@@ -1,6 +1,7 @@
 import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { ServicesService } from '../services/services.service';
 import { CategoriesService } from '../categories/categories.service';
+import { redactPII } from '../common/utils/pii-redaction';
 import { STORAGE_SERVICE, StorageService, ALLOWED_IMAGE_MIME_TYPES } from '../files/storage.interface';
 import { SuggestRequestDto } from './dto/suggest-request.dto';
 import {
@@ -33,6 +34,9 @@ export class RequestAssistService {
     if (!dto.description?.trim() && !dto.imageKey) {
       throw new BadRequestException('Provide a description or a photo to get suggestions');
     }
+    if (dto.consentToProcess !== true) {
+      throw new BadRequestException('Consent to AI processing is required');
+    }
 
     const service = await this.servicesService.findOne(dto.serviceId);
     // Only the fields the client would actually be shown on the form
@@ -57,7 +61,7 @@ export class RequestAssistService {
       categoryName: service.category.name,
       serviceName: service.name,
       attributes: schema,
-      clientText: dto.description,
+      clientText: dto.description ? redactPII(dto.description) : dto.description,
       imageBase64: image?.base64,
       imageMimeType: image?.mimeType,
     });

@@ -29,8 +29,14 @@ export class ContactVerificationService {
   // target into the hash means a code can't be replayed for a different
   // address, or by a different account.
   static hashCode(code: string, userId: string, channel: ContactChannel, target: string): string {
-    const secret = process.env.JWT_SECRET ?? 'dev-only-secret';
-    return crypto.createHmac('sha256', secret).update(`${userId}:${channel}:${target}:${code}`).digest('hex');
+    const secret = process.env.JWT_SECRET;
+    if (!secret && process.env.NODE_ENV === 'production') {
+      throw new Error('JWT_SECRET must be set in production');
+    }
+    return crypto
+      .createHmac('sha256', secret ?? 'dev-only-secret')
+      .update(`${userId}:${channel}:${target}:${code}`)
+      .digest('hex');
   }
 
   async request(userId: string, channel: ContactChannel, now = new Date()) {

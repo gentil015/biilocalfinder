@@ -444,8 +444,10 @@ export class PostgresProviderSearchService implements ProviderSearchService {
         servesArea: r.serves_area ?? null,
         startingPrice: r.starting_price != null ? Number(r.starting_price) : null,
         currency: 'RWF',
-        latitude: r.latitude,
-        longitude: r.longitude,
+        // Approximate coordinates: search results must not reveal a
+        // provider's exact home/workshop address before a booking.
+        latitude: r.latitude == null ? null : Math.round(r.latitude * 100) / 100,
+        longitude: r.longitude == null ? null : Math.round(r.longitude * 100) / 100,
         score,
       };
     });

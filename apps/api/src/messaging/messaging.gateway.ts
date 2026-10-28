@@ -13,6 +13,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { MessagingService } from './messaging.service';
 import { SocketServerRegistry } from '../realtime/socket-server-registry.service';
+import { ACCESS_COOKIE, getCookie } from '../auth/session-cookies';
 
 interface AuthedSocket extends Socket {
   data: { userId: string };
@@ -22,7 +23,13 @@ interface AuthedSocket extends Socket {
 // devices open — only go "offline" when the last socket disconnects).
 const onlineCounts = new Map<string, number>();
 
-@WebSocketGateway({ cors: { origin: process.env.CORS_ORIGIN?.split(',') ?? true, credentials: true } })
+function socketOrigins(): string[] | boolean {
+  const configured = process.env.CORS_ORIGIN?.split(',').map((origin) => origin.trim()).filter(Boolean);
+  if (configured?.length) return configured;
+  return process.env.NODE_ENV === 'production' ? false : true;
+}
+
+@WebSocketGateway({ cors: { origin: socketOrigins(), credentials: true } })
 export class MessagingGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger('MessagingGateway');
 
@@ -40,7 +47,9 @@ export class MessagingGateway implements OnGatewayInit, OnGatewayConnection, OnG
 
   async handleConnection(socket: AuthedSocket) {
     try {
-      const token = socket.handshake.auth?.token as string | undefined;
+      const token =
+        (socket.handshake.auth?.token as string | undefined) ??
+        getCookie(socket.handshake as any, ACCESS_COOKIE);
       if (!token) throw new UnauthorizedException();
       const payload = this.jwt.verify(token, { secret: process.env.JWT_SECRET });
       socket.data.userId = payload.sub;

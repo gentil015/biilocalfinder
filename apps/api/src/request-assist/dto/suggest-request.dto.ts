@@ -1,7 +1,12 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 import { MAX_ASSIST_TEXT_LENGTH } from '../assist-provider.interface';
 
 export class SuggestRequestDto {
+  // Explicit opt-in to sending the description/image to a third-party AI
+  // provider. The web UI shows this before the first request.
+  @IsBoolean()
+  consentToProcess!: boolean;
+
   @IsString()
   serviceId!: string;
 

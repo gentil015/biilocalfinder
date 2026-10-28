@@ -42,7 +42,7 @@ const PUBLIC_PROVIDER_INCLUDE = {
   reviews: {
     take: 5,
     orderBy: { createdAt: 'desc' as const },
-    include: { client: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } } },
+    include: { client: { include: { user: { select: { firstName: true, avatarUrl: true } } } } },
   },
   user: { select: { firstName: true, lastName: true, avatarUrl: true } },
 } as const;
@@ -110,7 +110,32 @@ export class ProvidersService {
       location = { distanceKm, servesQueriedLocation };
     }
 
-    return { ...provider, availability, ...location };
+    const { registrationNumber, representativeName, ...publicFields } = provider;
+    void registrationNumber;
+    void representativeName;
+    return {
+      ...publicFields,
+      // Exact home/workshop coordinates and the street address are not part
+      // of a public marketplace profile. The map still works at roughly
+      // neighbourhood precision (~1 km at two decimal places).
+      location: provider.location
+        ? {
+            id: provider.location.id,
+            label: provider.location.label,
+            city: provider.location.city,
+            country: provider.location.country,
+            latitude: Math.round(provider.location.latitude * 100) / 100,
+            longitude: Math.round(provider.location.longitude * 100) / 100,
+          }
+        : null,
+      serviceAreas: provider.serviceAreas.map((area) => ({
+        ...area,
+        latitude: Math.round(area.latitude * 100) / 100,
+        longitude: Math.round(area.longitude * 100) / 100,
+      })),
+      availability,
+      ...location,
+    };
   }
 
   // Side-by-side comparison (spec §11) — 2 to 3 providers, the fields a

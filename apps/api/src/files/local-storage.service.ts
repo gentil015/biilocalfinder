@@ -37,8 +37,13 @@ export class LocalStorageService implements StorageService {
     process.env.LOCAL_STORAGE_DIR ?? path.join(process.cwd(), '.local-storage');
   private readonly publicDir = path.join(this.root, 'public');
   private readonly privateDir = path.join(this.root, 'private');
-  private readonly secret =
-    process.env.LOCAL_STORAGE_SECRET ?? process.env.JWT_SECRET ?? 'local-storage-dev-secret';
+  private readonly secret = (() => {
+    const secret = process.env.LOCAL_STORAGE_SECRET ?? process.env.JWT_SECRET;
+    if (!secret && process.env.NODE_ENV === 'production') {
+      throw new Error('LOCAL_STORAGE_SECRET or JWT_SECRET must be set in production');
+    }
+    return secret ?? 'local-storage-dev-secret';
+  })();
   private readonly baseUrl = (
     process.env.API_PUBLIC_URL ?? `http://localhost:${process.env.API_PORT ?? 4000}`
   ).replace(/\/$/, '');

@@ -31,7 +31,7 @@ interface AuthContextValue {
   // before redirecting, or a signed-in PROVIDER gets bounced to /login on a
   // hard refresh simply because the role hadn't loaded yet.
   loading: boolean;
-  login: (tokens: AuthTokens) => Promise<void>;
+  login: (tokens: AuthTokens) => Promise<SessionUser>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -70,9 +70,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (tokens: AuthTokens) => {
       setSession(tokens);
       setLoading(true);
-      await refresh();
+      // Do the /users/me probe here rather than delegating to refresh(): the
+      // login form must know whether the session actually works. Swallowing
+      // the failure (as refresh() does for background probes) left the user on
+      // /login with no message — the "nothing happens" sign-in bug.
+      try {
+        const me = await usersApi.me();
+        setUser(me);
+        return me;
+      } catch (err) {
+        clearTokens();
+        setUser(null);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
     },
-    [refresh],
+    [],
   );
 
   const logout = useCallback(async () => {

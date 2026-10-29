@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
 import { authApi, ApiError } from '@/lib/api';
 import { AuthShell, AUTH_POINTS_CLIENT } from '@/components/auth-shell';
-import { useAuth, useSession, homeForRole } from '@/components/auth-provider';
+import { useAuth, homeForRole } from '@/components/auth-provider';
 import { useI18n } from '@/components/locale-provider';
 
 // useSearchParams needs a Suspense boundary during static prerendering.
@@ -20,10 +20,6 @@ function LoginForm() {
   const requestedNext = searchParams.get('next');
   const next = requestedNext && requestedNext.startsWith('/') && !requestedNext.startsWith('//') ? requestedNext : null;
   const { login: adoptSession } = useAuth();
-  // `session` re-renders once adoptSession has resolved the user, so
-  // homeForRole below always reads the real role rather than the null it was
-  // before login.
-  const session = useSession();
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -36,11 +32,20 @@ function LoginForm() {
     try {
       const tokens = await authApi.login(form);
       // Store the tokens AND resolve the session, so the header/guards know
-      // the role immediately instead of flashing the logged-out UI.
-      await adoptSession(tokens);
+      // the role immediately instead of flashing the logged-out UI. The
+      // resolved user is returned so routing below uses the real role rather
+      // than a stale closure value (which was always null on first login).
+      // A null here means login succeeded but the session did not stick —
+      // usually a cookie policy/origin problem. Say so instead of bouncing
+      // silently.
+      const me = await adoptSession(tokens).catch(() => null);
+      if (!me) {
+        setError(t('login.failed'));
+        return;
+      }
       // Route by role. Sending everyone to '/' is what dropped a signed-in
       // admin into the provider onboarding wizard.
-      router.push(next ?? homeForRole(session.user?.role));
+      router.push(next ?? homeForRole(me.role));
       router.refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('login.failed'));

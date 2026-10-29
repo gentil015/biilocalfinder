@@ -17,6 +17,14 @@ function sameSite(): SameSite {
   if (configured === 'strict' || configured === 'lax' || configured === 'none') {
     return configured;
   }
+  // Vercel hosts the web app and the API on different *.vercel.app subdomains.
+  // vercel.app is on the Public Suffix List, so those subdomains are separate
+  // *sites*: a SameSite=Lax cookie is rejected on the cross-site login fetch,
+  // which made sign-in appear to do nothing. Such deployments need
+  // SameSite=None (Secure is implied by sameSite() === 'none' in
+  // secureCookies). Same-site deployments (single domain / nginx, local dev)
+  // keep Lax below.
+  if (process.env.VERCEL) return 'none';
   // Lax works for same-site deployments and still protects most cross-site
   // POSTs. A truly cross-site web/API split needs COOKIE_SAME_SITE=none.
   return 'lax';

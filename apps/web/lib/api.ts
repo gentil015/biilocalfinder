@@ -128,6 +128,17 @@ async function refreshTokens(): Promise<AuthTokens> {
   return refreshInFlight;
 }
 
+// Bounce a dead session to /login. Crucially, never reload when we are
+// already on /login: the login form calls this path while resolving the new
+// session, and a hard reload there wiped the form and any error message, so a
+// failed sign-in looked like the button did nothing.
+function redirectToLogin() {
+  if (typeof window === 'undefined') return;
+  const current = window.location.pathname + window.location.search;
+  if (window.location.pathname === '/login') return;
+  window.location.href = `/login${current ? `?next=${encodeURIComponent(current)}` : ''}`;
+}
+
 async function request<T>(path: string, init?: RequestInit, auth = false): Promise<T> {
   // FormData sets its own multipart boundary — never force JSON on it.
   const isFormData = typeof FormData !== 'undefined' && init?.body instanceof FormData;
@@ -166,36 +177,17 @@ async function request<T>(path: string, init?: RequestInit, auth = false): Promi
         res = await send();
       } catch {
         clearTokens();
-        if (typeof window !== 'undefined') {
-          const current = window.location.pathname + window.location.search;
-          if (current && current !== '/login') {
-            window.location.href = `/login?next=${encodeURIComponent(current)}`;
-          } else {
-            window.location.href = '/login';
-          }
-        }
+        redirectToLogin();
       }
     } else {
       clearTokens();
-      if (typeof window !== 'undefined') {
-        const current = window.location.pathname + window.location.search;
-        if (current && current !== '/login') {
-          window.location.href = `/login?next=${encodeURIComponent(current)}`;
-        } else {
-          window.location.href = '/login';
-        }
-      }
+      redirectToLogin();
     }
   }
 
   if (!res.ok) {
-    if (res.status === 401 && auth && typeof window !== 'undefined') {
-      const current = window.location.pathname + window.location.search;
-      if (current && current !== '/login') {
-        window.location.href = `/login?next=${encodeURIComponent(current)}`;
-      } else {
-        window.location.href = '/login';
-      }
+    if (res.status === 401 && auth) {
+      redirectToLogin();
     }
     const body = await res.json().catch(() => ({}));
     const message =

@@ -115,6 +115,10 @@ existing endpoint contracts (only additive fields):
   view is audit-logged. Uploaded bytes are sniffed
   (`src/verification/file-sniffer.ts`), never trusted by the client's
   declared MIME type.
+- Changing or clearing a phone number revokes its verified flag, consumes any
+  pending PHONE codes, and atomically recomputes every affected provider badge.
+  Provider-profile phone edits keep the account phone and public business
+  phone in sync.
 - A daily BullMQ job (`VerificationSweepProcessor`) expires lapsed approvals
   and sends "expiring soon" reminders; admins can also suspend/reinstate a
   badge (e.g. a forged document discovered after approval).
@@ -141,7 +145,12 @@ existing endpoint contracts (only additive fields):
   DISMISSED` workflow (was a single `resolvedAt` timestamp). Now covers
   `SERVICE_OFFERING` as a reportable target, in addition to users, providers,
   messages, bookings, and reviews. The admin detail endpoint resolves and
-  returns whatever the report's target actually is.
+  returns whatever the report's target actually is, and the admin UI shows it
+  without leaving the queue.
+- Dismissed/resolved reports no longer block a new report on the same target.
+  Reporters can follow outcomes at `/account/reports` (`GET /reports/mine`);
+  message threads expose a report action, and admin dashboard counts only
+  include active reports/disputes.
 
 New tables need `prisma migrate dev` to apply, plus the partial unique index
 in `prisma/manual-sql/002_trust_and_reviews.sql` (same pattern as
@@ -448,6 +457,13 @@ Design notes:
   with a shared negotiation UI, provider's incoming-requests queue,
   bookings list + detail page with status actions and the required
   "payment is arranged directly with the provider" notice.
+- The client journey is explicit end to end: service pages state "free to
+  request, quote first, pay the provider directly"; the request form says
+  what happens after sending; the requests list and detail page share one
+  five-step journey (request → response → choose → confirm → complete) with
+  the current step and the single next action; quote threads tell each side
+  whose turn it is, and bookings show the agreed date and next status step.
+  This is presentation only — no API or database changes.
 
 **Phase 5 — Realtime messaging, notifications**
 - `SocketServerRegistry`: a tiny, dependency-free holder for the one

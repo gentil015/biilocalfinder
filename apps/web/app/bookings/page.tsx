@@ -72,6 +72,18 @@ export default function BookingsPage() {
                   {b.serviceRequest?.title ?? b.serviceRequest?.service?.name}
                 </h3>
                 <p className="mt-1 truncate text-sm text-ink-500">{counterpart(b)}</p>
+                {b.scheduledAt && (
+                  <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-ink-500">
+                    <CalendarClock className="h-3.5 w-3.5 shrink-0 text-ink-400" aria-hidden="true" />
+                    Scheduled{' '}
+                    {new Date(b.scheduledAt).toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </p>
+                )}
                 <p className="mt-1 text-xs leading-relaxed text-ink-400">
                   {bookingStatusMeta(b.status).summary}
                 </p>

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Send } from 'lucide-react';
 import { BackButton } from '@/components/back-button';
+import { ReportButton } from '@/components/report-button';
 import { messagingApi } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { useSession } from '@/components/auth-provider';
@@ -217,6 +218,14 @@ export default function ConversationThreadPage() {
                             minute: '2-digit',
                           })}
                         </time>
+                        {!mine && (
+                          <ReportButton
+                            targetType="MESSAGE"
+                            targetId={m.id}
+                            label="Report"
+                            className="mt-0.5 px-1 text-2xs text-ink-400 transition hover:text-danger-600"
+                          />
+                        )}
                       </div>
                     </li>
                   );

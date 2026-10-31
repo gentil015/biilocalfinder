@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Plus, ClipboardList, AlertCircle } from 'lucide-react';
 import { requestsApi } from '@/lib/api';
 import { StatusBadge } from '@/components/status-badge';
+import { requestJourney } from '@/components/request-journey';
 import { PageHeader, EmptyState, LoadingBlock } from '@/components/ui/page';
 
 export default function MyRequestsPage() {
@@ -56,25 +57,41 @@ export default function MyRequestsPage() {
       )}
 
       <ul className="space-y-3">
-        {requests.map((r) => (
-          <li key={r.id}>
-            <Link
-              href={`/requests/${r.id}`}
-              className="surface-card-interactive group flex items-start justify-between gap-4 p-4 sm:p-5"
-            >
-              <div className="min-w-0 flex-1">
-                <h3 className="truncate text-sm font-bold text-ink-950 group-hover:text-brand-700">
-                  {r.title}
-                </h3>
-                <p className="mt-1 line-clamp-2 text-sm text-ink-500">{r.description}</p>
-                {r.service?.name && (
-                  <p className="mt-2 text-xs font-medium text-ink-400">{r.service.name}</p>
-                )}
-              </div>
-              <StatusBadge status={r.status} />
-            </Link>
-          </li>
-        ))}
+        {requests.map((r) => {
+          const journey = requestJourney(r, r.quotes ?? []);
+          const quoteCount = r.quotes?.length ?? 0;
+
+          return (
+            <li key={r.id}>
+              <Link
+                href={`/requests/${r.id}`}
+                className="surface-card-interactive group flex items-start justify-between gap-4 p-4 sm:p-5"
+              >
+                <div className="min-w-0 flex-1">
+                  <h3 className="truncate text-sm font-bold text-ink-950 group-hover:text-brand-700">
+                    {r.title}
+                  </h3>
+                  <p className="mt-1 line-clamp-2 text-sm text-ink-500">{r.description}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                    <span className="font-semibold text-brand-700">{journey.headline}</span>
+                    {quoteCount > 0 && (
+                      <span className="chip py-0.5 text-2xs">
+                        {quoteCount} {quoteCount === 1 ? 'quote' : 'quotes'}
+                      </span>
+                    )}
+                    {r.service?.name && (
+                      <span className="font-medium text-ink-400">{r.service.name}</span>
+                    )}
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-ink-400">
+                    {journey.next}
+                  </p>
+                </div>
+                <StatusBadge status={r.status} />
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </main>
   );

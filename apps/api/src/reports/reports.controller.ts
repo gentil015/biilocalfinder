@@ -21,6 +21,12 @@ export class ReportsController {
     return this.reportsService.create(user.id, dto);
   }
 
+  @Roles('CLIENT', 'PROVIDER')
+  @Get('mine')
+  findMine(@CurrentUser() user: { id: string }) {
+    return this.reportsService.findMine(user.id);
+  }
+
   @Roles('ADMIN')
   @Get()
   findAll(@Query('status') status?: string, @Query('category') category?: string, @Query('page') page?: string) {

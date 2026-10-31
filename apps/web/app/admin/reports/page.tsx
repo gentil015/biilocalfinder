@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { AlertCircle, Flag, MessageSquareWarning, ShieldAlert, User, Check } from 'lucide-react';
+import { AlertCircle, ExternalLink, Flag, MessageSquareWarning, ShieldAlert, User, Check } from 'lucide-react';
 import { adminReportsApi, ApiError } from '@/lib/api';
 import { StatusBadge } from '@/components/status-badge';
 import { PageHeader, Panel, StatCard, EmptyState, LoadingBlock } from '@/components/ui/page';
@@ -32,11 +32,75 @@ function statusLabel(status: string) {
   return status.replace(/_/g, ' ').toLowerCase();
 }
 
+function targetHref(report: any): string | null {
+  if (!report?.target) return null;
+  if (report.targetType === 'PROVIDER') return `/providers/${report.target.id}`;
+  if (report.targetType === 'REVIEW' && report.target.providerId) {
+    return `/providers/${report.target.providerId}`;
+  }
+  if (report.targetType === 'SERVICE_OFFERING') {
+    return `/service-offerings/${report.target.id}`;
+  }
+  return null;
+}
+
+function TargetSummary({ report }: { report: any }) {
+  const target = report?.target;
+  const href = targetHref(report);
+
+  return (
+    <div className="rounded-xl border border-ink-200 bg-surface p-3.5">
+      <p className="eyebrow-muted mb-1.5">Reported {TARGET_LABEL[report.targetType] ?? report.targetType}</p>
+      {!target ? (
+        <p className="text-xs leading-relaxed text-ink-500">
+          The reported content no longer exists. The report record is still available for the audit trail.
+        </p>
+      ) : report.targetType === 'PROVIDER' ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-ink-900">{target.businessName}</p>
+          <span className="badge badge-neutral">{statusLabel(target.verificationStatus)}</span>
+        </div>
+      ) : report.targetType === 'REVIEW' ? (
+        <p className="text-xs leading-relaxed text-ink-600">
+          {target.rating} star review · {target.comment || 'No comment'}
+          {target.status === 'HIDDEN' && <span className="ml-2 badge badge-warning">Hidden</span>}
+        </p>
+      ) : report.targetType === 'BOOKING' ? (
+        <p className="text-xs text-ink-600">Booking status: {statusLabel(target.status)}</p>
+      ) : report.targetType === 'MESSAGE' ? (
+        <p className="line-clamp-3 text-xs leading-relaxed text-ink-600">{target.body}</p>
+      ) : report.targetType === 'SERVICE_OFFERING' ? (
+        <p className="text-xs text-ink-600">
+          {target.title || 'Untitled service'} · {target.isActive ? 'active' : 'inactive'}
+        </p>
+      ) : (
+        <p className="text-xs text-ink-600">
+          {target.firstName} {target.lastName} · {target.email} · {statusLabel(target.status)}
+        </p>
+      )}
+      {href && (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2.5 inline-flex items-center gap-1 text-xs font-semibold text-brand-700 hover:underline"
+        >
+          Open reported content
+          <ExternalLink className="h-3 w-3" aria-hidden="true" />
+        </a>
+      )}
+    </div>
+  );
+}
+
 export default function AdminReportsPage() {
   const [status, setStatus] = useState('OPEN');
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [detail, setDetail] = useState<any>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [resolution, setResolution] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -51,11 +115,33 @@ export default function AdminReportsPage() {
     load();
   }, [status]);
 
+  async function toggleExpanded(id: string) {
+    if (expanded === id) {
+      setExpanded(null);
+      setDetail(null);
+      setDetailError(null);
+      return;
+    }
+
+    setExpanded(id);
+    setDetail(null);
+    setDetailError(null);
+    setDetailLoading(true);
+    try {
+      setDetail(await adminReportsApi.getOne(id));
+    } catch (err) {
+      setDetailError(err instanceof ApiError ? err.message : 'Could not load the reported content');
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
   async function resolve(id: string, dismiss: boolean) {
     setError(null);
     try {
       await adminReportsApi.resolve(id, { resolution: resolution.trim() || undefined, dismiss });
       setExpanded(null);
+      setDetail(null);
       setResolution('');
       load();
     } catch (err) {
@@ -175,7 +261,7 @@ export default function AdminReportsPage() {
                         {open ? (
                           <button
                             type="button"
-                            onClick={() => setExpanded(expanded === r.id ? null : r.id)}
+                            onClick={() => void toggleExpanded(r.id)}
                             aria-expanded={expanded === r.id}
                             aria-controls={`resolve-${r.id}`}
                             className="btn-secondary btn-sm"
@@ -200,6 +286,17 @@ export default function AdminReportsPage() {
                       <tr key={`${r.id}-resolve`}>
                         <td id={`resolve-${r.id}`} colSpan={6} className="bg-ink-50/60">
                           <div className="max-w-2xl py-1">
+                            {detailError && (
+                              <p className="error-text mb-3" role="alert">
+                                <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                                {detailError}
+                              </p>
+                            )}
+                            {detailLoading ? (
+                              <p className="mb-3 text-xs text-ink-500">Loading reported content…</p>
+                            ) : (
+                              detail?.id === r.id && <div className="mb-3"><TargetSummary report={detail} /></div>
+                            )}
                             <div className="field mb-3">
                               <label className="label" htmlFor={`resolution-${r.id}`}>
                                 Resolution notes

@@ -4,6 +4,7 @@ import { ProvidersService } from './providers.service';
 describe('ProvidersService — onboarding', () => {
   let service: ProvidersService;
   let prisma: any;
+  let verification: any;
 
   function baseProvider(overrides: Record<string, any> = {}) {
     return {
@@ -28,10 +29,16 @@ describe('ProvidersService — onboarding', () => {
     prisma = {
       provider: { findUnique: jest.fn(), update: jest.fn((args) => args.data) },
       workspace: { update: jest.fn((args) => args.data) },
+      user: { findUnique: jest.fn(), findFirst: jest.fn(), update: jest.fn((args) => args.data) },
+      contactVerificationCode: { updateMany: jest.fn() },
       // Lets the service's transaction callbacks run against the same mocks.
       $transaction: jest.fn((cb: any) => cb(prisma)),
       serviceOffering: { count: jest.fn().mockResolvedValue(0) },
       providerTeamMember: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), delete: jest.fn() },
+    };
+    verification = {
+      recomputeProvider: jest.fn().mockResolvedValue(null),
+      recomputeForUser: jest.fn().mockResolvedValue(undefined),
     };
     service = new ProvidersService(prisma, {} as any, {} as any, {} as any, {
       assertCanAdd: jest.fn().mockResolvedValue(undefined),
@@ -41,7 +48,7 @@ describe('ProvidersService — onboarding', () => {
       // to ProviderContextService needs no changes to those ~16 existing
       // `prisma.provider.findUnique.mockResolvedValue(...)` fixtures.
       resolveForUser: jest.fn((userId: string) => prisma.provider.findUnique({ where: { userId } })),
-    } as any);
+    } as any, verification);
   });
 
   describe('selectProviderType', () => {
@@ -257,4 +264,56 @@ describe('ProvidersService — onboarding', () => {
       await expect(service.addTeamMember('user-1', {})).rejects.toThrow(BadRequestException);
     });
   });
+  describe('updateProfile phone changes', () => {
+    it('clears phone verification, invalidates pending codes, and recomputes the badge when the number changes', async () => {
+      prisma.provider.findUnique.mockResolvedValue(baseProvider({ phone: '+250700000000' }));
+      prisma.user.findUnique.mockResolvedValue({ phone: '+250700000000' });
+      prisma.user.findFirst.mockResolvedValue(null);
+
+      await service.updateProfile('user-1', { phone: '+250788000000' });
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { phone: '+250788000000', phoneVerified: false },
+      });
+      expect(prisma.contactVerificationCode.updateMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1', channel: 'PHONE', consumedAt: null },
+        data: { consumedAt: expect.any(Date) },
+      });
+      expect(prisma.provider.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ phone: '+250788000000' }),
+        }),
+      );
+      expect(verification.recomputeProvider).toHaveBeenCalledWith(prisma, 'provider-1');
+      expect(verification.recomputeForUser).toHaveBeenCalledWith('user-1');
+    });
+
+    it('keeps an existing verification when the number is unchanged', async () => {
+      prisma.provider.findUnique.mockResolvedValue(baseProvider({ phone: '+250700000000' }));
+      prisma.user.findUnique.mockResolvedValue({ phone: '+250700000000' });
+
+      await service.updateProfile('user-1', { phone: '+250700000000' });
+
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+        data: { phone: '+250700000000' },
+      });
+      expect(prisma.contactVerificationCode.updateMany).not.toHaveBeenCalled();
+      expect(verification.recomputeProvider).not.toHaveBeenCalled();
+      expect(verification.recomputeForUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects a number already owned by another account', async () => {
+      prisma.provider.findUnique.mockResolvedValue(baseProvider());
+      prisma.user.findUnique.mockResolvedValue({ phone: null });
+      prisma.user.findFirst.mockResolvedValue({ id: 'someone-else' });
+
+      await expect(service.updateProfile('user-1', { phone: '+250788000000' })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.provider.update).not.toHaveBeenCalled();
+    });
+  });
+
 });

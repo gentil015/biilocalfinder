@@ -602,9 +602,16 @@ export const usersApi = {
       avatarUrl: string | null;
       role: 'CLIENT' | 'PROVIDER' | 'ADMIN';
       status: string;
+      emailVerified: boolean;
+      phoneVerified: boolean;
       locale: string;
     }>('/users/me'),
-  updateMe: (data: { phone?: string; firstName?: string; lastName?: string; avatarUrl?: string }) =>
+  updateMe: (data: {
+    phone?: string | null;
+    firstName?: string;
+    lastName?: string;
+    avatarUrl?: string;
+  }) =>
     authRequest<any>('/users/me', { method: 'PATCH', body: JSON.stringify(data) }),
   // Returns the updated user, same shape as `me`, so the caller can update its
   // session copy without a second request.
@@ -1311,6 +1318,7 @@ export const reviewsApi = {
 export const reportsApi = {
   create: (data: { targetType: string; targetId: string; category: string; reason: string; details?: string }) =>
     authRequest<any>('/reports', { method: 'POST', body: JSON.stringify(data) }),
+  mine: () => authRequest<any[]>('/reports/mine'),
 };
 
 export const adminReportsApi = {

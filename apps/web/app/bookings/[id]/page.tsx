@@ -3,7 +3,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { AlertCircle, ArrowLeft, CheckCircle2, Flag, Info, Star, Wallet } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  CalendarClock,
+  CheckCircle2,
+  Flag,
+  Info,
+  Star,
+  Wallet,
+} from 'lucide-react';
 import { bookingsApi, reviewsApi, ApiError } from '@/lib/api';
 import { StatusBadge } from '@/components/status-badge';
 import { ReviewForm } from '@/components/review-form';
@@ -96,6 +105,8 @@ export default function BookingDetailPage() {
       ? booking.provider?.businessName
       : `${booking.client?.user?.firstName ?? ''} ${booking.client?.user?.lastName ?? ''}`.trim();
 
+  const scheduled = booking.scheduledAt ? new Date(booking.scheduledAt) : null;
+
   return (
     <main className="page-narrow py-8">
       <BackButton variant="link" label="All bookings" fallbackHref="/bookings" />
@@ -127,6 +138,25 @@ export default function BookingDetailPage() {
               {Number(booking.agreedPrice).toLocaleString()}
               <span className="ml-1.5 text-sm font-bold text-ink-400">{booking.currency}</span>
             </p>
+          </div>
+        </div>
+
+        <div className="mt-5 border-t border-ink-100 pt-4">
+          <div className="flex items-start gap-3">
+            <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-ink-400" aria-hidden="true" />
+            <div className="min-w-0">
+              <p className="text-xs text-ink-500">Agreed date</p>
+              <p className="mt-0.5 text-sm font-semibold text-ink-900">
+                {scheduled
+                  ? scheduled.toLocaleDateString(undefined, {
+                      weekday: 'short',
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : 'Not set yet — arrange a time with the other side through messages.'}
+              </p>
+            </div>
           </div>
         </div>
 

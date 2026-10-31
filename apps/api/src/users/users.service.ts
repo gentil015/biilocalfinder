@@ -11,6 +11,7 @@ import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../common/services/audit-log.service';
 import { STORAGE_SERVICE, StorageService } from '../files/storage.interface';
+import { VerificationService } from '../verification/verification.service';
 
 @Injectable()
 export class UsersService {
@@ -20,6 +21,7 @@ export class UsersService {
     private prisma: PrismaService,
     private audit: AuditLogService,
     @Inject(STORAGE_SERVICE) private storage: StorageService,
+    private verification: VerificationService,
   ) {}
 
   async findById(id: string) {
@@ -45,21 +47,68 @@ export class UsersService {
     return user;
   }
 
-  async updateMe(id: string, data: { phone?: string; firstName?: string; lastName?: string; avatarUrl?: string }) {
+  async updateMe(
+    id: string,
+    data: { phone?: string | null; firstName?: string; lastName?: string; avatarUrl?: string },
+  ) {
+    const current = await this.prisma.user.findUnique({
+      where: { id },
+      select: { phone: true },
+    });
+    if (!current) throw new NotFoundException('User not found');
+
+    const nextPhone = data.phone !== undefined ? data.phone?.trim() || null : undefined;
+    const phoneChanged = nextPhone !== undefined && nextPhone !== current.phone;
     const update: any = {};
-    if (data.phone !== undefined) update.phone = data.phone.trim() || null;
+    if (nextPhone !== undefined) {
+      update.phone = nextPhone;
+      if (phoneChanged) update.phoneVerified = false;
+    }
     if (data.firstName !== undefined) update.firstName = data.firstName;
     if (data.lastName !== undefined) update.lastName = data.lastName;
     if (data.avatarUrl !== undefined) update.avatarUrl = data.avatarUrl;
     if (Object.keys(update).length === 0) return this.findById(id);
-    if (update.phone) {
+
+    if (nextPhone) {
       const existing = await this.prisma.user.findFirst({
-        where: { phone: update.phone, id: { not: id } },
+        where: { phone: nextPhone, id: { not: id } },
         select: { id: true },
       });
-      if (existing) throw new NotFoundException('Phone number already in use');
+      if (existing) throw new BadRequestException('Phone number already in use');
     }
-    await this.prisma.user.update({ where: { id }, data: update });
+
+    const ownedProviderIds = phoneChanged
+      ? (
+          await this.prisma.provider.findMany({
+            where: { userId: id },
+            select: { id: true },
+          })
+        ).map((provider) => provider.id)
+      : [];
+
+    await this.prisma.$transaction(async (tx: any) => {
+      await tx.user.update({ where: { id }, data: update });
+
+      if (phoneChanged) {
+        await tx.contactVerificationCode.updateMany({
+          where: { userId: id, channel: 'PHONE', consumedAt: null },
+          data: { consumedAt: new Date() },
+        });
+        for (const providerId of ownedProviderIds) {
+          await this.verification.recomputeProvider(tx, providerId);
+        }
+      }
+    });
+
+    if (phoneChanged) {
+      await this.verification.recomputeForUser(id).catch((err) => {
+        this.logger.warn(`Could not recompute provider verification for ${id}: ${(err as Error).message}`);
+      });
+      await this.audit.log(id, 'USER_PHONE_CHANGED', 'User', id).catch((err) => {
+        this.logger.warn(`Could not audit phone change for ${id}: ${(err as Error).message}`);
+      });
+    }
+
     return this.findById(id);
   }
 

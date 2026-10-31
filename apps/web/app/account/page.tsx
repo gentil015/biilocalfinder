@@ -15,6 +15,7 @@ import {
   MessagesSquare,
   ShieldCheck,
   Download,
+  Flag,
   Sparkles,
   Trash2,
   UserRound,
@@ -70,6 +71,12 @@ const ACTIVITY_LINKS: AccountLink[] = [
     icon: MessagesSquare,
   },
   {
+    href: '/account/reports',
+    labelKey: 'account.linkReports',
+    descriptionKey: 'account.linkReportsBody',
+    icon: Flag,
+  },
+  {
     href: '/search',
     labelKey: 'account.linkSaved',
     descriptionKey: 'account.linkSavedBody',
@@ -78,6 +85,12 @@ const ACTIVITY_LINKS: AccountLink[] = [
 ];
 
 const PREFERENCE_LINKS: AccountLink[] = [
+  {
+    href: '/account/verification',
+    labelKey: 'account.linkVerification',
+    descriptionKey: 'account.linkVerificationBody',
+    icon: ShieldCheck,
+  },
   {
     href: '/settings/notifications',
     labelKey: 'account.linkNotifications',

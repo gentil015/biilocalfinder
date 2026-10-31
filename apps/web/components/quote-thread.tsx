@@ -61,6 +61,33 @@ export function QuoteThread({
       </header>
 
       <div className="p-5">
+        {viewerRole === 'PROVIDER' && quote.status === 'PENDING' && (
+          <div className="alert alert-info mb-4">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <p>
+              Quote sent. The client can accept, decline, or propose a different price — you will
+              be notified when they respond.
+            </p>
+          </div>
+        )}
+
+        {viewerRole === 'PROVIDER' && quote.status === 'ACCEPTED' && (
+          <div className="alert alert-success mb-4">
+            <Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <p>
+              The client accepted this quote, so a booking has been created. Open your bookings to
+              confirm it and arrange the date.
+            </p>
+          </div>
+        )}
+
+        {viewerRole === 'PROVIDER' && quote.status === 'REJECTED' && (
+          <div className="alert alert-error mb-4">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <p>The client declined this quote. No further action is needed on it.</p>
+          </div>
+        )}
+
         {quote.description && <p className="prose-copy">{quote.description}</p>}
 
         {terms.length > 0 && (

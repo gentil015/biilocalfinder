@@ -199,6 +199,10 @@ export class QuotesService {
     if (!['PENDING'].includes(quote.status)) {
       throw new BadRequestException('This quote is no longer open for negotiation');
     }
+    const request = await this.prisma.serviceRequest.findUnique({ where: { id: quote.requestId } });
+    if (!request || !ACCEPTING_STATUSES.includes(request.status as AcceptingStatus)) {
+      throw new BadRequestException('This request is no longer open for negotiation');
+    }
 
     const revision = await this.prisma.quoteRevision.create({
       data: {
@@ -220,7 +224,15 @@ export class QuotesService {
       type: 'QUOTE_UPDATED',
       title: 'New price proposal',
       body: `A new price of ${dto.price} RWF was proposed`,
-      data: { quoteId, revisionId: revision.id },
+      // `audience` lets the link builder send each side to the page it can
+      // actually open: /requests/:id for clients, /provider/requests/:id for
+      // providers (the two surfaces are not interchangeable).
+      data: {
+        quoteId,
+        revisionId: revision.id,
+        requestId: quote.requestId,
+        audience: role === 'CLIENT' ? 'PROVIDER' : 'CLIENT',
+      },
     });
 
     return revision;
@@ -240,6 +252,12 @@ export class QuotesService {
     }
     if (revision.status !== 'PENDING') {
       throw new BadRequestException('This proposal has already been resolved');
+    }
+    // The counter-offer is only meaningful while its quote is still live.
+    // Without this, a stale proposal could be accepted after the quote (and
+    // the booking created from it) was already settled.
+    if (revision.quote.status !== 'PENDING') {
+      throw new BadRequestException('This quote is no longer open for negotiation');
     }
 
     if (action === 'reject') {
@@ -267,7 +285,11 @@ export class QuotesService {
         type: 'QUOTE_UPDATED',
         title: 'Your price proposal was accepted',
         body: `${Number(revision.price).toLocaleString()} RWF was accepted`,
-        data: { quoteId: revision.quoteId },
+        data: {
+          quoteId: revision.quoteId,
+          requestId: revision.quote.requestId,
+          audience: revision.proposedBy,
+        },
       });
     }
 
@@ -281,12 +303,27 @@ export class QuotesService {
     const clientProfile = await this.assertClientOwnsRequest(quote.requestId, clientUserId);
 
     if (quote.status !== 'PENDING') throw new BadRequestException('Quote is not pending');
+    if (quote.expiresAt && quote.expiresAt.getTime() < Date.now()) {
+      await this.prisma.quote.update({ where: { id: quoteId }, data: { status: 'EXPIRED' } });
+      throw new BadRequestException('This quote has expired');
+    }
+
+    const request = await this.prisma.serviceRequest.findUnique({ where: { id: quote.requestId } });
+    if (!request || !ACCEPTING_STATUSES.includes(request.status as AcceptingStatus)) {
+      throw new BadRequestException('This request is no longer open for booking');
+    }
 
     const booking = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.quote.update({ where: { id: quoteId }, data: { status: 'ACCEPTED' } });
       await tx.quote.updateMany({
         where: { requestId: quote.requestId, id: { not: quoteId }, status: 'PENDING' },
         data: { status: 'REJECTED' },
+      });
+      // A pending counter-offer dies with the quote it belongs to; otherwise
+      // it could later be accepted and silently change the agreed price.
+      await tx.quoteRevision.updateMany({
+        where: { quoteId, status: 'PENDING' },
+        data: { status: 'SUPERSEDED' },
       });
       await tx.serviceRequest.update({ where: { id: quote.requestId }, data: { status: 'BOOKED' } });
 
@@ -299,10 +336,20 @@ export class QuotesService {
           status: 'ACCEPTED',
           agreedPrice: quote.price,
           currency: quote.currency,
+          // The quote's proposed date becomes the booking's schedule, so the
+          // reminder job has something to fire on and both sides see the same
+          // agreed time instead of "no date set".
+          scheduledAt: quote.proposedDate ?? undefined,
         },
       });
       await tx.bookingStatusHistory.create({
-        data: { bookingId: created.id, toStatus: 'ACCEPTED', note: 'Quote accepted by client' },
+        data: {
+          bookingId: created.id,
+          toStatus: 'ACCEPTED',
+          note: quote.proposedDate
+            ? `Quote accepted by client — scheduled for ${quote.proposedDate.toISOString().slice(0, 10)}`
+            : 'Quote accepted by client',
+        },
       });
       return created;
     });

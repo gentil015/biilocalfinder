@@ -17,6 +17,9 @@ const REQUEST_INCLUDE = {
   // sets `isPublic`, which opens the same request to other matching
   // providers so they can compete (the pinned provider stays primary).
   provider: { select: { id: true, businessName: true } },
+  // Present once the client accepts a quote, so every request surface can
+  // link straight to the booking instead of asking the user to hunt for it.
+  booking: { select: { id: true, status: true, scheduledAt: true, providerId: true } },
   images: true,
   location: true,
   client: { include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } } } },
@@ -35,6 +38,18 @@ const REQUEST_INCLUDE = {
 // ones) in these statuses. BOOKED/CANCELLED leave the marketplace.
 const ACCEPTING_STATUSES = ['OPEN', 'QUOTED', 'NEGOTIATING'] as const;
 type AcceptingStatus = (typeof ACCEPTING_STATUSES)[number];
+
+// Enough quote detail for a list to answer "did anyone respond yet?" and
+// "what did they offer?" without pulling the full negotiation thread.
+const QUOTE_SUMMARY_SELECT = {
+  id: true,
+  status: true,
+  price: true,
+  currency: true,
+  proposedDate: true,
+  createdAt: true,
+  provider: { select: { id: true, businessName: true } },
+} as const;
 
 interface MarketRequestShape {
   id: string;
@@ -162,7 +177,11 @@ export class ServiceRequestsService {
 
     return this.prisma.serviceRequest.findMany({
       where: { clientId: clientProfile.id },
-      include: REQUEST_INCLUDE,
+      include: {
+        ...REQUEST_INCLUDE,
+        // The client owns the request, so all quotes are theirs to compare.
+        quotes: { select: QUOTE_SUMMARY_SELECT, orderBy: { createdAt: 'desc' } },
+      },
       orderBy: { createdAt: 'desc' },
       take: 100, // hard cap — never return unlimited records (spec §43)
     });
@@ -191,8 +210,14 @@ export class ServiceRequestsService {
       where: {
         ...memberScope,
         OR: [
-          // Requests explicitly addressed to this provider.
-          { providerId: provider.id },
+          // Requests explicitly addressed to this provider while they still
+          // need a response. Closed direct requests drop out of the inbox
+          // instead of lingering there forever (see the next clause for the
+          // ones this provider actually participated in).
+          { providerId: provider.id, status: { in: [...ACCEPTING_STATUSES] } },
+          // A request this provider already quoted — keep it visible after
+          // it is booked or cancelled so they can follow the outcome.
+          { providerId: provider.id, quotes: { some: { providerId: provider.id } } },
           // The legacy broadcast marketplace: a request sent to no one in
           // particular, visible to every provider of the service while OPEN.
           { providerId: null, serviceId: { in: serviceIds }, status: 'OPEN' },
@@ -207,7 +232,15 @@ export class ServiceRequestsService {
           },
         ],
       },
-      include: REQUEST_INCLUDE,
+      include: {
+        ...REQUEST_INCLUDE,
+        // Only this provider's own quote: competing offers stay private.
+        quotes: {
+          where: { providerId: provider.id },
+          select: QUOTE_SUMMARY_SELECT,
+          orderBy: { createdAt: 'desc' },
+        },
+      },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
@@ -222,14 +255,65 @@ export class ServiceRequestsService {
 
   async cancel(id: string, clientUserId: string) {
     const clientProfile = await this.prisma.clientProfile.findUnique({ where: { userId: clientUserId } });
-    const request = await this.prisma.serviceRequest.findUnique({ where: { id } });
+    const request = await this.prisma.serviceRequest.findUnique({
+      where: { id },
+      include: { quotes: { select: { providerId: true } } },
+    });
     if (!request || !clientProfile || request.clientId !== clientProfile.id) {
       throw new NotFoundException('Service request not found');
     }
-    if (!['OPEN', 'QUOTED', 'NEGOTIATING'].includes(request.status)) {
+    if (!ACCEPTING_STATUSES.includes(request.status as AcceptingStatus)) {
       throw new BadRequestException('This request can no longer be cancelled');
     }
-    return this.prisma.serviceRequest.update({ where: { id }, data: { status: 'CANCELLED' } });
+
+    // Cancelling strands nobody: pending quotes are closed with the request,
+    // and every provider who was addressed or already quoted is told why the
+    // conversation stopped instead of silently disappearing from their inbox.
+    const providerIds = [
+      ...new Set<string>([
+        ...(request.providerId ? [request.providerId] : []),
+        ...request.quotes.map((q) => q.providerId),
+      ]),
+    ];
+
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.serviceRequest.update({
+        where: { id },
+        data: { status: 'CANCELLED' },
+        include: REQUEST_INCLUDE,
+      }),
+      this.prisma.quote.updateMany({
+        where: { requestId: id, status: 'PENDING' },
+        data: { status: 'REJECTED' },
+      }),
+    ]);
+
+    if (providerIds.length > 0) {
+      const providers = await this.prisma.provider.findMany({
+        where: { id: { in: providerIds } },
+        select: { userId: true },
+      });
+      const userIds: string[] = [
+        ...new Set(
+          providers
+            .map((p) => p.userId)
+            .filter((userId): userId is string => typeof userId === 'string'),
+        ),
+      ];
+      await Promise.all(
+        userIds.map((userId) =>
+          this.notifications.notify({
+            userId,
+            type: 'QUOTE_REJECTED',
+            title: 'Request cancelled',
+            body: `The client cancelled "${request.title}".`,
+            data: { requestId: id },
+          }),
+        ),
+      );
+    }
+
+    return updated;
   }
 
   // Opens or closes the competition on a direct (pinned) request. Client

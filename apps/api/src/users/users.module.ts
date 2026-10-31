@@ -4,12 +4,13 @@ import { Queue } from 'bullmq';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { FilesModule } from '../files/files.module';
+import { VerificationModule } from '../verification/verification.module';
 import { DataRetentionService } from './data-retention.service';
 import { DataRetentionProcessor } from './data-retention.processor';
 import { DATA_RETENTION_QUEUE } from './data-retention.constants';
 
 @Module({
-  imports: [FilesModule, BullModule.registerQueue({ name: DATA_RETENTION_QUEUE })],
+  imports: [FilesModule, VerificationModule, BullModule.registerQueue({ name: DATA_RETENTION_QUEUE })],
   controllers: [UsersController],
   providers: [UsersService, DataRetentionService, DataRetentionProcessor],
   exports: [UsersService],

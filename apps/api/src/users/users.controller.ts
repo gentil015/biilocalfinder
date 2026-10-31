@@ -4,6 +4,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UsersService } from './users.service';
 import { UpdateLocaleDto } from './dto/update-locale.dto';
+import { UpdateMeDto } from './dto/update-me.dto';
 import { DeleteAccountDto } from './dto/delete-account.dto';
 
 @ApiTags('users')
@@ -20,7 +21,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Patch('me')
-  updateMe(@CurrentUser() user: { id: string }, @Body() dto: any) {
+  updateMe(@CurrentUser() user: { id: string }, @Body() dto: UpdateMeDto) {
     return this.usersService.updateMe(user.id, dto);
   }
 

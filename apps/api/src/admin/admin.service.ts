@@ -37,8 +37,8 @@ export class AdminService {
       this.prisma.serviceRequest.count({
         where: { createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
       }),
-      this.prisma.report.count({ where: { resolvedAt: null } }),
-      this.prisma.dispute.count({ where: { status: { in: ['OPEN', 'UNDER_REVIEW'] } } }),
+      this.prisma.report.count({ where: { status: { in: ['OPEN', 'UNDER_REVIEW'] } } }),
+      this.prisma.dispute.count({ where: { status: { in: ['OPEN', 'RESPONDED', 'UNDER_REVIEW'] } } }),
       this.prisma.providerApplication.count({ where: { status: 'PENDING' } }),
     ]);
 

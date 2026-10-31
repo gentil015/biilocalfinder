@@ -5,11 +5,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   AlertCircle,
+  ArrowLeft,
+  ArrowRight,
   CalendarDays,
+  Check,
   CheckCircle2,
+  ChevronDown,
   ClipboardList,
-  FileText,
   Globe,
+  Info,
   Lock,
   Send,
   Sparkles,
@@ -25,6 +29,7 @@ import {
   servicesApi,
 } from '@/lib/api';
 import { DynamicAttributeForm } from '@/components/attributes/dynamic-attribute-form';
+import { BookingPath } from '@/components/booking-path';
 import { AiRequestAssist, AssistSuggestion } from '@/components/requests/ai-request-assist';
 import { BookingAssistant } from '@/components/requests/booking-assistant';
 import { useI18n } from '@/components/locale-provider';
@@ -35,35 +40,75 @@ import { useAuth } from '@/components/auth-provider';
 const TITLE_MAX = 90;
 const DESCRIPTION_MAX = 2000;
 
-function Section({
-  step,
-  icon: Icon,
-  title,
-  hint,
-  children,
-}: {
-  step: number;
-  icon: typeof FileText;
+type RequestStepId = 'basics' | 'details' | 'schedule' | 'review';
+
+interface RequestStep {
+  id: RequestStepId;
+  short: string;
   title: string;
-  hint?: string;
-  children: React.ReactNode;
-}) {
+  body: string;
+  icon: typeof ClipboardList;
+}
+
+const VALIDATED_STEPS: RequestStepId[] = ['basics', 'details', 'schedule'];
+
+function StepRail({ steps, currentIndex }: { steps: RequestStep[]; currentIndex: number }) {
+  const { t } = useI18n();
+
   return (
-    <Panel className="p-5 sm:p-6">
-      <div className="mb-5 flex items-start gap-3">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
-          <Icon className="h-4 w-4" aria-hidden="true" />
-        </span>
-        <div className="min-w-0">
-          <h2 className="flex items-baseline gap-2 font-display text-base font-bold text-ink-950">
-            <span className="text-ink-300">{step}.</span>
-            {title}
-          </h2>
-          {hint && <p className="mt-0.5 text-xs text-ink-500">{hint}</p>}
-        </div>
+    <nav
+      aria-label={t('requestSteps.progress')}
+      className="mb-5 rounded-xl border border-ink-200 bg-surface p-4 shadow-xs"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-bold uppercase tracking-wide text-ink-400">
+          {t('requestSteps.step', {
+            current: String(currentIndex + 1),
+            total: String(steps.length),
+          })}
+        </p>
+        <p className="text-sm font-bold text-ink-950 sm:hidden">{steps[currentIndex].title}</p>
       </div>
-      {children}
-    </Panel>
+
+      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-ink-100 sm:hidden">
+        <div
+          className="h-full rounded-full bg-brand-600 transition-all duration-300"
+          style={{ width: `${((currentIndex + 1) / steps.length) * 100}%` }}
+        />
+      </div>
+
+      <ol className="mt-0.5 hidden items-start sm:flex">
+        {steps.map((step, i) => {
+          const done = i < currentIndex;
+          const current = i === currentIndex;
+          return (
+            <li key={step.id} className="flex min-w-0 flex-1 items-start gap-2.5">
+              <span
+                className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-extrabold tabular transition-colors ${
+                  done
+                    ? 'bg-success-600 text-white'
+                    : current
+                      ? 'bg-brand-600 text-white dark:text-home-night'
+                      : 'bg-ink-100 text-ink-400'
+                }`}
+              >
+                {done ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : i + 1}
+              </span>
+              <span
+                className={`min-w-0 pt-1 text-xs font-bold ${
+                  current ? 'text-ink-950' : done ? 'text-ink-600' : 'text-ink-400'
+                }`}
+              >
+                {step.short}
+              </span>
+              {i < steps.length - 1 && (
+                <span className="mt-3.5 h-px flex-1 bg-ink-200" aria-hidden="true" />
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }
 
@@ -331,11 +376,108 @@ function NewServiceRequestForm() {
         { label: t('requests.new.checkService'), done: !!form.serviceId },
         { label: t('requests.new.checkTitle'), done: form.title.trim().length > 0 },
         { label: t('requests.new.checkDesc'), done: form.description.trim().length > 0 },
-        { label: t('requests.new.checkBudget'), done: !budgetInverted && (budgetMin !== null || budgetMax !== null) },
+        { label: t('requests.new.checkBudget'), done: !budgetInverted },
       ] as const,
-    [form.serviceId, form.title, form.description, budgetInverted, budgetMin, budgetMax],
+    [form.serviceId, form.title, form.description, budgetInverted, t],
   );
   const ready = checklist.every((c) => c.done);
+
+  const [stepId, setStepId] = useState<RequestStepId>('basics');
+  const [stepError, setStepError] = useState<string | null>(null);
+
+  const steps = useMemo<RequestStep[]>(() => {
+    const list: RequestStep[] = [
+      {
+        id: 'basics',
+        short: t('requestSteps.basics.short'),
+        title: t('requestSteps.basics.title'),
+        body: t('requestSteps.basics.body'),
+        icon: ClipboardList,
+      },
+    ];
+    if (hasAttributeSection) {
+      list.push({
+        id: 'details',
+        short: t('requestSteps.details.short'),
+        title: t('requestSteps.details.title'),
+        body: t('requestSteps.details.body'),
+        icon: Sparkles,
+      });
+    }
+    list.push(
+      {
+        id: 'schedule',
+        short: t('requestSteps.schedule.short'),
+        title: t('requestSteps.schedule.title'),
+        body: t('requestSteps.schedule.body'),
+        icon: CalendarDays,
+      },
+      {
+        id: 'review',
+        short: t('requestSteps.review.short'),
+        title: t('requestSteps.review.title'),
+        body: t('requestSteps.review.body'),
+        icon: CheckCircle2,
+      },
+    );
+    return list;
+  }, [hasAttributeSection, t]);
+
+  const currentIndex = Math.max(0, steps.findIndex((step) => step.id === stepId));
+  const currentStep = steps[currentIndex] ?? steps[0];
+
+  useEffect(() => {
+    if (!steps.some((step) => step.id === stepId)) {
+      setStepId('basics');
+      setStepError(null);
+    }
+  }, [stepId, steps]);
+
+  function isAttributeFilled(attribute: any) {
+    const value = attributeValues[attribute.id];
+    if (value === undefined || value === null) return false;
+    if (typeof value === 'string') return value.trim().length > 0;
+    if (Array.isArray(value)) return value.length > 0;
+    return true;
+  }
+
+  function getStepError(id: RequestStepId): string | null {
+    if (id === 'basics') {
+      if (!form.serviceId) return t('requestSteps.error.service');
+      if (!form.title.trim()) return t('requestSteps.error.title');
+      if (!form.description.trim()) return t('requestSteps.error.description');
+    }
+    if (id === 'details') {
+      const missing = openAttributes.find((attribute) => attribute.isRequired && !isAttributeFilled(attribute));
+      if (missing) return t('requestSteps.error.details', { name: missing.name });
+    }
+    if (id === 'schedule' && budgetInverted) {
+      return t('requests.new.budgetInverted');
+    }
+    return null;
+  }
+
+  function moveToStep(id: RequestStepId) {
+    setStepId(id);
+    setStepError(null);
+    setError(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function goNext() {
+    const message = getStepError(currentStep.id);
+    if (message) {
+      setStepError(message);
+      return;
+    }
+    const next = steps[currentIndex + 1];
+    if (next) moveToStep(next.id);
+  }
+
+  function goBack() {
+    const previous = steps[currentIndex - 1];
+    if (previous) moveToStep(previous.id);
+  }
 
   const budgetLabel =
     budgetMin !== null && budgetMax !== null
@@ -363,10 +505,24 @@ function NewServiceRequestForm() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!form.serviceId) {
-      setError(t('requests.new.errorService'));
+
+    // Enter inside a field should advance the wizard, never send the request
+    // before the client has seen the review step.
+    if (currentStep.id !== 'review') {
+      goNext();
       return;
     }
+
+    const invalidId = VALIDATED_STEPS.find(
+      (id) => steps.some((step) => step.id === id) && getStepError(id),
+    );
+    if (invalidId) {
+      setStepId(invalidId);
+      setStepError(getStepError(invalidId));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     setLoading(true);
     try {
       // Provider-set features are always included; the client's own answers
@@ -387,13 +543,25 @@ function NewServiceRequestForm() {
         budgetMax: form.budgetMax ? Number(form.budgetMax) : undefined,
         additionalNotes: form.additionalNotes || undefined,
       });
-      router.push(`/requests/${request.id}`);
+      router.push(`/requests/${request.id}?sent=1`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t('requests.new.errorCreate'));
     } finally {
       setLoading(false);
     }
   }
+
+  const selectedServiceName =
+    offeringTitleByService.get(form.serviceId) ??
+    availableServices.find((service) => service.id === form.serviceId)?.name ??
+    '—';
+  const whenLabel = form.preferredDate
+    ? new Date(form.preferredDate).toLocaleDateString() +
+      (form.preferredTime ? `, ${form.preferredTime}` : '')
+    : t('requests.new.flexible');
+  const reviewProviderName = provider?.businessName ?? t('requests.new.selectedProvider');
+
+  const StepIcon = currentStep.icon;
 
   return (
     <div className="page-narrow py-8">
@@ -405,382 +573,461 @@ function NewServiceRequestForm() {
         }
       />
 
-      <div className="mb-5">
-        <BookingAssistant
-          serviceId={form.serviceId || undefined}
-          filledFields={assistantFilledFields}
-          onApply={applyBookingFields}
-        />
+      <div className="mb-5 flex items-start gap-2 rounded-xl border border-brand-200 bg-brand-50/50 p-3 text-xs leading-relaxed text-ink-600">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-brand-600" aria-hidden="true" />
+        <p>{t('requestSteps.freeNote')}</p>
       </div>
 
-      <form onSubmit={onSubmit} className="grid gap-5 lg:grid-cols-[1fr_20rem] lg:items-start">
-        <div className="min-w-0 space-y-5">
-          <Section step={1} icon={ClipboardList} title={t('requests.new.serviceSection')}>
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="service" className="label">
-                  {t('requests.new.service')}
-                </label>
-                <select
-                  id="service"
-                  required
-                  disabled={!!serviceOfferingId || (providerServiceIds?.size === 0)}
-                  className="select-lg"
-                  value={form.serviceId}
-                  onChange={(e) => {
-                    markEdited('serviceId');
-                    setForm({ ...form, serviceId: e.target.value });
-                  }}
-                >
-                  <option value="">{t('requests.new.selectService')}</option>
-                  {availableServices.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {offeringTitleByService.get(s.id) ??
-                        (s.category?.name ? `${s.category.name} — ${s.name}` : s.name)}
-                    </option>
-                  ))}
-                </select>
-                {serviceOfferingId && (
-                  <p className="mt-1.5 text-xs text-ink-500">
-                    {t('requests.new.fixedByOffering')} <Link href="/search" className="text-link">{t('requests.new.changeService')}</Link>
-                  </p>
-                )}
-                {!serviceOfferingId && providerId && providerServiceIds && (
-                  <p className="mt-1.5 text-xs text-ink-500">
-                    {availableServices.length === 0
-                      ? t('requests.new.noServices')
-                      : t('requests.new.onlyServices', {
-                          name: provider?.businessName ?? t('requests.new.selectedProvider'),
-                        })}
-                  </p>
-                )}
-              </div>
+      <StepRail steps={steps} currentIndex={currentIndex} />
 
-              {form.serviceId && <AiRequestAssist serviceId={form.serviceId} onApply={applySuggestion} />}
-            </div>
-          </Section>
-
-          <Section
-            step={2}
-            icon={FileText}
-            title={t('requests.new.describeJob')}
-            hint={t('requests.new.describeJobHint')}
-          >
-            <div className="space-y-4">
-              <div>
-                <div className="flex items-baseline justify-between gap-2">
-                  <label htmlFor="title" className="label">
-                    {t('requests.new.titleLabel')}
-                  </label>
-                  <span className="text-2xs tabular text-ink-400">
-                    {form.title.length}/{TITLE_MAX}
-                  </span>
-                </div>
-                <input
-                  id="title"
-                  required
-                  maxLength={TITLE_MAX}
-                  placeholder={t('requests.new.titlePlaceholder')}
-                  value={form.title}
-                  onChange={(e) => {
-                    markEdited('title');
-                    setForm({ ...form, title: e.target.value });
-                  }}
-                />
-              </div>
-
-              <div>
-                <div className="flex items-baseline justify-between gap-2">
-                  <label htmlFor="description" className="label">
-                    {t('requests.new.descLabel')}
-                  </label>
-                  <span className="text-2xs tabular text-ink-400">
-                    {form.description.length}/{DESCRIPTION_MAX}
-                  </span>
-                </div>
-                <textarea
-                  id="description"
-                  required
-                  maxLength={DESCRIPTION_MAX}
-                  rows={5}
-                  placeholder={t('requests.new.descPlaceholder')}
-                  value={form.description}
-                  onChange={(e) => {
-                    markEdited('description');
-                    setForm({ ...form, description: e.target.value });
-                  }}
-                />
+      <form onSubmit={onSubmit}>
+        <Panel bodyClassName="p-0" className="overflow-hidden">
+          <div className="border-b border-ink-100 p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                <StepIcon className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="eyebrow-muted">
+                  {t('requestSteps.step', {
+                    current: String(currentIndex + 1),
+                    total: String(steps.length),
+                  })}
+                </p>
+                <h2 className="mt-1 font-display text-lg font-bold text-ink-950">{currentStep.title}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-ink-500">{currentStep.body}</p>
               </div>
             </div>
-          </Section>
+          </div>
 
-          {hasAttributeSection && (
-            <Section
-              step={3}
-              icon={Sparkles}
-              title={t('requests.new.moreDetails')}
-              hint={
-                providerName
-                  ? t('requests.new.moreDetailsHintDirected', { name: providerName })
-                  : t('requests.new.moreDetailsHintOpen')
-              }
-            >
-              {fixedFeatures.length > 0 && (
-                <div className="mb-4 rounded-xl border border-brand-200 bg-brand-50/50 p-4">
-                  <p className="flex items-center gap-1.5 text-xs font-bold text-brand-800">
-                    <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                    {t('requests.new.includedWithOffering', {
-                      name: providerName ?? t('requests.new.selectedProvider'),
-                    })}
-                  </p>
-                  <dl className="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2">
-                    {fixedFeatures.map((f: any) => (
-                      <div
-                        key={f.id}
-                        className="flex items-baseline justify-between gap-3 border-b border-brand-100 pb-2"
-                      >
-                        <dt className="text-xs text-ink-500">{f.label}</dt>
-                        <dd className="text-right text-xs font-semibold text-ink-900">{f.display}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </div>
-              )}
-
-              {openAttributes.length > 0 && (
-                <DynamicAttributeForm
-                  attributes={openAttributes}
-                  values={attributeValues}
-                  onChange={(id, value) => {
-                    markEdited(`attr:${id}`);
-                    setAttributeValues((prev) => ({ ...prev, [id]: value }));
-                  }}
-                />
-              )}
-            </Section>
-          )}
-
-          <Section step={hasAttributeSection ? 4 : 3} icon={CalendarDays} title={t('requests.new.whenAndHowMuch')}>
-            <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="date" className="label">
-                    {t('requests.new.preferredDate')}
-                  </label>
-                  <input
-                    id="date"
-                    type="date"
-                    value={form.preferredDate}
-                    onChange={(e) => {
-                      markEdited('preferredDate');
-                      setForm({ ...form, preferredDate: e.target.value });
-                    }}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="time" className="label">
-                    {t('requests.new.preferredTime')}
-                  </label>
-                  <input
-                    id="time"
-                    type="time"
-                    value={form.preferredTime}
-                    onChange={(e) => {
-                      markEdited('preferredTime');
-                      setForm({ ...form, preferredTime: e.target.value });
-                    }}
-                  />
-                </div>
+          <div className="p-5 sm:p-6">
+            {stepError && (
+              <div className="alert alert-error mb-5" role="alert">
+                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {stepError}
               </div>
-
-              <fieldset>
-                <legend className="label">{t('requests.new.budget')}</legend>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label htmlFor="budget-min" className="sr-only">
-                      {t('requests.new.budgetMinAria')}
-                    </label>
-                    <input
-                      id="budget-min"
-                      type="number"
-                      min={0}
-                      placeholder={t('requests.new.minimum')}
-                      className="tabular"
-                      value={form.budgetMin}
-                      onChange={(e) => {
-                        markEdited('budgetMin');
-                        setForm({ ...form, budgetMin: e.target.value });
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="budget-max" className="sr-only">
-                      {t('requests.new.budgetMaxAria')}
-                    </label>
-                    <input
-                      id="budget-max"
-                      type="number"
-                      min={0}
-                      placeholder={t('requests.new.maximum')}
-                      className="tabular"
-                      value={form.budgetMax}
-                      onChange={(e) => {
-                        markEdited('budgetMax');
-                        setForm({ ...form, budgetMax: e.target.value });
-                      }}
-                    />
-                  </div>
-                </div>
-                {budgetInverted ? (
-                  <p className="mt-1.5 flex items-center gap-1.5 text-xs text-danger-600">
-                    <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                    {t('requests.new.budgetInverted')}
-                  </p>
-                ) : (
-                  <p className="mt-1.5 text-xs text-ink-500">
-                    {t('requests.new.budgetHint')}
-                  </p>
-                )}
-              </fieldset>
-
-              <div>
-                <label htmlFor="notes" className="label">
-                  {t('requests.new.notes')}{' '}
-                  <span className="font-normal text-ink-400">{t('requests.new.optional')}</span>
-                </label>
-                <textarea
-                  id="notes"
-                  rows={2}
-                  placeholder={t('requests.new.notesPlaceholder')}
-                  value={form.additionalNotes}
-                  onChange={(e) => {
-                    markEdited('additionalNotes');
-                    setForm({ ...form, additionalNotes: e.target.value });
-                  }}
-                />
-              </div>
-            </div>
-          </Section>
-
-          {error && (
-            <div className="alert alert-error" role="alert">
-              <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-              {error}
-            </div>
-          )}
-        </div>
-
-        {/* Sticky summary doubles as the readiness check, so the client always
-            knows the state of the form without scrolling back up. */}
-        <aside className="lg:sticky lg:top-24">
-          <Panel className="p-5">
-            <h2 className="font-display text-sm font-bold text-ink-950">{t('requests.new.summary')}</h2>
-
-            <dl className="mt-4 space-y-3 text-sm">
-              <div className="flex items-start justify-between gap-3">
-                <dt className="shrink-0 text-ink-500">{t('requests.new.summaryService')}</dt>
-                <dd className="text-right font-semibold text-ink-900">
-                  {offeringTitleByService.get(form.serviceId) ??
-                    availableServices.find((s) => s.id === form.serviceId)?.name ??
-                    '—'}
-                </dd>
-              </div>
-              {providerId && (
-                <div className="flex items-start justify-between gap-3">
-                  <dt className="shrink-0 text-ink-500">{t('requests.new.sentTo')}</dt>
-                  <dd className="text-right font-semibold text-ink-900">
-                    {provider?.businessName ?? t('requests.new.selectedProvider')}
-                  </dd>
-                </div>
-              )}
-              {providerId && (
-                <div className="flex items-start justify-between gap-3">
-                  <dt className="shrink-0 text-ink-500">{t('requests.new.competition')}</dt>
-                  <dd className="text-right font-semibold text-ink-900">
-                    {openToOthers ? t('requests.new.openToOthers') : t('requests.new.private')}
-                  </dd>
-                </div>
-              )}
-              <div className="flex items-start justify-between gap-3">
-                <dt className="shrink-0 text-ink-500">{t('requests.new.when')}</dt>
-                <dd className="text-right font-semibold text-ink-900">
-                  {form.preferredDate
-                    ? new Date(form.preferredDate).toLocaleDateString() + (form.preferredTime ? `, ${form.preferredTime}` : '')
-                    : t('requests.new.flexible')}
-                </dd>
-              </div>
-              <div className="flex items-start justify-between gap-3">
-                <dt className="flex shrink-0 items-center gap-1.5 text-ink-500">
-                  <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
-                  {t('requests.new.budgetLabel')}
-                </dt>
-                <dd className="tabular text-right font-semibold text-ink-900">{budgetLabel}</dd>
-              </div>
-            </dl>
-
-            <div className="mt-5 border-t border-ink-100 pt-4">
-              <p className="eyebrow-muted mb-2.5">{t('requests.new.beforeYouSend')}</p>
-              <ul className="space-y-2">
-                {checklist.map((c) => (
-                  <li key={c.label} className="flex items-center gap-2 text-sm">
-                    {c.done ? (
-                      <CheckCircle2 className="h-4 w-4 shrink-0 text-success-600" aria-hidden="true" />
-                    ) : (
-                      <span
-                        className="h-4 w-4 shrink-0 rounded-full border-2 border-ink-200"
-                        aria-hidden="true"
-                      />
-                    )}
-                    <span className={c.done ? 'text-ink-600' : 'text-ink-500'}>{c.label}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <button disabled={loading || !ready} className="btn-primary mt-5 w-full" type="submit">
-              <Send className="h-4 w-4" aria-hidden="true" />
-              {loading ? t('requests.new.sending') : t('requests.new.send')}
-            </button>
-
-            {providerId && (
-              <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-xl border border-ink-100 p-3 transition-colors hover:bg-ink-50/60">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 shrink-0 accent-brand-600"
-                  checked={openToOthers}
-                  onChange={(e) => setOpenToOthers(e.target.checked)}
-                />
-                <span className="min-w-0">
-                  <span className="flex items-center gap-1.5 text-sm font-bold text-ink-900">
-                    <Globe className="h-3.5 w-3.5 shrink-0 text-ink-400" aria-hidden="true" />
-                    {t('requests.new.openToOthers')}
-                  </span>
-                  <span className="mt-0.5 block text-2xs leading-relaxed text-ink-500">
-                    {t('requests.new.privacyNoteStart', {
-                      name: provider?.businessName ?? t('requests.new.selectedProvider'),
-                    })}{' '}
-                    <span className="font-semibold text-ink-600">
-                      {t('requests.new.privacyNoteBold')}
-                    </span>{' '}
-                    {t('requests.new.privacyNoteTail')}
-                  </span>
-                </span>
-              </label>
             )}
 
-            <p className="mt-3 text-center text-2xs leading-relaxed text-ink-400">
-              {providerId
-                ? openToOthers
-                  ? t('requests.new.footerDirectedOpen', {
-                      name: provider?.businessName ?? t('requests.new.selectedProvider'),
-                    })
-                  : t('requests.new.footerDirectedPrivate', {
-                      name: provider?.businessName ?? t('requests.new.selectedProvider'),
-                    })
-                : t('requests.new.footerOpen')}
-            </p>
-          </Panel>
-        </aside>
+            {error && currentStep.id === 'review' && (
+              <div className="alert alert-error mb-5" role="alert">
+                <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                {error}
+              </div>
+            )}
+
+            {currentStep.id === 'basics' && (
+              <div className="space-y-5">
+                <div>
+                  <label htmlFor="service" className="label">
+                    {t('requests.new.service')}
+                  </label>
+                  <select
+                    id="service"
+                    required
+                    disabled={!!serviceOfferingId || (providerServiceIds?.size === 0)}
+                    className="select-lg"
+                    value={form.serviceId}
+                    onChange={(e) => {
+                      markEdited('serviceId');
+                      setStepError(null);
+                      setForm({ ...form, serviceId: e.target.value });
+                    }}
+                  >
+                    <option value="">{t('requests.new.selectService')}</option>
+                    {availableServices.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {offeringTitleByService.get(s.id) ??
+                          (s.category?.name ? `${s.category.name} — ${s.name}` : s.name)}
+                      </option>
+                    ))}
+                  </select>
+                  {serviceOfferingId && (
+                    <p className="mt-1.5 text-xs text-ink-500">
+                      {t('requests.new.fixedByOffering')}{' '}
+                      <Link href="/search" className="text-link">
+                        {t('requests.new.changeService')}
+                      </Link>
+                    </p>
+                  )}
+                  {!serviceOfferingId && providerId && providerServiceIds && (
+                    <p className="mt-1.5 text-xs text-ink-500">
+                      {availableServices.length === 0
+                        ? t('requests.new.noServices')
+                        : t('requests.new.onlyServices', {
+                            name: provider?.businessName ?? t('requests.new.selectedProvider'),
+                          })}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <label htmlFor="title" className="label">
+                      {t('requests.new.titleLabel')}
+                    </label>
+                    <span className="text-2xs tabular text-ink-400">
+                      {form.title.length}/{TITLE_MAX}
+                    </span>
+                  </div>
+                  <input
+                    id="title"
+                    required
+                    maxLength={TITLE_MAX}
+                    placeholder={t('requests.new.titlePlaceholder')}
+                    value={form.title}
+                    onChange={(e) => {
+                      markEdited('title');
+                      setStepError(null);
+                      setForm({ ...form, title: e.target.value });
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <label htmlFor="description" className="label">
+                      {t('requests.new.descLabel')}
+                    </label>
+                    <span className="text-2xs tabular text-ink-400">
+                      {form.description.length}/{DESCRIPTION_MAX}
+                    </span>
+                  </div>
+                  <textarea
+                    id="description"
+                    required
+                    maxLength={DESCRIPTION_MAX}
+                    rows={5}
+                    placeholder={t('requests.new.descPlaceholder')}
+                    value={form.description}
+                    onChange={(e) => {
+                      markEdited('description');
+                      setStepError(null);
+                      setForm({ ...form, description: e.target.value });
+                    }}
+                  />
+                  <p className="mt-1.5 text-xs text-ink-500">{t('requests.new.describeJobHint')}</p>
+                </div>
+
+                <details className="group rounded-xl border border-ink-200 bg-ink-50/40">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 p-3.5 text-sm font-bold text-ink-800 [&::-webkit-details-marker]:hidden">
+                    <Sparkles className="h-4 w-4 shrink-0 text-brand-600" aria-hidden="true" />
+                    {t('requestSteps.assistant')}
+                    <ChevronDown
+                      className="ml-auto h-4 w-4 shrink-0 text-ink-400 transition-transform group-open:rotate-180"
+                      aria-hidden="true"
+                    />
+                  </summary>
+                  <div className="border-t border-ink-200 p-3.5">
+                    <BookingAssistant
+                      serviceId={form.serviceId || undefined}
+                      filledFields={assistantFilledFields}
+                      onApply={applyBookingFields}
+                    />
+                  </div>
+                </details>
+              </div>
+            )}
+
+            {currentStep.id === 'details' && (
+              <div className="space-y-5">
+                <p className="text-sm leading-relaxed text-ink-500">
+                  {providerName
+                    ? t('requests.new.moreDetailsHintDirected', { name: providerName })
+                    : t('requests.new.moreDetailsHintOpen')}
+                </p>
+
+                {fixedFeatures.length > 0 && (
+                  <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4">
+                    <p className="flex items-center gap-1.5 text-xs font-bold text-brand-800">
+                      <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      {t('requests.new.includedWithOffering', {
+                        name: providerName ?? t('requests.new.selectedProvider'),
+                      })}
+                    </p>
+                    <dl className="mt-3 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+                      {fixedFeatures.map((f: any) => (
+                        <div
+                          key={f.id}
+                          className="flex items-baseline justify-between gap-3 border-b border-brand-100 pb-2"
+                        >
+                          <dt className="text-xs text-ink-500">{f.label}</dt>
+                          <dd className="text-right text-xs font-semibold text-ink-900">{f.display}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                )}
+
+                {openAttributes.length > 0 && (
+                  <div className="space-y-5">
+                    {form.serviceId && (
+                      <AiRequestAssist serviceId={form.serviceId} onApply={applySuggestion} />
+                    )}
+                    <DynamicAttributeForm
+                      attributes={openAttributes}
+                      values={attributeValues}
+                      onChange={(id, value) => {
+                        markEdited(`attr:${id}`);
+                        setStepError(null);
+                        setAttributeValues((prev) => ({ ...prev, [id]: value }));
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {currentStep.id === 'schedule' && (
+              <div className="space-y-5">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label htmlFor="date" className="label">
+                      {t('requests.new.preferredDate')}
+                    </label>
+                    <input
+                      id="date"
+                      type="date"
+                      value={form.preferredDate}
+                      onChange={(e) => {
+                        markEdited('preferredDate');
+                        setStepError(null);
+                        setForm({ ...form, preferredDate: e.target.value });
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="time" className="label">
+                      {t('requests.new.preferredTime')}
+                    </label>
+                    <input
+                      id="time"
+                      type="time"
+                      value={form.preferredTime}
+                      onChange={(e) => {
+                        markEdited('preferredTime');
+                        setStepError(null);
+                        setForm({ ...form, preferredTime: e.target.value });
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <fieldset>
+                  <legend className="label">{t('requests.new.budget')}</legend>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="budget-min" className="sr-only">
+                        {t('requests.new.budgetMinAria')}
+                      </label>
+                      <input
+                        id="budget-min"
+                        type="number"
+                        min={0}
+                        placeholder={t('requests.new.minimum')}
+                        className="tabular"
+                        value={form.budgetMin}
+                        onChange={(e) => {
+                          markEdited('budgetMin');
+                          setStepError(null);
+                          setForm({ ...form, budgetMin: e.target.value });
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="budget-max" className="sr-only">
+                        {t('requests.new.budgetMaxAria')}
+                      </label>
+                      <input
+                        id="budget-max"
+                        type="number"
+                        min={0}
+                        placeholder={t('requests.new.maximum')}
+                        className="tabular"
+                        value={form.budgetMax}
+                        onChange={(e) => {
+                          markEdited('budgetMax');
+                          setStepError(null);
+                          setForm({ ...form, budgetMax: e.target.value });
+                        }}
+                      />
+                    </div>
+                  </div>
+                  {budgetInverted ? (
+                    <p className="mt-1.5 flex items-center gap-1.5 text-xs text-danger-600">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                      {t('requests.new.budgetInverted')}
+                    </p>
+                  ) : (
+                    <p className="mt-1.5 text-xs text-ink-500">{t('requests.new.budgetHint')}</p>
+                  )}
+                </fieldset>
+
+                <div>
+                  <label htmlFor="notes" className="label">
+                    {t('requests.new.notes')}{' '}
+                    <span className="font-normal text-ink-400">{t('requests.new.optional')}</span>
+                  </label>
+                  <textarea
+                    id="notes"
+                    rows={3}
+                    placeholder={t('requests.new.notesPlaceholder')}
+                    value={form.additionalNotes}
+                    onChange={(e) => {
+                      markEdited('additionalNotes');
+                      setStepError(null);
+                      setForm({ ...form, additionalNotes: e.target.value });
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {currentStep.id === 'review' && (
+              <div className="space-y-6">
+                <div className="rounded-xl border border-ink-200 bg-ink-50/30 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="font-display text-sm font-bold text-ink-950">
+                      {t('requests.new.summary')}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => moveToStep('basics')}
+                      className="btn-link text-xs"
+                    >
+                      {t('requestSteps.edit')}
+                    </button>
+                  </div>
+
+                  <dl className="mt-4 space-y-3 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <dt className="shrink-0 text-ink-500">{t('requests.new.summaryService')}</dt>
+                      <dd className="text-right font-semibold text-ink-900">{selectedServiceName}</dd>
+                    </div>
+                    {providerId && (
+                      <div className="flex items-start justify-between gap-3">
+                        <dt className="shrink-0 text-ink-500">{t('requests.new.sentTo')}</dt>
+                        <dd className="text-right font-semibold text-ink-900">{reviewProviderName}</dd>
+                      </div>
+                    )}
+                    {providerId && (
+                      <div className="flex items-start justify-between gap-3">
+                        <dt className="shrink-0 text-ink-500">{t('requests.new.competition')}</dt>
+                        <dd className="text-right font-semibold text-ink-900">
+                          {openToOthers ? t('requests.new.openToOthers') : t('requests.new.private')}
+                        </dd>
+                      </div>
+                    )}
+                    <div className="border-t border-ink-100 pt-3">
+                      <dt className="text-xs font-bold text-ink-500">{t('requests.new.titleLabel')}</dt>
+                      <dd className="mt-1 font-semibold text-ink-900">{form.title || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-bold text-ink-500">{t('requests.new.descLabel')}</dt>
+                      <dd className="mt-1 whitespace-pre-wrap leading-relaxed text-ink-600">
+                        {form.description || '—'}
+                      </dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-3 border-t border-ink-100 pt-3">
+                      <dt className="shrink-0 text-ink-500">{t('requests.new.when')}</dt>
+                      <dd className="text-right font-semibold text-ink-900">{whenLabel}</dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <dt className="flex shrink-0 items-center gap-1.5 text-ink-500">
+                        <Wallet className="h-3.5 w-3.5" aria-hidden="true" />
+                        {t('requests.new.budgetLabel')}
+                      </dt>
+                      <dd className="tabular text-right font-semibold text-ink-900">{budgetLabel}</dd>
+                    </div>
+                    {form.additionalNotes && (
+                      <div>
+                        <dt className="text-xs font-bold text-ink-500">{t('requests.new.notes')}</dt>
+                        <dd className="mt-1 whitespace-pre-wrap leading-relaxed text-ink-600">
+                          {form.additionalNotes}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+
+                <div>
+                  <p className="eyebrow-muted mb-2.5">{t('requests.new.beforeYouSend')}</p>
+                  <ul className="space-y-2">
+                    {checklist.map((c) => (
+                      <li key={c.label} className="flex items-center gap-2 text-sm">
+                        {c.done ? (
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-success-600" aria-hidden="true" />
+                        ) : (
+                          <span
+                            className="h-4 w-4 shrink-0 rounded-full border-2 border-ink-200"
+                            aria-hidden="true"
+                          />
+                        )}
+                        <span className={c.done ? 'text-ink-600' : 'text-ink-500'}>{c.label}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {providerId && (
+                  <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-ink-200 p-3.5 transition-colors hover:bg-ink-50/60">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-brand-600"
+                      checked={openToOthers}
+                      onChange={(e) => setOpenToOthers(e.target.checked)}
+                    />
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1.5 text-sm font-bold text-ink-900">
+                        <Globe className="h-3.5 w-3.5 shrink-0 text-ink-400" aria-hidden="true" />
+                        {t('requests.new.openToOthers')}
+                      </span>
+                      <span className="mt-0.5 block text-2xs leading-relaxed text-ink-500">
+                        {t('requests.new.privacyNoteStart', { name: reviewProviderName })}{' '}
+                        <span className="font-semibold text-ink-600">
+                          {t('requests.new.privacyNoteBold')}
+                        </span>{' '}
+                        {t('requests.new.privacyNoteTail')}
+                      </span>
+                    </span>
+                  </label>
+                )}
+
+                <p className="text-2xs leading-relaxed text-ink-500">
+                  {providerId
+                    ? openToOthers
+                      ? t('requests.new.footerDirectedOpen', { name: reviewProviderName })
+                      : t('requests.new.footerDirectedPrivate', { name: reviewProviderName })
+                    : t('requests.new.footerOpen')}
+                </p>
+
+                <BookingPath />
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-ink-100 bg-ink-50/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            {currentIndex > 0 ? (
+              <button type="button" onClick={goBack} className="btn-secondary w-full sm:w-auto">
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                {t('requestSteps.back')}
+              </button>
+            ) : (
+              <span className="hidden sm:block" />
+            )}
+
+            {currentStep.id === 'review' ? (
+              <button disabled={loading || !ready} className="btn-primary w-full sm:w-auto" type="submit">
+                <Send className="h-4 w-4" aria-hidden="true" />
+                {loading ? t('requests.new.sending') : t('requests.new.send')}
+              </button>
+            ) : (
+              <button type="button" onClick={goNext} className="btn-primary w-full sm:w-auto">
+                {t('requestSteps.continue')}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        </Panel>
       </form>
     </div>
   );

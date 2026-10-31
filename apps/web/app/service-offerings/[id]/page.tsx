@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { BadgeCheck, ChevronRight, Clock, MapPin, Star } from 'lucide-react';
 import { offeringsApi } from '@/lib/api';
+import { BookingPath } from '@/components/booking-path';
 import { Panel } from '@/components/ui/page';
 
 export const dynamic = 'force-dynamic';
@@ -136,13 +137,21 @@ export default async function ServiceOfferingPage({ params }: { params: { id: st
       )}
 
       <div className="mt-8 hidden md:block">
+        <BookingPath variant="inline" showPayNote={false} className="mb-3" />
         <Link href={requestHref} className="btn-primary btn-lg">
           Request this service
         </Link>
-        <p className="mt-3 text-xs text-ink-500">
-          Sending a request is free. The provider will quote before anything is agreed.
+        <p className="mt-3 text-xs leading-relaxed text-ink-500">
+          Sending this request is free and does not confirm a booking. The provider quotes first,
+          and you pay them directly — never through the platform.
         </p>
       </div>
+
+      <BookingPath
+        variant="inline"
+        showPayNote={false}
+        className="mt-6 md:hidden"
+      />
 
       {/* Mobile keeps the primary action pinned in reach at all times. */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-ink-200 bg-surface/90 p-3 backdrop-blur-xl md:hidden">

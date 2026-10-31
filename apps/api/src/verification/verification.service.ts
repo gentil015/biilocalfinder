@@ -271,7 +271,7 @@ export class VerificationService {
       expiresAt: provider.verificationExpiresAt,
       phoneVerified: provider.user.phoneVerified,
       emailVerified: provider.user.emailVerified,
-      hasPhone: !!(provider.user?.phone || provider.phone),
+      hasPhone: !!provider.user.phone,
       nextSteps,
       records: records.map((r) => this.toProviderView(r, now)),
       offerings: offerings.map((o) => ({ id: o.id, name: o.title || o.service.name })),

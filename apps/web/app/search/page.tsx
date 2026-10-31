@@ -26,6 +26,7 @@ import {
   type ParsedSearchResult,
   type SearchChip,
 } from '@/lib/api';
+import { BookingPath } from '@/components/booking-path';
 import { ProviderCard } from '@/components/provider-card';
 import { ProviderCardSkeleton } from '@/components/provider-card-skeleton';
 import { SaveSearchButton } from '@/components/save-search-button';
@@ -430,6 +431,7 @@ function SearchResults() {
       <div className="mb-5">
         <p className="eyebrow">Marketplace</p>
         <h1 className="page-title mt-1.5">Find a provider</h1>
+        <BookingPath variant="inline" showPayNote={false} className="mt-3" />
       </div>
 
       {/* Search bar — the one control that has to work everywhere, so it sits
@@ -562,6 +564,12 @@ function SearchResults() {
               </select>
             </label>
           </div>
+
+          {!error && !loading && items.length > 0 && (
+            <p className="-mt-1 mb-4 text-xs leading-relaxed text-ink-500">
+              Starting prices are a guide — request a booking to get an exact quote.
+            </p>
+          )}
 
           {error && <div className="alert alert-error">{error}</div>}
 

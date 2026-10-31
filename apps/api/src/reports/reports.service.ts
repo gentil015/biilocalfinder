@@ -1,11 +1,12 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, ReportTargetType } from '@prisma/client';
+import { Prisma, ReportStatus, ReportTargetType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../common/services/audit-log.service';
 import { CreateReportDto } from './dto/create-report.dto';
 import { ResolveReportDto } from './dto/resolve-report.dto';
 
 const MAX_OPEN_REPORTS_PER_TARGET_PER_USER = 1;
+const ACTIVE_REPORT_STATUSES: ReportStatus[] = ['OPEN', 'UNDER_REVIEW'];
 
 @Injectable()
 export class ReportsService {
@@ -37,7 +38,12 @@ export class ReportsService {
     await this.assertTargetExists(dto.targetType, dto.targetId);
 
     const openCount = await this.prisma.report.count({
-      where: { reporterId, targetType: dto.targetType, targetId: dto.targetId, status: { not: 'RESOLVED' } },
+      where: {
+        reporterId,
+        targetType: dto.targetType,
+        targetId: dto.targetId,
+        status: { in: ACTIVE_REPORT_STATUSES },
+      },
     });
     if (openCount >= MAX_OPEN_REPORTS_PER_TARGET_PER_USER) {
       throw new BadRequestException('You already have an open report for this. An admin will review it.');
@@ -45,6 +51,14 @@ export class ReportsService {
 
     return this.prisma.report.create({
       data: { reporterId, targetType: dto.targetType, targetId: dto.targetId, category: dto.category, reason: dto.reason, details: dto.details },
+    });
+  }
+
+  async findMine(reporterId: string) {
+    return this.prisma.report.findMany({
+      where: { reporterId },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
     });
   }
 
@@ -121,6 +135,8 @@ export class ReportsService {
   // Counts by target — lets the admin dashboard flag "this provider has 4
   // open reports" without a bespoke query for every screen that needs it.
   async openCountByTarget(targetType: ReportTargetType, targetId: string) {
-    return this.prisma.report.count({ where: { targetType, targetId, status: { not: 'RESOLVED' } } });
+    return this.prisma.report.count({
+      where: { targetType, targetId, status: { in: ACTIVE_REPORT_STATUSES } },
+    });
   }
 }

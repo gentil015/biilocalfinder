@@ -10,7 +10,8 @@ import {
   UploadCloud,
   type LucideIcon,
 } from 'lucide-react';
-import { verificationApi, contactVerificationApi, providersApi, ApiError } from '@/lib/api';
+import { verificationApi, providersApi, ApiError } from '@/lib/api';
+import { ContactVerificationPanel } from '@/components/contact-verification-panel';
 import { PageHeader, Panel, LoadingBlock } from '@/components/ui/page';
 
 const IDENTITY_DOC_OPTIONS = [
@@ -178,121 +179,14 @@ function SubmitForm({
   );
 }
 
-function ContactVerify({ channel, label }: { channel: 'EMAIL' | 'PHONE'; label: string }) {
-  const [stage, setStage] = useState<'idle' | 'sent'>('idle');
-  const [code, setCode] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
-
-  async function send() {
-    setBusy(true);
-    setError(null);
-    try {
-      await contactVerificationApi.request(channel);
-      setStage('sent');
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not send code');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function confirm() {
-    setBusy(true);
-    setError(null);
-    try {
-      await contactVerificationApi.confirm(channel, code);
-      setDone(true);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Incorrect code');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (done) {
-    return (
-      <span className="badge badge-success">
-        <BadgeCheck className="h-3 w-3" aria-hidden="true" />
-        {label} verified
-      </span>
-    );
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-2">
-      {stage === 'idle' ? (
-        <button onClick={send} disabled={busy} className="btn-secondary btn-sm">
-          {busy ? 'Sending…' : `Verify ${label.toLowerCase()}`}
-        </button>
-      ) : (
-        <>
-          <label htmlFor={`verify-${channel.toLowerCase()}`} className="sr-only">
-            Verification code for {label}
-          </label>
-          <input
-            id={`verify-${channel.toLowerCase()}`}
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="6-digit code"
-            className="w-32"
-          />
-          <button onClick={confirm} disabled={busy} className="btn-primary btn-sm">
-            {busy ? 'Checking…' : 'Confirm'}
-          </button>
-        </>
-      )}
-      {error && <span className="text-xs font-medium text-danger-600">{error}</span>}
-    </div>
-  );
-}
-
 export default function ProviderVerificationPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [phone, setPhone] = useState('');
-  const [savingPhone, setSavingPhone] = useState(false);
-  const [phoneError, setPhoneError] = useState<string | null>(null);
-  const [phoneSaved, setPhoneSaved] = useState(false);
-
   const refresh = () => verificationApi.myStatus().then(setData).finally(() => setLoading(false));
 
   useEffect(() => {
     refresh();
-    providersApi.getMe().then((p) => {
-      if (p?.phone || p?.user?.phone) setPhone(p.phone || p.user.phone);
-    }).catch(() => {});
   }, []);
-
-  async function savePhone() {
-    if (!phone.trim()) {
-      setPhoneError('Enter a phone number');
-      return;
-    }
-    setSavingPhone(true);
-    setPhoneError(null);
-    setPhoneSaved(false);
-    try {
-      try {
-        const { usersApi } = await import('@/lib/api');
-        if ((usersApi as any).updateMe) {
-          await (usersApi as any).updateMe({ phone: phone.trim() });
-        } else {
-          await (usersApi as any).update?.({ phone: phone.trim() });
-        }
-      } catch {}
-      try {
-        await providersApi.updateMe({ phone: phone.trim() });
-      } catch {}
-      setPhoneSaved(true);
-      refresh();
-    } catch (err) {
-      setPhoneError(err instanceof ApiError ? err.message : 'Could not save phone');
-    } finally {
-      setSavingPhone(false);
-    }
-  }
 
   if (loading)
     return (
@@ -305,16 +199,18 @@ export default function ProviderVerificationPage() {
   const identity = data.records.find((r: any) => r.type === 'IDENTITY' && !r.offering);
   const business = data.records.find((r: any) => r.type === 'BUSINESS' && !r.offering);
 
-  // Step checklist states. Identity is required; business is optional, so
-  // it reads neutral until completed. Contact state isn't exposed by the
-  // API, so it stays as "set up below" rather than asserting a fact.
+  const contactDone = data.emailVerified && data.phoneVerified;
   const steps: { label: string; hint: string; icon: LucideIcon; iconClass: string; tone: 'done' | 'required' | 'neutral' }[] = [
     {
       label: 'Contact verification',
-      hint: 'Confirm your email and phone so clients can reach you.',
+      hint: contactDone
+        ? 'Email and phone confirmed.'
+        : data.hasPhone
+          ? 'Confirm your email and phone so clients can reach you.'
+          : 'Add a phone number, then confirm your email and phone.',
       icon: Mail,
-      iconClass: 'bg-ink-100 text-ink-500',
-      tone: 'neutral',
+      iconClass: contactDone ? 'bg-success-50 text-success-600' : 'bg-warning-50 text-warning-600',
+      tone: contactDone ? 'done' : 'required',
     },
     {
       label: 'Identity verification',
@@ -398,40 +294,11 @@ export default function ProviderVerificationPage() {
         </ol>
       </Panel>
 
-      <Panel title="Contact verification" className="mb-6">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-ink-900">Email</p>
-              <p className="text-xs text-ink-500">The address on your account.</p>
-            </div>
-            <ContactVerify channel="EMAIL" label="Email" />
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-ink-900">Phone</p>
-              <p className="text-xs text-ink-500">Receive booking and contact updates.</p>
-            </div>
-            {data.hasPhone ? (
-              <ContactVerify channel="PHONE" label="Phone" />
-            ) : (
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+250788000000"
-                  className="w-40"
-                />
-                <button onClick={savePhone} disabled={savingPhone} className="btn-secondary btn-sm">
-                  {savingPhone ? 'Saving…' : 'Add & save'}
-                </button>
-                {phoneSaved && <span className="text-xs text-success-600">Saved</span>}
-                {phoneError && <span className="text-xs font-medium text-danger-600">{phoneError}</span>}
-              </div>
-            )}
-          </div>
-        </div>
-      </Panel>
+      <ContactVerificationPanel
+        className="mb-6"
+        savePhone={(phone) => providersApi.updateMe({ phone })}
+        onChanged={refresh}
+      />
 
       <Panel
         title="Identity verification"

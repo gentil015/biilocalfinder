@@ -13,6 +13,7 @@ import { AddTeamMemberDto } from './dto/add-team-member.dto';
 import { InteractionService } from '../personalization/interactions/interaction.service';
 import { coversPoint, haversineKm } from '../common/utils/geo';
 import { Prisma, ProviderOnboardingStep, ProviderType } from '@prisma/client';
+import { VerificationService } from '../verification/verification.service';
 
 // Only TEAM and AGENCY profiles keep a roster (spec: TEAM "allow team
 // members to be added later", AGENCY "manage or invite multiple providers
@@ -56,6 +57,7 @@ export class ProvidersService {
     private interactions: InteractionService,
     private entitlements: EntitlementsService,
     private providerContext: ProviderContextService,
+    private verification: VerificationService,
   ) {}
 
   async getByUserId(userId: string) {
@@ -203,20 +205,64 @@ export class ProvidersService {
   async updateProfile(userId: string, dto: UpdateProviderProfileDto) {
     const provider = await this.getByUserId(userId);
     const { phone, ...rest } = dto as any;
-    if (phone !== undefined) {
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { phone: phone?.trim() ? phone.trim() : null },
+    const nextPhone = phone !== undefined ? phone?.trim() || null : undefined;
+    let phoneChanged = false;
+
+    const updated = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      if (nextPhone !== undefined) {
+        const current = await tx.user.findUnique({
+          where: { id: userId },
+          select: { phone: true },
+        });
+        if (!current) throw new NotFoundException('User not found');
+
+        phoneChanged = nextPhone !== current.phone;
+        if (nextPhone) {
+          const existing = await tx.user.findFirst({
+            where: { phone: nextPhone, id: { not: userId } },
+            select: { id: true },
+          });
+          if (existing) throw new BadRequestException('Phone number already in use');
+        }
+
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            phone: nextPhone,
+            ...(phoneChanged ? { phoneVerified: false } : {}),
+          },
+        });
+
+        if (phoneChanged) {
+          await tx.contactVerificationCode.updateMany({
+            where: { userId, channel: 'PHONE', consumedAt: null },
+            data: { consumedAt: new Date() },
+          });
+        }
+      }
+
+      const updated = await tx.provider.update({
+        where: { id: provider.id },
+        data: {
+          ...rest,
+          ...(nextPhone !== undefined ? { phone: nextPhone } : {}),
+          // An empty logo means "clear it", not "store an empty string".
+          ...(rest.logoUrl !== undefined ? { logoUrl: rest.logoUrl.trim() || null } : {}),
+        },
       });
-    }
-    return this.prisma.provider.update({
-      where: { id: provider.id },
-      data: {
-        ...rest,
-        // An empty logo means "clear it", not "store an empty string".
-        ...(rest.logoUrl !== undefined ? { logoUrl: rest.logoUrl.trim() || null } : {}),
-      },
+
+      if (phoneChanged) {
+        await this.verification.recomputeProvider(tx, provider.id);
+      }
+
+      return updated;
     });
+
+    if (phoneChanged) {
+      await this.verification.recomputeForUser(userId).catch(() => undefined);
+    }
+
+    return updated;
   }
 
   // Service offerings (with category-specific attributes) now live in

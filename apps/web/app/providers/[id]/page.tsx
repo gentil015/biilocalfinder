@@ -324,7 +324,7 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
           {/* Desktop actions */}
           <div className="hidden w-56 shrink-0 flex-col gap-2 md:flex">
             <Link href={`/requests/new?providerId=${provider.id}`} className="btn-on-dark w-full">
-              Request service
+              Request a booking
               <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
             </Link>
             <MessageProviderButton
@@ -337,6 +337,9 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
               providerId={provider.id}
               className="btn w-full border border-white/15 bg-white/5 text-white hover:border-white/25 hover:bg-white/10"
             />
+            <p className="text-center text-2xs leading-relaxed text-white/50">
+              Free request → quote → accept to book. You pay the provider directly.
+            </p>
           </div>
         </div>
 
@@ -671,7 +674,7 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
 
               <div className="space-y-2 pt-1">
                 <Link href={`/requests/new?providerId=${provider.id}`} className="btn-primary w-full">
-                  Request service
+                  Request a booking
                   <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
                 <MessageProviderButton
@@ -681,6 +684,9 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
                   label="Send a message"
                 />
                 <FavoriteButton providerId={provider.id} className="btn-secondary w-full" />
+                <p className="pt-1 text-center text-2xs leading-relaxed text-ink-400">
+                  Free request → quote → accept to book. You pay the provider directly.
+                </p>
               </div>
             </div>
           </div>
@@ -756,7 +762,7 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
           label="Message"
         />
         <Link href={`/requests/new?providerId=${provider.id}`} className="btn-primary flex-[1.4]">
-          Request service
+          Request a booking
         </Link>
       </div>
     </main>

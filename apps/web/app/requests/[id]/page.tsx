@@ -6,6 +6,7 @@ import Link from 'next/link';
 import {
   ArrowLeft,
   CalendarDays,
+  CheckCircle2,
   Clock,
   Globe,
   Inbox,
@@ -16,6 +17,7 @@ import {
 import { requestsApi, quotesApi, ApiError } from '@/lib/api';
 import { StatusBadge } from '@/components/status-badge';
 import { QuoteThread } from '@/components/quote-thread';
+import { RequestJourney } from '@/components/request-journey';
 import { EmptyState, PageHeader, Panel, Skeleton } from '@/components/ui/page';
 import { BackButton } from '@/components/back-button';
 
@@ -36,6 +38,11 @@ export default function RequestDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
+  const [justSent, setJustSent] = useState(false);
+
+  useEffect(() => {
+    setJustSent(new URLSearchParams(window.location.search).get('sent') === '1');
+  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -148,6 +155,23 @@ export default function RequestDetailPage() {
         </div>
         <StatusBadge status={request.status} />
       </div>
+
+      {justSent && (
+        <div className="alert alert-success mt-6" role="status">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <div>
+            <p className="font-bold">Request sent</p>
+            <p className="mt-0.5 leading-relaxed">
+              {request.provider
+                ? `${request.provider.businessName} has your request and will reply with a quote. You will be notified here.`
+                : 'Matching providers can now send quotes. You will be notified when the first one arrives.'}{' '}
+              Nothing is booked or paid until you accept a quote.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <RequestJourney request={request} quotes={quotes} className="mt-6" />
 
       {/* The brief the providers actually read, so it gets a full panel with
           the structured details set apart from the free text. */}

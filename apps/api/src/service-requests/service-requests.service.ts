@@ -293,11 +293,11 @@ export class ServiceRequestsService {
         where: { id: { in: providerIds } },
         select: { userId: true },
       });
-      const userIds: string[] = [
-        ...new Set(
-          providers
-            .map((p) => p.userId)
-            .filter((userId): userId is string => typeof userId === 'string'),
+      const userIds = [
+        ...new Set<string>(
+          providers.flatMap((provider) =>
+            typeof provider.userId === 'string' ? [provider.userId] : [],
+          ),
         ),
       ];
       await Promise.all(

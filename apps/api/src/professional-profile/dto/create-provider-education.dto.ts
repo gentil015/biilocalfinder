@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsDateString,
   IsInt,
   IsNotEmpty,
@@ -27,6 +29,14 @@ export class CreateProviderEducationDto {
   @IsString()
   @MaxLength(160)
   fieldOfStudy?: string;
+
+  @ApiPropertyOptional({ description: 'Skills selected for this degree', type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  skills?: string[];
 
   @ApiPropertyOptional({ description: 'ISO date (YYYY-MM-DD)' })
   @IsOptional()

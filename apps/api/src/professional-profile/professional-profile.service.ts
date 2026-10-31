@@ -18,6 +18,23 @@ function assertDateOrder(start?: Date | null, end?: Date | null) {
   }
 }
 
+// Deduplicate by case-insensitive label and drop blanks, so re-saving an
+// edited form never stores the same skill twice.
+function normalizeSkills(skills?: string[] | null): string[] | undefined {
+  if (skills == null) return undefined;
+  const seen = new Set<string>();
+  return skills
+    .map((skill) => skill.trim())
+    .filter((skill) => {
+      if (!skill) return false;
+      const key = skill.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 20);
+}
+
 @Injectable()
 export class ProfessionalProfileService {
   constructor(
@@ -127,6 +144,7 @@ export class ProfessionalProfileService {
         school: dto.school.trim(),
         degree: dto.degree?.trim() || null,
         fieldOfStudy: dto.fieldOfStudy?.trim() || null,
+        skills: normalizeSkills(dto.skills) ?? [],
         startDate,
         endDate,
         description: dto.description?.trim() || null,
@@ -152,6 +170,7 @@ export class ProfessionalProfileService {
         school: dto.school?.trim(),
         degree: dto.degree !== undefined ? dto.degree?.trim() || null : undefined,
         fieldOfStudy: dto.fieldOfStudy !== undefined ? dto.fieldOfStudy?.trim() || null : undefined,
+        skills: normalizeSkills(dto.skills),
         startDate,
         endDate,
         description: dto.description !== undefined ? dto.description?.trim() || null : undefined,

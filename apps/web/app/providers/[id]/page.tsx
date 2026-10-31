@@ -552,6 +552,15 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
                           {range && <p className="mt-0.5 text-xs text-ink-500">{range}</p>}
                         </div>
                       </div>
+                      {item.skills?.length > 0 && (
+                        <div className="mt-2.5 flex flex-wrap gap-1.5">
+                          {item.skills.map((skill: string) => (
+                            <span key={skill} className="chip py-0.5 text-2xs font-semibold">
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       {item.description && (
                         <p className="mt-2.5 whitespace-pre-line text-sm leading-relaxed text-ink-600">{item.description}</p>
                       )}

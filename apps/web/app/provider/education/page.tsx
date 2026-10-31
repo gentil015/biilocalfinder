@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import {
-  BookOpen,
   CalendarDays,
   Check,
   GraduationCap,
   Pencil,
   Plus,
   School,
+  Sparkles,
   Trash2,
   X,
 } from 'lucide-react';
@@ -20,11 +20,20 @@ import {
 } from '@/lib/api';
 import { PageHeader, Panel, EmptyState, LoadingBlock, StatCard } from '@/components/ui/page';
 import { ProviderProfileNav } from '@/components/provider-profile-nav';
+import {
+  DEGREE_PROGRAMS,
+  GENERAL_SKILLS,
+  OTHER_DEGREE,
+  isCatalogueDegree,
+  skillsForDegree,
+} from '@/lib/education-skills';
 
 const EMPTY_FORM = {
   school: '',
   degree: '',
+  customDegree: '',
   fieldOfStudy: '',
+  skills: [] as string[],
   startMonth: '',
   endMonth: '',
   description: '',
@@ -84,10 +93,12 @@ export default function ProviderEducationPage() {
     () => new Set(items.map((item) => item.school.trim().toLowerCase())).size,
     [items],
   );
-  const fields = useMemo(
-    () => new Set(items.map((item) => item.fieldOfStudy?.trim().toLowerCase()).filter(Boolean)).size,
+  const totalSkills = useMemo(
+    () => new Set(items.flatMap((item) => item.skills ?? []).map((skill) => skill.toLowerCase())).size,
     [items],
   );
+  const availableSkills = useMemo(() => skillsForDegree(form.degree), [form.degree]);
+  const isOtherDegree = form.degree === OTHER_DEGREE;
 
   function openAdd() {
     setEditingId(null);
@@ -97,11 +108,14 @@ export default function ProviderEducationPage() {
   }
 
   function openEdit(item: ProviderEducation) {
+    const catalogued = isCatalogueDegree(item.degree);
     setEditingId(item.id);
     setForm({
       school: item.school,
-      degree: item.degree ?? '',
+      degree: catalogued ? item.degree! : item.degree ? OTHER_DEGREE : '',
+      customDegree: catalogued ? '' : item.degree ?? '',
       fieldOfStudy: item.fieldOfStudy ?? '',
+      skills: item.skills ?? [],
       startMonth: isoToMonth(item.startDate),
       endMonth: isoToMonth(item.endDate),
       description: item.description ?? '',
@@ -120,10 +134,37 @@ export default function ProviderEducationPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function changeDegree(value: string) {
+    setError(null);
+    setForm((prev) => ({
+      ...prev,
+      degree: value,
+      customDegree: value === OTHER_DEGREE ? prev.customDegree : '',
+      // A different programme has a different skill list; keeping the old
+      // chips would save skills that no longer belong to this degree.
+      skills: prev.degree === value ? prev.skills : [],
+    }));
+  }
+
+  function toggleSkill(skill: string) {
+    setError(null);
+    setForm((prev) => {
+      if (prev.skills.includes(skill)) {
+        return { ...prev, skills: prev.skills.filter((item) => item !== skill) };
+      }
+      if (prev.skills.length >= 20) return prev;
+      return { ...prev, skills: [...prev.skills, skill] };
+    });
+  }
+
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!form.school.trim()) {
       setError('Add the school or institution name.');
+      return;
+    }
+    if (isOtherDegree && !form.customDegree.trim()) {
+      setError('Write the name of your degree or programme.');
       return;
     }
     if (form.startMonth && form.endMonth && form.endMonth < form.startMonth) {
@@ -131,10 +172,17 @@ export default function ProviderEducationPage() {
       return;
     }
 
+    const degree = isOtherDegree ? form.customDegree.trim() : form.degree;
+    // Only save chips that belong to the chosen degree. This protects
+    // against a stale form state if the catalogue changes underneath.
+    const allowed = new Set<string>(skillsForDegree(form.degree));
+    const skills = form.skills.filter((skill) => allowed.has(skill));
+
     const payload: EducationInput = {
       school: form.school.trim(),
-      degree: form.degree.trim() || undefined,
+      degree: degree || undefined,
       fieldOfStudy: form.fieldOfStudy.trim() || undefined,
+      skills,
       startDate: monthToIso(form.startMonth),
       endDate: monthToIso(form.endMonth),
       description: form.description.trim() || undefined,
@@ -175,7 +223,7 @@ export default function ProviderEducationPage() {
       <PageHeader
         eyebrow="Professional profile"
         title="Education"
-        description="Schools, training and qualifications. Clients see this on your public profile next to your experience."
+        description="Schools, training and qualifications. Pick a programme to unlock the skills that belong to it."
         actions={
           <button type="button" onClick={openAdd} className="btn-primary">
             <Plus className="h-4 w-4" aria-hidden="true" />
@@ -189,13 +237,13 @@ export default function ProviderEducationPage() {
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatCard icon={GraduationCap} label="Qualifications" value={String(items.length)} />
         <StatCard icon={School} label="Institutions" value={String(schools)} tone="brand" />
-        <StatCard icon={BookOpen} label="Fields of study" value={String(fields)} />
+        <StatCard icon={Sparkles} label="Skills added" value={String(totalSkills)} />
       </div>
 
       {editorOpen && (
         <Panel
           title={editingId ? 'Edit education' : 'Add education'}
-          description="Dates are optional. Add them when you want clients to see when you studied."
+          description="Choose a degree or programme, then select the skills you learned. Dates are optional."
           className="mb-6"
           actions={
             <button type="button" onClick={closeEditor} className="btn-ghost btn-sm" aria-label="Close editor">
@@ -221,29 +269,51 @@ export default function ProviderEducationPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="field">
                 <label htmlFor="edu-degree" className="label">
-                  Degree or certificate <span className="font-normal text-ink-400">(optional)</span>
+                  Degree or programme
                 </label>
-                <input
+                <select
                   id="edu-degree"
                   value={form.degree}
-                  onChange={(e) => update('degree', e.target.value)}
-                  placeholder="e.g. Diploma"
-                  maxLength={160}
-                />
+                  onChange={(e) => changeDegree(e.target.value)}
+                >
+                  <option value="">Select a degree or programme</option>
+                  {DEGREE_PROGRAMS.map((program) => (
+                    <option key={program.label} value={program.label}>
+                      {program.label}
+                    </option>
+                  ))}
+                  <option value={OTHER_DEGREE}>Other (write your own)</option>
+                </select>
               </div>
               <div className="field">
                 <label htmlFor="edu-field" className="label">
-                  Field of study <span className="font-normal text-ink-400">(optional)</span>
+                  Specialization <span className="font-normal text-ink-400">(optional)</span>
                 </label>
                 <input
                   id="edu-field"
                   value={form.fieldOfStudy}
                   onChange={(e) => update('fieldOfStudy', e.target.value)}
-                  placeholder="e.g. Electrical engineering"
+                  placeholder="e.g. Solar installation"
                   maxLength={160}
                 />
               </div>
             </div>
+
+            {isOtherDegree && (
+              <div className="field">
+                <label htmlFor="edu-custom-degree" className="label">
+                  Your degree or programme
+                </label>
+                <input
+                  id="edu-custom-degree"
+                  value={form.customDegree}
+                  onChange={(e) => update('customDegree', e.target.value)}
+                  placeholder="e.g. Refrigeration technician certificate"
+                  maxLength={160}
+                  required
+                />
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="field">
@@ -269,6 +339,58 @@ export default function ProviderEducationPage() {
                 />
               </div>
             </div>
+
+            <fieldset className="rounded-2xl border border-ink-200 bg-ink-50/40 p-4">
+              <legend className="sr-only">Skills for this degree</legend>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-bold text-ink-950">Skills</p>
+                  <p className="text-xs text-ink-500">
+                    {form.degree
+                      ? isOtherDegree
+                        ? 'Pick the skills that apply to your programme.'
+                        : `Skills commonly gained from ${form.degree}.`
+                      : 'Choose a degree or programme to see matching skills.'}
+                  </p>
+                </div>
+                <span className="badge badge-neutral">{form.skills.length}/20 selected</span>
+              </div>
+
+              {!form.degree ? (
+                <p className="rounded-xl border border-dashed border-ink-200 bg-surface px-3 py-4 text-xs text-ink-500">
+                  Skills unlock after you select a degree or programme above.
+                </p>
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {(availableSkills.length ? availableSkills : GENERAL_SKILLS).map((skill) => {
+                    const selected = form.skills.includes(skill);
+                    return (
+                      <button
+                        key={skill}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => toggleSkill(skill)}
+                        className={`flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-xs font-semibold transition ${
+                          selected
+                            ? 'border-brand-400 bg-brand-50 text-brand-800 shadow-sm'
+                            : 'border-ink-200 bg-surface text-ink-600 hover:border-brand-200 hover:bg-brand-50/40'
+                        }`}
+                      >
+                        <span
+                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
+                            selected ? 'border-brand-600 bg-brand-600 text-white' : 'border-ink-300 bg-surface'
+                          }`}
+                          aria-hidden="true"
+                        >
+                          {selected && <Check className="h-3 w-3" />}
+                        </span>
+                        <span className="min-w-0">{skill}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </fieldset>
 
             <div className="field">
               <label htmlFor="edu-description" className="label">
@@ -356,6 +478,17 @@ export default function ProviderEducationPage() {
                   </p>
                 </div>
               </div>
+
+              {item.skills?.length > 0 && (
+                <div className="relative mt-3 flex flex-wrap gap-1.5">
+                  {item.skills.map((skill) => (
+                    <span key={skill} className="chip py-0.5 text-2xs font-semibold">
+                      <Sparkles className="h-3 w-3" aria-hidden="true" />
+                      {skill}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {item.description && (
                 <p className="relative mt-3 whitespace-pre-line text-sm leading-relaxed text-ink-600">{item.description}</p>

@@ -79,8 +79,35 @@ describe('ProfessionalProfileService', () => {
       school: 'KIST',
       degree: null,
       fieldOfStudy: null,
+      skills: [],
       startDate: null,
       endDate: null,
     });
+  });
+
+  it('trims and de-duplicates education skills case-insensitively', async () => {
+    const result = await service.createEducation('user-1', {
+      school: 'KIST',
+      degree: 'Electrical Installation',
+      skills: [' Electrical wiring ', 'electrical WIRING', 'Fault finding', '   '],
+    });
+
+    expect(result).toMatchObject({
+      skills: ['Electrical wiring', 'Fault finding'],
+    });
+  });
+
+  it('replaces skills on update and leaves them alone when omitted', async () => {
+    prisma.providerEducation.findUnique.mockResolvedValue({ id: 'edu-1', providerId: 'provider-1' });
+
+    await service.updateEducation('user-1', 'edu-1', { skills: ['Tiling', 'Tiling'] });
+    expect(prisma.providerEducation.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ skills: ['Tiling'] }) }),
+    );
+
+    await service.updateEducation('user-1', 'edu-1', { school: 'KIST' });
+    expect(prisma.providerEducation.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ skills: undefined }) }),
+    );
   });
 });

@@ -626,6 +626,10 @@ model ProviderEducation {
   school       String
   degree       String?
   fieldOfStudy String?
+  // Selected from the degree-specific skill catalogue on the education
+  // page. Stored as labels so the public profile can render them without
+  // needing the catalogue; the API caps the count and item length.
+  skills       String[]  @default([])
   startDate    DateTime? @db.Date
   endDate      DateTime? @db.Date
   description  String?

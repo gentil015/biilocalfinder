@@ -712,6 +712,7 @@ export interface ProviderEducation {
   school: string;
   degree: string | null;
   fieldOfStudy: string | null;
+  skills: string[];
   startDate: string | null;
   endDate: string | null;
   description: string | null;
@@ -735,6 +736,7 @@ export interface EducationInput {
   school: string;
   degree?: string;
   fieldOfStudy?: string;
+  skills?: string[];
   startDate?: string | null;
   endDate?: string | null;
   description?: string;

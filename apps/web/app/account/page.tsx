@@ -16,12 +16,14 @@ import {
   LayoutDashboard,
   LogOut,
   MessagesSquare,
+  Pencil,
   ShieldCheck,
   Download,
   Flag,
   GraduationCap,
   Sparkles,
   Trash2,
+  UserCog,
   UserRound,
   type LucideIcon,
 } from 'lucide-react';
@@ -92,6 +94,12 @@ const ACTIVITY_LINKS: AccountLink[] = [
 // same dashboard shell and workspace context applies; the account page is
 // simply the discoverable entry point for a provider who starts here.
 const PROVIDER_LINKS: AccountLink[] = [
+  {
+    href: '/provider/profile',
+    labelKey: 'account.linkProviderProfile',
+    descriptionKey: 'account.linkProviderProfileBody',
+    icon: UserCog,
+  },
   {
     href: '/provider/analytics',
     labelKey: 'account.linkAnalytics',
@@ -277,6 +285,15 @@ export default function AccountPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              {(isProvider || isClient) && (
+                <Link
+                  href={isProvider ? '/provider/profile' : '/account/profile'}
+                  className="btn-secondary btn-sm"
+                >
+                  <Pencil className="h-4 w-4" aria-hidden="true" />
+                  {t('account.editProfile')}
+                </Link>
+              )}
               <span className="inline-flex items-center gap-2 rounded-full bg-ink-50 px-3 py-1.5 text-xs font-semibold text-ink-600">
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success-500 opacity-60" />

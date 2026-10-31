@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import {
+  BarChart3,
   ChevronDown,
   FolderTree,
   ShieldCheck,
@@ -34,6 +35,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
  * supplies that chrome, scoped to moderation only.
  */
 const ADMIN_NAV: { label: string; href: string; icon: LucideIcon }[] = [
+  { label: 'Business', href: '/admin/business', icon: BarChart3 },
   { label: 'Users', href: '/admin/users', icon: Users },
   { label: 'Audit logs', href: '/admin/audit-logs', icon: History },
   { label: 'Subscriptions', href: '/admin/subscriptions', icon: CreditCard },

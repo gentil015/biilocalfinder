@@ -5,6 +5,18 @@ import { AuditLogService } from '../common/services/audit-log.service';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { ListAuditLogsQueryDto } from './dto/list-audit-logs-query.dto';
 import { ListSubscriptionsQueryDto } from './dto/list-subscriptions-query.dto';
+import { BusinessAnalyticsQueryDto } from './dto/business-analytics-query.dto';
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function percentageChange(current: number, previous: number): number | null {
+  if (previous === 0) return current === 0 ? 0 : null;
+  return Math.round(((current - previous) / previous) * 100);
+}
+
+function rate(numerator: number, denominator: number): number {
+  return denominator > 0 ? Math.round((numerator / denominator) * 100) : 0;
+}
 
 @Injectable()
 export class AdminService {
@@ -53,6 +65,196 @@ export class AdminService {
       openReports,
       openDisputes,
       pendingProviderApplications,
+    };
+  }
+
+  async businessAnalytics(query: BusinessAnalyticsQueryDto) {
+    const days = Number(query.days) || 30;
+    const now = new Date();
+    const periodStart = new Date(now.getTime() - days * DAY_MS);
+    const previousStart = new Date(periodStart.getTime() - days * DAY_MS);
+
+    const [
+      registeredProviders,
+      activeProviders,
+      availableProviders,
+      newProviders,
+      newProvidersPrevious,
+      totalRequests,
+      requestsInPeriod,
+      requestsPrevious,
+      bookingsInPeriod,
+      bookingsPrevious,
+      successfulConnections,
+      successfulConnectionsPrevious,
+      cancelledInPeriod,
+      reportsInPeriod,
+      reportsPrevious,
+      disputesInPeriod,
+      disputesPrevious,
+      openReports,
+      openDisputes,
+      totalReports,
+      totalDisputes,
+      totalUsers,
+      newUsers,
+      newUsersPrevious,
+      deactivatedUsers,
+      suspendedUsers,
+    ] = await this.prisma.$transaction([
+      this.prisma.provider.count(),
+      this.prisma.provider.count({
+        where: {
+          user: { is: { status: 'ACTIVE' } },
+          verificationStatus: { not: 'SUSPENDED' },
+        },
+      }),
+      this.prisma.provider.count({
+        where: {
+          user: { is: { status: 'ACTIVE' } },
+          availabilityStatus: 'AVAILABLE',
+          verificationStatus: { not: 'SUSPENDED' },
+        },
+      }),
+      this.prisma.provider.count({ where: { createdAt: { gte: periodStart } } }),
+      this.prisma.provider.count({ where: { createdAt: { gte: previousStart, lt: periodStart } } }),
+      this.prisma.serviceRequest.count(),
+      this.prisma.serviceRequest.count({ where: { createdAt: { gte: periodStart } } }),
+      this.prisma.serviceRequest.count({ where: { createdAt: { gte: previousStart, lt: periodStart } } }),
+      this.prisma.booking.count({ where: { createdAt: { gte: periodStart } } }),
+      this.prisma.booking.count({ where: { createdAt: { gte: previousStart, lt: periodStart } } }),
+      this.prisma.booking.count({ where: { status: 'COMPLETED', completedAt: { gte: periodStart } } }),
+      this.prisma.booking.count({
+        where: { status: 'COMPLETED', completedAt: { gte: previousStart, lt: periodStart } },
+      }),
+      this.prisma.booking.count({ where: { status: 'CANCELLED', cancelledAt: { gte: periodStart } } }),
+      this.prisma.report.count({ where: { createdAt: { gte: periodStart } } }),
+      this.prisma.report.count({ where: { createdAt: { gte: previousStart, lt: periodStart } } }),
+      this.prisma.dispute.count({ where: { createdAt: { gte: periodStart } } }),
+      this.prisma.dispute.count({ where: { createdAt: { gte: previousStart, lt: periodStart } } }),
+      this.prisma.report.count({ where: { status: { in: ['OPEN', 'UNDER_REVIEW'] } } }),
+      this.prisma.dispute.count({ where: { status: { in: ['OPEN', 'RESPONDED', 'UNDER_REVIEW'] } } }),
+      this.prisma.report.count(),
+      this.prisma.dispute.count(),
+      this.prisma.user.count({ where: { role: { not: 'ADMIN' } } }),
+      this.prisma.user.count({ where: { role: { not: 'ADMIN' }, createdAt: { gte: periodStart } } }),
+      this.prisma.user.count({
+        where: { role: { not: 'ADMIN' }, createdAt: { gte: previousStart, lt: periodStart } },
+      }),
+      this.prisma.user.count({ where: { role: { not: 'ADMIN' }, status: 'DEACTIVATED' } }),
+      this.prisma.user.count({ where: { role: { not: 'ADMIN' }, status: 'SUSPENDED' } }),
+    ]);
+
+    const [activeUserRows, activeUserPreviousRows, inactiveUserRows, churnedUserRows] = await Promise.all([
+      this.prisma.$queryRaw<Array<{ count: number }>>`
+        SELECT COUNT(DISTINCT rt."userId")::int AS count
+        FROM "refresh_tokens" rt
+        JOIN "users" u ON u."id" = rt."userId"
+        WHERE rt."createdAt" >= ${periodStart}
+          AND u."role"::text <> 'ADMIN'
+      `,
+      this.prisma.$queryRaw<Array<{ count: number }>>`
+        SELECT COUNT(DISTINCT rt."userId")::int AS count
+        FROM "refresh_tokens" rt
+        JOIN "users" u ON u."id" = rt."userId"
+        WHERE rt."createdAt" >= ${previousStart}
+          AND rt."createdAt" < ${periodStart}
+          AND u."role"::text <> 'ADMIN'
+      `,
+      this.prisma.$queryRaw<Array<{ count: number }>>`
+        SELECT COUNT(*)::int AS count
+        FROM "users" u
+        WHERE u."createdAt" < ${periodStart}
+          AND u."role"::text <> 'ADMIN'
+          AND NOT EXISTS (
+            SELECT 1
+            FROM "refresh_tokens" rt
+            WHERE rt."userId" = u."id"
+              AND rt."createdAt" >= ${periodStart}
+          )
+      `,
+      this.prisma.$queryRaw<Array<{ count: number }>>`
+        SELECT COUNT(*)::int AS count
+        FROM (
+          SELECT DISTINCT rt."userId"
+          FROM "refresh_tokens" rt
+          JOIN "users" u ON u."id" = rt."userId"
+          WHERE rt."createdAt" >= ${previousStart}
+            AND rt."createdAt" < ${periodStart}
+            AND u."role"::text <> 'ADMIN'
+          EXCEPT
+          SELECT DISTINCT rt."userId"
+          FROM "refresh_tokens" rt
+          JOIN "users" u ON u."id" = rt."userId"
+          WHERE rt."createdAt" >= ${periodStart}
+            AND u."role"::text <> 'ADMIN'
+        ) churned
+      `,
+    ]);
+
+    const activeUsers = Number(activeUserRows[0]?.count ?? 0);
+    const activeUsersPrevious = Number(activeUserPreviousRows[0]?.count ?? 0);
+    const inactiveUsers = Number(inactiveUserRows[0]?.count ?? 0);
+    const churnedUsers = Number(churnedUserRows[0]?.count ?? 0);
+    const complaintsInPeriod = reportsInPeriod + disputesInPeriod;
+    const complaintsPrevious = reportsPrevious + disputesPrevious;
+    const openComplaints = openReports + openDisputes;
+
+    return {
+      periodDays: days,
+      periodLabel: `Last ${days} days`,
+      periodStart: periodStart.toISOString(),
+      generatedAt: now.toISOString(),
+      providers: {
+        registered: registeredProviders,
+        active: activeProviders,
+        availableNow: availableProviders,
+        newInPeriod: newProviders,
+        newInPreviousPeriod: newProvidersPrevious,
+        activeRate: rate(activeProviders, registeredProviders),
+        newChange: percentageChange(newProviders, newProvidersPrevious),
+      },
+      bookings: {
+        totalRequests,
+        requestsInPeriod,
+        requestsInPreviousPeriod: requestsPrevious,
+        bookingsInPeriod,
+        bookingsInPreviousPeriod: bookingsPrevious,
+        successfulConnections,
+        successfulConnectionsInPreviousPeriod: successfulConnectionsPrevious,
+        cancelledInPeriod,
+        connectionRate: rate(successfulConnections, requestsInPeriod),
+        requestsChange: percentageChange(requestsInPeriod, requestsPrevious),
+        connectionsChange: percentageChange(successfulConnections, successfulConnectionsPrevious),
+      },
+      complaints: {
+        total: totalReports + totalDisputes,
+        inPeriod: complaintsInPeriod,
+        inPreviousPeriod: complaintsPrevious,
+        open: openComplaints,
+        openReports,
+        openDisputes,
+        reportsInPeriod,
+        disputesInPeriod,
+        reportsTotal: totalReports,
+        disputesTotal: totalDisputes,
+        change: percentageChange(complaintsInPeriod, complaintsPrevious),
+      },
+      users: {
+        total: totalUsers,
+        newInPeriod: newUsers,
+        newInPreviousPeriod: newUsersPrevious,
+        activeInPeriod: activeUsers,
+        activeInPreviousPeriod: activeUsersPrevious,
+        inactive: inactiveUsers,
+        churned: churnedUsers,
+        deactivated: deactivatedUsers,
+        suspended: suspendedUsers,
+        churnRate: rate(churnedUsers, activeUsersPrevious),
+        retentionRate: activeUsersPrevious > 0 ? 100 - rate(churnedUsers, activeUsersPrevious) : 0,
+        newChange: percentageChange(newUsers, newUsersPrevious),
+        activeChange: percentageChange(activeUsers, activeUsersPrevious),
+      },
     };
   }
 

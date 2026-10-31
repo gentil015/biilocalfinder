@@ -8,6 +8,7 @@ import { AdminService } from './admin.service';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { ListAuditLogsQueryDto } from './dto/list-audit-logs-query.dto';
 import { ListSubscriptionsQueryDto } from './dto/list-subscriptions-query.dto';
+import { BusinessAnalyticsQueryDto } from './dto/business-analytics-query.dto';
 
 // Everything here is admin-only — categories/services/subscription plans/
 // provider verification/reports/disputes each have their own admin-gated
@@ -25,6 +26,11 @@ export class AdminController {
   @Get('dashboard')
   dashboard() {
     return this.adminService.dashboard();
+  }
+
+  @Get('business')
+  business(@Query() query: BusinessAnalyticsQueryDto) {
+    return this.adminService.businessAnalytics(query);
   }
 
   @Get('users')

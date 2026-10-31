@@ -336,6 +336,63 @@ export interface AdminDashboardStats {
   pendingProviderApplications: number;
 }
 
+export interface AdminBusinessAnalytics {
+  periodDays: number;
+  periodLabel: string;
+  periodStart: string;
+  generatedAt: string;
+  providers: {
+    registered: number;
+    active: number;
+    availableNow: number;
+    newInPeriod: number;
+    newInPreviousPeriod: number;
+    activeRate: number;
+    newChange: number | null;
+  };
+  bookings: {
+    totalRequests: number;
+    requestsInPeriod: number;
+    requestsInPreviousPeriod: number;
+    bookingsInPeriod: number;
+    bookingsInPreviousPeriod: number;
+    successfulConnections: number;
+    successfulConnectionsInPreviousPeriod: number;
+    cancelledInPeriod: number;
+    connectionRate: number;
+    requestsChange: number | null;
+    connectionsChange: number | null;
+  };
+  complaints: {
+    total: number;
+    inPeriod: number;
+    inPreviousPeriod: number;
+    open: number;
+    openReports: number;
+    openDisputes: number;
+    reportsInPeriod: number;
+    disputesInPeriod: number;
+    reportsTotal: number;
+    disputesTotal: number;
+    change: number | null;
+  };
+  users: {
+    total: number;
+    newInPeriod: number;
+    newInPreviousPeriod: number;
+    activeInPeriod: number;
+    activeInPreviousPeriod: number;
+    inactive: number;
+    churned: number;
+    deactivated: number;
+    suspended: number;
+    churnRate: number;
+    retentionRate: number;
+    newChange: number | null;
+    activeChange: number | null;
+  };
+}
+
 export interface AdminUser {
   id: string;
   email: string;
@@ -422,6 +479,7 @@ export interface AdminSubscriptionsPage {
 
 export const adminApi = {
   dashboard: () => authRequest<AdminDashboardStats>('/admin/dashboard'),
+  business: (days: number) => authRequest<AdminBusinessAnalytics>(`/admin/business?days=${days}`),
   users: (params: { search?: string; role?: AdminUser['role']; status?: AdminUser['status']; page?: number }) => {
     const query = new URLSearchParams();
     if (params.search) query.set('search', params.search);

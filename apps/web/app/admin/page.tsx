@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
   ArrowRight,
+  BarChart3,
   ClipboardList,
   CreditCard,
   Flag,
@@ -20,6 +21,12 @@ import { adminApi, type AdminDashboardStats } from '@/lib/api';
 import { PageHeader, Panel, StatCard, Skeleton, EmptyState } from '@/components/ui/page';
 
 const QUEUES: { href: string; label: string; description: string; icon: LucideIcon; stat?: keyof AdminDashboardStats }[] = [
+  {
+    href: '/admin/business',
+    label: 'Business performance',
+    description: 'Provider supply, booking demand, completed connections, complaints and retention.',
+    icon: BarChart3,
+  },
   {
     href: '/admin/audit-logs',
     label: 'Audit logs',

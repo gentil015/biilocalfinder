@@ -38,6 +38,23 @@ const ROWS: {
     value: (p) => (p.reviewCount != null ? Number(p.reviewCount) : null),
   },
   {
+    key: 'completedJobs',
+    label: 'Completed jobs',
+    better: 'higher',
+    render: (p) => <span className="tabular">{p.completedJobCount}</span>,
+    value: (p) => Number(p.completedJobCount),
+  },
+  {
+    key: 'responseRate',
+    label: 'Quote response rate',
+    better: 'higher',
+    render: (p) =>
+      p.responseRateSummary
+        ? `${p.responseRateSummary.percentage}% (${p.responseRateSummary.answeredRequests}/${p.responseRateSummary.totalRequests})`
+        : 'No request data',
+    value: (p) => (p.responseRateSummary ? Number(p.responseRateSummary.percentage) : null),
+  },
+  {
     key: 'experience',
     label: 'Experience',
     better: 'higher',
@@ -72,13 +89,6 @@ const ROWS: {
         <span className="text-ink-300">—</span>
       ),
     value: (p) => (p.verificationStatus === 'VERIFIED' ? 1 : 0),
-  },
-  {
-    key: 'response',
-    label: 'Response time',
-    better: 'lower',
-    render: (p) => (p.responseTimeMinutes != null ? `~${p.responseTimeMinutes} min` : '—'),
-    value: (p) => (p.responseTimeMinutes != null ? Number(p.responseTimeMinutes) : null),
   },
   {
     key: 'availability',
@@ -135,8 +145,8 @@ function CompareContent() {
           </span>
           <h1 className="mt-4 font-display text-lg font-bold text-ink-950">Nothing to compare yet</h1>
           <p className="mt-1.5 max-w-sm text-sm text-ink-500">
-            Select two or three providers from your search results and their quotes, ratings and
-            response times will line up here.
+              Select two or three providers from your search results to compare their completed jobs,
+            reviews and quote response rates.
           </p>
           <Link href="/search" className="btn-primary btn-sm mt-5">
             Browse providers <ArrowRight className="h-4 w-4" aria-hidden="true" />

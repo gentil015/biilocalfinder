@@ -502,16 +502,8 @@ function NewServiceRequestForm() {
     [form.serviceId, form.title, form.description],
   );
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submitRequest() {
     setError(null);
-
-    // Enter inside a field should advance the wizard, never send the request
-    // before the client has seen the review step.
-    if (currentStep.id !== 'review') {
-      goNext();
-      return;
-    }
 
     const invalidId = VALIDATED_STEPS.find(
       (id) => steps.some((step) => step.id === id) && getStepError(id),
@@ -549,6 +541,19 @@ function NewServiceRequestForm() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    // Keep Enter-key navigation predictable; the direct-send button is the
+    // explicit shortcut for clients who are ready to send without reviewing.
+    if (currentStep.id !== 'review') {
+      goNext();
+      return;
+    }
+
+    await submitRequest();
   }
 
   const selectedServiceName =
@@ -1021,10 +1026,21 @@ function NewServiceRequestForm() {
                 {loading ? t('requests.new.sending') : t('requests.new.send')}
               </button>
             ) : (
-              <button type="button" onClick={goNext} className="btn-primary w-full sm:w-auto">
-                {t('requestSteps.continue')}
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </button>
+              <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+                <button type="button" onClick={goNext} className="btn-secondary w-full sm:w-auto">
+                  {t('requestSteps.continue')}
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  disabled={loading || !ready}
+                  onClick={submitRequest}
+                  className="btn-primary w-full sm:w-auto"
+                >
+                  <Send className="h-4 w-4" aria-hidden="true" />
+                  {loading ? t('requests.new.sending') : t('requestSteps.sendNow')}
+                </button>
+              </div>
             )}
           </div>
         </Panel>

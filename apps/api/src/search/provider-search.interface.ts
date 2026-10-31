@@ -13,7 +13,6 @@ export interface ProviderSearchResultItem {
   businessVerified: boolean;
   availabilityStatus: string;
   yearsOfExperience: number;
-  responseTimeMinutes: number | null;
   distanceKm: number | null;
   // Only meaningful when the search included lat/lng: true when the query
   // point falls inside one of this provider's drawn coverage circles

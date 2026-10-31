@@ -3,7 +3,6 @@ export interface RankableProvider {
   distanceKm: number | null;
   rating: number;
   availabilityStatus: string;
-  responseRate: number;
   yearsOfExperience: number;
   verificationStatus: string;
   subscriptionStatus: string;

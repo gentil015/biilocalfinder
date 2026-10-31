@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { providerAnalyticsApi, ProviderAnalyticsSummary } from '@/lib/api';
 import { PageHeader, Panel, StatCard, LoadingBlock } from '@/components/ui/page';
+import { ProviderProfileNav } from '@/components/provider-profile-nav';
 
 export default function ProviderAnalyticsPage() {
   const [data, setData] = useState<ProviderAnalyticsSummary | null>(null);
@@ -47,6 +48,8 @@ export default function ProviderAnalyticsPage() {
   return (
     <main className="page-narrow py-6 md:py-8">
       <PageHeader eyebrow="Provider" title="Analytics" description={data.periodLabel} />
+
+      <ProviderProfileNav className="mb-6" />
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
         <StatCard icon={Eye} label="Profile views" value={String(data.profileViews)} />

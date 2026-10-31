@@ -538,6 +538,11 @@ model Provider {
   subscriptions    ProviderSubscription[]
   conversations    ConversationParticipant[]
   verifications    VerificationRecord[]
+  // Professional history shown on the public profile (Experience / Education
+  // tabs). Kept as separate tables rather than columns on Provider because a
+  // provider can have any number of entries.
+  experiences      ProviderExperience[]
+  educations       ProviderEducation[]
   // TEAM: members added after onboarding (spec: "allow team members to be
   // added later"). AGENCY: reuses the same table for providers it manages
   // or has invited (spec: "manage or invite multiple providers later") —
@@ -588,6 +593,50 @@ model ProviderTeamMember {
 enum TeamMemberStatus {
   INVITED
   ACTIVE
+}
+
+// A job/role in the provider's professional history. Shown publicly on the
+// provider profile's Experience section and editable from the provider
+// dashboard. `isCurrent` keeps the entry open-ended (no end date).
+model ProviderExperience {
+  id           String    @id @default(uuid())
+  providerId   String
+  title        String
+  organization String
+  location     String?
+  startDate    DateTime  @db.Date
+  endDate      DateTime? @db.Date
+  isCurrent    Boolean   @default(false)
+  description  String?
+  position     Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId])
+  @@map("provider_experiences")
+}
+
+// A school/qualification in the provider's professional history. Dates are
+// optional because people often know the qualification but not exact months.
+model ProviderEducation {
+  id           String    @id @default(uuid())
+  providerId   String
+  school       String
+  degree       String?
+  fieldOfStudy String?
+  startDate    DateTime? @db.Date
+  endDate      DateTime? @db.Date
+  description  String?
+  position     Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId])
+  @@map("provider_educations")
 }
 
 // ---------- Multi-provider workspace layer (Phase 2) ----------

@@ -36,11 +36,14 @@ const PUBLIC_PROVIDER_INCLUDE = {
   },
   serviceAreas: true,
   availabilities: true,
+  experiences: { orderBy: [{ position: 'asc' as const }, { startDate: 'desc' as const }] },
+  educations: { orderBy: [{ position: 'asc' as const }, { startDate: 'desc' as const }] },
   portfolios: {
     include: { images: { orderBy: { position: 'asc' as const } }, service: true },
     orderBy: { createdAt: 'desc' as const },
   },
   reviews: {
+    where: { status: 'PUBLISHED', booking: { is: { status: 'COMPLETED' } } },
     take: 5,
     orderBy: { createdAt: 'desc' as const },
     include: { client: { include: { user: { select: { firstName: true, avatarUrl: true } } } } },
@@ -94,7 +97,10 @@ export class ProvidersService {
     // "Available today" / "Next available: Friday" (spec §3) — derived
     // from the weekly schedule + exceptions, not just the manual status
     // badge shown elsewhere on the card.
-    const availability = await this.availability.summaryForProvider(id);
+    const [availability, reputation] = await Promise.all([
+      this.availability.summaryForProvider(id),
+      this.reputationMetrics(id),
+    ]);
 
     // "Serves your area" / distance (spec §12) — only computed when the
     // caller passed coordinates (e.g. the client's browser geolocation).
@@ -112,11 +118,20 @@ export class ProvidersService {
       location = { distanceKm, servesQueriedLocation };
     }
 
-    const { registrationNumber, representativeName, ...publicFields } = provider;
+    const {
+      registrationNumber,
+      representativeName,
+      responseRate: _storedResponseRate,
+      responseTimeMinutes: _storedResponseTimeMinutes,
+      ...publicFields
+    } = provider;
     void registrationNumber;
     void representativeName;
+    void _storedResponseRate;
+    void _storedResponseTimeMinutes;
     return {
       ...publicFields,
+      ...reputation,
       // Exact home/workshop coordinates and the street address are not part
       // of a public marketplace profile. The map still works at roughly
       // neighbourhood precision (~1 km at two decimal places).
@@ -160,7 +175,6 @@ export class ProvidersService {
         reviewCount: true,
         verifiedReviewCount: true,
         yearsOfExperience: true,
-        responseTimeMinutes: true,
         verificationStatus: true,
         businessVerified: true,
         user: { select: { avatarUrl: true } },
@@ -175,7 +189,11 @@ export class ProvidersService {
     });
     if (providers.length !== unique.length) throw new NotFoundException('One or more providers were not found');
 
-    const availabilityById = await this.availability.summariesForProviders(unique);
+    const [availabilityById, reputationById] = await Promise.all([
+      this.availability.summariesForProviders(unique),
+      Promise.all(unique.map(async (id) => [id, await this.reputationMetrics(id)] as const)),
+    ]);
+    const reputation = new Map(reputationById);
 
     // Preserve the order the client asked for rather than however
     // Postgres happened to return rows, so the comparison table's column
@@ -192,7 +210,7 @@ export class ProvidersService {
         reviewCount: p.reviewCount,
         verifiedReviewCount: p.verifiedReviewCount,
         yearsOfExperience: p.yearsOfExperience,
-        responseTimeMinutes: p.responseTimeMinutes,
+        ...reputation.get(id),
         verificationStatus: p.verificationStatus,
         businessVerified: p.businessVerified,
         startingPrice: p.services?.[0] ? Number(p.services[0].basePrice) : null,
@@ -200,6 +218,29 @@ export class ProvidersService {
         availability: availabilityById.get(id) ?? null,
       };
     });
+  }
+
+  private async reputationMetrics(providerId: string) {
+    const requestWhere = { providerId, status: { not: 'CANCELLED' as const } };
+    const [completedJobCount, totalRequests, answeredRequests] = await Promise.all([
+      this.prisma.booking.count({ where: { providerId, status: 'COMPLETED' } }),
+      this.prisma.serviceRequest.count({ where: requestWhere }),
+      this.prisma.serviceRequest.count({
+        where: { ...requestWhere, quotes: { some: { providerId } } },
+      }),
+    ]);
+
+    return {
+      completedJobCount,
+      responseRateSummary:
+        totalRequests > 0
+          ? {
+              percentage: Math.round((answeredRequests / totalRequests) * 100),
+              answeredRequests,
+              totalRequests,
+            }
+          : null,
+    };
   }
 
   async updateProfile(userId: string, dto: UpdateProviderProfileDto) {

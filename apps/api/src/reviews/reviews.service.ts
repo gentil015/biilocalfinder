@@ -143,7 +143,11 @@ export class ReviewsService {
   // an incremental running average — cheap at this scale and immune to drift
   // from concurrent writes. HIDDEN (moderated) reviews never count.
   async recalculateProviderAggregates(db: Db, providerId: string) {
-    const where = { providerId, status: 'PUBLISHED' as const };
+    const where = {
+      providerId,
+      status: 'PUBLISHED' as const,
+      booking: { is: { status: 'COMPLETED' as const } },
+    };
     const [agg, verifiedCount] = await Promise.all([
       db.review.aggregate({ where, _avg: { rating: true }, _count: true }),
       db.review.count({ where: { ...where, verifiedBooking: true } }),
@@ -193,6 +197,7 @@ export class ReviewsService {
     const where: Prisma.ReviewWhereInput = {
       providerId,
       status: 'PUBLISHED',
+      booking: { is: { status: 'COMPLETED' } },
       ...(query.verifiedOnly === 'true' ? { verifiedBooking: true } : {}),
       ...(query.withPhotos === 'true' ? { images: { some: {} } } : {}),
     };
@@ -212,7 +217,11 @@ export class ReviewsService {
 
   // Headline number + the breakdown behind it.
   async summaryForProvider(providerId: string) {
-    const where = { providerId, status: 'PUBLISHED' as const };
+    const where = {
+      providerId,
+      status: 'PUBLISHED' as const,
+      booking: { is: { status: 'COMPLETED' as const } },
+    };
     const [agg, dist, verifiedCount, photoCount] = await Promise.all([
       this.prisma.review.aggregate({
         where,
@@ -263,8 +272,13 @@ export class ReviewsService {
     const canReview =
       isClient && booking.status === 'COMPLETED' && !booking.review && now.getTime() <= deadline.getTime();
 
+    const publicReview =
+      booking.status === 'COMPLETED' && booking.review?.status === 'PUBLISHED'
+        ? this.toPublic(booking.review)
+        : null;
+
     return {
-      review: booking.review ? this.toPublic(booking.review) : null,
+      review: publicReview,
       canReview,
       reviewDeadline: booking.status === 'COMPLETED' ? deadline : null,
     };
@@ -311,6 +325,7 @@ export class ReviewsService {
     const where: Prisma.ReviewWhereInput = {
       providerId: provider.id,
       status: 'PUBLISHED',
+      booking: { is: { status: 'COMPLETED' } },
       ...(query.unanswered === 'true' ? { providerResponse: null } : {}),
     };
     const [items, total, unanswered] = await this.prisma.$transaction([
@@ -337,6 +352,7 @@ export class ReviewsService {
     const limit = 20;
     const where: Prisma.ReviewWhereInput = {
       status: 'PUBLISHED',
+      booking: { is: { status: 'COMPLETED' } },
       OR: [{ integrityFlags: { isEmpty: false } }, { verifiedBooking: false }],
     };
     const [items, total] = await this.prisma.$transaction([

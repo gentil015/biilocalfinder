@@ -26,6 +26,7 @@ import { MessagingModule } from './messaging/messaging.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ProviderApplicationsModule } from './provider-applications/provider-applications.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
+import { ProfessionalProfileModule } from './professional-profile/professional-profile.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { FilesModule } from './files/files.module';
@@ -88,6 +89,7 @@ function parseRedisUrl(url: string) {
     ProviderApplicationsModule,
     // Phase 6
     PortfolioModule,
+    ProfessionalProfileModule,
     ReviewsModule,
     FavoritesModule,
     FilesModule,

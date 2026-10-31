@@ -120,7 +120,7 @@ export class RecommendationService implements RecommendationEngine {
       const distance = this.distanceScore(item.distanceKm);
       const rating = (item.rating / 5) * 100;
       const availability = this.availabilityScore(item.availabilityStatus);
-      const quality = this.providerQualityScore(item.verificationStatus, item.yearsOfExperience, item.responseTimeMinutes);
+      const quality = this.providerQualityScore(item.verificationStatus, item.yearsOfExperience);
 
       const score =
         weights.searchRelevance * relevance +
@@ -260,11 +260,9 @@ export class RecommendationService implements RecommendationEngine {
   private providerQualityScore(
     verificationStatus: string,
     yearsOfExperience: number,
-    responseTimeMinutes: number | null,
   ): number {
     let score = verificationStatus === 'VERIFIED' ? 50 : 20;
     score += Math.min(30, yearsOfExperience * 3);
-    if (responseTimeMinutes != null) score += responseTimeMinutes <= 60 ? 20 : 10;
     return Math.min(100, score);
   }
 

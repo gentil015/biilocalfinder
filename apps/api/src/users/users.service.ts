@@ -163,6 +163,8 @@ export class UsersService {
             availabilities: true,
             availabilityExceptions: true,
             verifications: { include: { documents: true } },
+            experiences: true,
+            educations: true,
             teamMembers: true,
             subscriptions: true,
           },
@@ -284,6 +286,8 @@ export class UsersService {
         });
         await tx.portfolioImage.deleteMany({ where: { portfolio: { providerId: { in: providerIds } } } });
         await tx.portfolio.deleteMany({ where: { providerId: { in: providerIds } } });
+        await tx.providerExperience.deleteMany({ where: { providerId: { in: providerIds } } });
+        await tx.providerEducation.deleteMany({ where: { providerId: { in: providerIds } } });
         await tx.providerTeamMember.updateMany({
           where: {
             OR: [{ providerId: { in: providerIds } }, { linkedProviderId: { in: providerIds } }],

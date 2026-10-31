@@ -65,7 +65,6 @@ describe('RecommendationService', () => {
             verificationStatus: 'VERIFIED',
             availabilityStatus: 'AVAILABLE',
             yearsOfExperience: 5,
-            responseTimeMinutes: 30,
             distanceKm: 3,
             startingPrice: 1000,
             currency: 'RWF',

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { CheckCircle2, Images, ImagePlus, X } from 'lucide-react';
 import { providersApi, ApiError } from '@/lib/api';
 import { PageHeader, Panel, LoadingBlock } from '@/components/ui/page';
+import { ProviderProfileNav } from '@/components/provider-profile-nav';
 
 const AVAILABILITY_OPTIONS = [
   { value: 'AVAILABLE', label: 'Available', hint: 'Taking new work' },
@@ -166,6 +167,8 @@ export default function ProviderProfilePage() {
           </Link>
         }
       />
+
+      <ProviderProfileNav className="mb-6" />
 
       <form onSubmit={onSubmit} className="grid gap-5 lg:grid-cols-[1fr_18rem] lg:items-start">
         <div className="space-y-5">

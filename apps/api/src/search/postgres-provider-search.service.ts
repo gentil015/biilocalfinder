@@ -55,9 +55,7 @@ interface Row {
   businessVerified: boolean;
   availabilityStatus: string;
   subscriptionStatus: string;
-  responseRate: Prisma.Decimal;
   yearsOfExperience: number;
-  responseTimeMinutes: number | null;
   latitude: number | null;
   longitude: number | null;
   distance_km: number | null;
@@ -384,9 +382,7 @@ export class PostgresProviderSearchService implements ProviderSearchService {
         p."businessVerified",
         p."availabilityStatus",
         p."subscriptionStatus",
-        p."responseRate",
         p."yearsOfExperience",
-        p."responseTimeMinutes",
         l.latitude,
         l.longitude,
         ${distanceExpr} AS distance_km,
@@ -408,7 +404,6 @@ export class PostgresProviderSearchService implements ProviderSearchService {
     const items = rows.map((r: Row) => {
       const distanceKm = r.distance_km != null ? Number(r.distance_km) : null;
       const rating = Number(r.rating);
-      const responseRate = Number(r.responseRate);
       // Cosine distance (0..2) -> similarity (0..1), clamped: a provider
       // with no indexed offering yet has semantic_distance NULL, which
       // must stay null/undefined here rather than becoming 0 — RankableProvider's
@@ -420,7 +415,6 @@ export class PostgresProviderSearchService implements ProviderSearchService {
         distanceKm,
         rating,
         availabilityStatus: r.availabilityStatus,
-        responseRate,
         yearsOfExperience: r.yearsOfExperience,
         verificationStatus: r.verificationStatus,
         subscriptionStatus: r.subscriptionStatus,
@@ -439,7 +433,6 @@ export class PostgresProviderSearchService implements ProviderSearchService {
         businessVerified: r.businessVerified,
         availabilityStatus: r.availabilityStatus,
         yearsOfExperience: r.yearsOfExperience,
-        responseTimeMinutes: r.responseTimeMinutes,
         distanceKm,
         servesArea: r.serves_area ?? null,
         startingPrice: r.starting_price != null ? Number(r.starting_price) : null,

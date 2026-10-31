@@ -251,7 +251,6 @@ export interface ProviderSearchItem {
   } | null;
   availabilityStatus: string;
   yearsOfExperience: number;
-  responseTimeMinutes: number | null;
   distanceKm: number | null;
   servesArea?: boolean | null;
   startingPrice: number | null;
@@ -690,6 +689,86 @@ export const providersApi = {
   addServiceArea: (data: { label: string; latitude: number; longitude: number; radiusKm: number }) =>
     authRequest<any>('/providers/me/service-areas', { method: 'POST', body: JSON.stringify(data) }),
   removeServiceArea: (id: string) => authRequest<any>(`/providers/me/service-areas/${id}`, { method: 'DELETE' }),
+};
+
+export interface ProviderExperience {
+  id: string;
+  providerId: string;
+  title: string;
+  organization: string;
+  location: string | null;
+  startDate: string;
+  endDate: string | null;
+  isCurrent: boolean;
+  description: string | null;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProviderEducation {
+  id: string;
+  providerId: string;
+  school: string;
+  degree: string | null;
+  fieldOfStudy: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  description: string | null;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExperienceInput {
+  title: string;
+  organization: string;
+  location?: string;
+  startDate: string;
+  endDate?: string | null;
+  isCurrent?: boolean;
+  description?: string;
+  position?: number;
+}
+
+export interface EducationInput {
+  school: string;
+  degree?: string;
+  fieldOfStudy?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  description?: string;
+  position?: number;
+}
+
+export const professionalProfileApi = {
+  listExperience: () => authRequest<ProviderExperience[]>('/providers/me/experience'),
+  createExperience: (data: ExperienceInput) =>
+    authRequest<ProviderExperience>('/providers/me/experience', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateExperience: (id: string, data: Partial<ExperienceInput>) =>
+    authRequest<ProviderExperience>(`/providers/me/experience/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  removeExperience: (id: string) =>
+    authRequest<{ success: boolean }>(`/providers/me/experience/${id}`, { method: 'DELETE' }),
+
+  listEducation: () => authRequest<ProviderEducation[]>('/providers/me/education'),
+  createEducation: (data: EducationInput) =>
+    authRequest<ProviderEducation>('/providers/me/education', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateEducation: (id: string, data: Partial<EducationInput>) =>
+    authRequest<ProviderEducation>(`/providers/me/education/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  removeEducation: (id: string) =>
+    authRequest<{ success: boolean }>(`/providers/me/education/${id}`, { method: 'DELETE' }),
 };
 
 export type WorkspaceType = 'INDIVIDUAL' | 'TEAM' | 'BUSINESS' | 'AGENCY';

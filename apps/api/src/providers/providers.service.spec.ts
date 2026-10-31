@@ -33,6 +33,8 @@ describe('ProvidersService — onboarding', () => {
       contactVerificationCode: { updateMany: jest.fn() },
       // Lets the service's transaction callbacks run against the same mocks.
       $transaction: jest.fn((cb: any) => cb(prisma)),
+      booking: { count: jest.fn().mockResolvedValue(0) },
+      serviceRequest: { count: jest.fn().mockResolvedValue(0) },
       serviceOffering: { count: jest.fn().mockResolvedValue(0) },
       providerTeamMember: { create: jest.fn(), findMany: jest.fn(), findUnique: jest.fn(), delete: jest.fn() },
     };
@@ -40,7 +42,12 @@ describe('ProvidersService — onboarding', () => {
       recomputeProvider: jest.fn().mockResolvedValue(null),
       recomputeForUser: jest.fn().mockResolvedValue(undefined),
     };
-    service = new ProvidersService(prisma, {} as any, {} as any, {} as any, {
+    service = new ProvidersService(prisma, {} as any, {
+      summaryForProvider: jest.fn().mockResolvedValue(null),
+      summariesForProviders: jest.fn().mockResolvedValue(new Map()),
+    } as any, {
+      record: jest.fn(),
+    } as any, {
       assertCanAdd: jest.fn().mockResolvedValue(undefined),
     } as any, {
       // Delegates through the same prisma.provider.findUnique mock every
@@ -49,6 +56,58 @@ describe('ProvidersService — onboarding', () => {
       // `prisma.provider.findUnique.mockResolvedValue(...)` fixtures.
       resolveForUser: jest.fn((userId: string) => prisma.provider.findUnique({ where: { userId } })),
     } as any, verification);
+  });
+
+  describe('getPublicProfile reputation metrics', () => {
+    it('derives job counts and quote response rate from completed bookings and requests', async () => {
+      prisma.provider.findUnique.mockResolvedValue({
+        ...baseProvider({ onboardingStep: 'COMPLETED' }),
+        location: null,
+        services: [],
+        serviceAreas: [],
+        availabilities: [],
+        portfolios: [],
+        reviews: [],
+        user: { firstName: 'Jane', lastName: 'Doe', avatarUrl: null },
+        responseRate: 100,
+        responseTimeMinutes: 1,
+      });
+      prisma.booking.count.mockResolvedValue(7);
+      prisma.serviceRequest.count.mockImplementation(({ where }: any) =>
+        Promise.resolve(where.quotes ? 3 : 4),
+      );
+
+      const profile = await service.getPublicProfile('provider-1');
+
+      expect(profile.completedJobCount).toBe(7);
+      expect(profile.responseRateSummary).toEqual({
+        percentage: 75,
+        answeredRequests: 3,
+        totalRequests: 4,
+      });
+      expect(profile).not.toHaveProperty('responseRate');
+      expect(profile).not.toHaveProperty('responseTimeMinutes');
+      expect(prisma.booking.count).toHaveBeenCalledWith({
+        where: { providerId: 'provider-1', status: 'COMPLETED' },
+      });
+    });
+
+    it('does not present a response rate before there are service requests', async () => {
+      prisma.provider.findUnique.mockResolvedValue({
+        ...baseProvider({ onboardingStep: 'COMPLETED' }),
+        location: null,
+        services: [],
+        serviceAreas: [],
+        availabilities: [],
+        portfolios: [],
+        reviews: [],
+        user: { firstName: 'Jane', lastName: 'Doe', avatarUrl: null },
+      });
+
+      const profile = await service.getPublicProfile('provider-1');
+
+      expect(profile.responseRateSummary).toBeNull();
+    });
   });
 
   describe('selectProviderType', () => {

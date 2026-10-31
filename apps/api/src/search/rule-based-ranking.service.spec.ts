@@ -7,7 +7,6 @@ function baseProvider(overrides: Partial<RankableProvider> = {}): RankableProvid
     distanceKm: 5,
     rating: 4,
     availabilityStatus: 'AVAILABLE',
-    responseRate: 80,
     yearsOfExperience: 5,
     verificationStatus: 'VERIFIED',
     subscriptionStatus: 'ACTIVE',

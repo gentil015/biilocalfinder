@@ -304,7 +304,6 @@ export function MemberHome() {
                 verificationStatus: p.verificationStatus,
                 availabilityStatus: p.availabilityStatus,
                 yearsOfExperience: p.yearsOfExperience,
-                responseTimeMinutes: p.responseTimeMinutes,
                 distanceKm: null,
                 startingPrice: null,
                 currency: 'RWF',

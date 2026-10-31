@@ -4,7 +4,10 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
+  BadgeCheck,
+  BarChart3,
   Bell,
+  BriefcaseBusiness,
   CalendarClock,
   ChevronRight,
   ClipboardList,
@@ -16,6 +19,7 @@ import {
   ShieldCheck,
   Download,
   Flag,
+  GraduationCap,
   Sparkles,
   Trash2,
   UserRound,
@@ -81,6 +85,36 @@ const ACTIVITY_LINKS: AccountLink[] = [
     labelKey: 'account.linkSaved',
     descriptionKey: 'account.linkSavedBody',
     icon: Heart,
+  },
+];
+
+// Provider-only professional surfaces. They live under /provider/* so the
+// same dashboard shell and workspace context applies; the account page is
+// simply the discoverable entry point for a provider who starts here.
+const PROVIDER_LINKS: AccountLink[] = [
+  {
+    href: '/provider/analytics',
+    labelKey: 'account.linkAnalytics',
+    descriptionKey: 'account.linkAnalyticsBody',
+    icon: BarChart3,
+  },
+  {
+    href: '/provider/experience',
+    labelKey: 'account.linkExperience',
+    descriptionKey: 'account.linkExperienceBody',
+    icon: BriefcaseBusiness,
+  },
+  {
+    href: '/provider/education',
+    labelKey: 'account.linkEducation',
+    descriptionKey: 'account.linkEducationBody',
+    icon: GraduationCap,
+  },
+  {
+    href: '/provider/verification',
+    labelKey: 'account.linkVerified',
+    descriptionKey: 'account.linkVerifiedBody',
+    icon: BadgeCheck,
   },
 ];
 
@@ -289,6 +323,24 @@ export default function AccountPage() {
               ))}
             </ul>
           </section>
+
+          {isProvider && (
+            <section className="surface-card">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-900/10 px-5 py-4">
+                <h2 className="card-title">{t('account.professionalProfile')}</h2>
+                <span className="text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
+                  {t('account.professionalProfileMeta')}
+                </span>
+              </div>
+              <ul className="divide-y divide-ink-100 p-2">
+                {PROVIDER_LINKS.map((link) => (
+                  <li key={link.href}>
+                    <AccountLinkRow link={link} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           <section className="surface-card">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-ink-900/10 px-5 py-4">

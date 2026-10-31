@@ -4,8 +4,9 @@ import {
   ArrowUpRight,
   Award,
   BadgeCheck,
+  BriefcaseBusiness,
   CalendarClock,
-  Clock,
+  GraduationCap,
   Heart,
   Images,
   MapPin,
@@ -64,6 +65,28 @@ function formatDate(value?: string | Date | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatMonth(value?: string | Date | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+}
+
+function experienceRange(item: any) {
+  const start = formatMonth(item.startDate) ?? '—';
+  const end = item.isCurrent ? 'Present' : formatMonth(item.endDate) ?? 'Present';
+  return `${start} — ${end}`;
+}
+
+function educationRange(item: any) {
+  const start = formatMonth(item.startDate);
+  const end = formatMonth(item.endDate);
+  if (start && end) return `${start} — ${end}`;
+  if (start) return `From ${start}`;
+  if (end) return `Until ${end}`;
+  return null;
 }
 
 /* Section header used across the profile — an icon chip, an eyebrow and a
@@ -205,8 +228,8 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
   const initial = provider.businessName?.charAt(0)?.toUpperCase() ?? 'P';
   const avatarUrl = provider.logoUrl ?? provider.user?.avatarUrl;
   const hasSummary = reviewSummary?.count > 0;
-  const rating = hasSummary ? Number(reviewSummary.overall) : Number(provider.rating ?? 0);
-  const reviewCount = reviewSummary?.count ?? provider.reviewCount ?? 0;
+  const rating = hasSummary ? Number(reviewSummary.overall) : 0;
+  const reviewCount = reviewSummary?.count ?? 0;
   const availability = availabilityText(provider.availability);
   const today = new Date().getDay();
 
@@ -221,15 +244,15 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
       label: 'Business verified',
       body: 'Business documents reviewed.',
     },
-    provider.verifiedReviewCount > 0 && {
+    reviewSummary?.verifiedCount > 0 && {
       icon: MessageSquareQuote,
-      label: `${provider.verifiedReviewCount} verified review${provider.verifiedReviewCount === 1 ? '' : 's'}`,
+      label: `${reviewSummary.verifiedCount} verified review${reviewSummary.verifiedCount === 1 ? '' : 's'}`,
       body: 'Written after a completed booking.',
     },
-    Number(provider.responseRate) > 0 && {
+    provider.responseRateSummary && {
       icon: Zap,
-      label: `${Math.round(Number(provider.responseRate))}% response rate`,
-      body: 'Replies to most requests.',
+      label: `${provider.responseRateSummary.percentage}% quote response rate`,
+      body: `Quoted on ${provider.responseRateSummary.answeredRequests} of ${provider.responseRateSummary.totalRequests} non-cancelled service requests.`,
     },
   ].filter(Boolean) as { icon: LucideIcon; label: string; body: string }[];
 
@@ -347,22 +370,33 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
         <dl className="relative grid grid-cols-2 divide-white/10 border-t border-white/10 sm:grid-cols-4 sm:divide-x">
           <HeroMetric
             icon={Star}
-            value={rating > 0 ? rating.toFixed(1) : '—'}
-            label={reviewCount > 0 ? `${reviewCount} reviews` : 'No reviews'}
+            value={hasSummary ? rating.toFixed(1) : '—'}
+            label={
+              reviewSummary
+                ? reviewCount > 0
+                  ? `${reviewCount} reviews`
+                  : 'No reviews'
+                : 'Rating unavailable'
+            }
           />
           <HeroMetric
             icon={Award}
             value={provider.yearsOfExperience > 0 ? `${provider.yearsOfExperience} yrs` : 'New'}
             label="Experience"
           />
-          <HeroMetric
-            icon={Clock}
-            value={provider.responseTimeMinutes != null ? `${provider.responseTimeMinutes} min` : '—'}
-            label="Typical reply"
-          />
+          <HeroMetric icon={BadgeCheck} value={provider.completedJobCount} label="Completed jobs" />
           <HeroMetric icon={Wrench} value={services.length || '—'} label="Services listed" />
         </dl>
       </header>
+
+      <div className="mt-3 flex justify-end">
+        <ReportButton
+          targetType="PROVIDER"
+          targetId={provider.id}
+          label="Report suspicious behavior"
+          className="btn btn-sm w-fit justify-start text-ink-500 hover:bg-danger-50 hover:text-danger-700"
+        />
+      </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
         {/* Left column */}
@@ -456,6 +490,77 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
             <SectionHeading icon={Images} eyebrow="Proof of work" title="Portfolio" />
             <PortfolioGallery projects={provider.portfolios ?? []} />
           </section>
+
+          {provider.experiences?.length > 0 && (
+            <section className="surface-card p-5 sm:p-6">
+              <SectionHeading
+                icon={BriefcaseBusiness}
+                eyebrow="Career"
+                title="Experience"
+                meta={<span className="chip py-1 text-2xs">{provider.experiences.length} roles</span>}
+              />
+              <ol className="relative space-y-4 before:absolute before:bottom-3 before:left-[0.9375rem] before:top-3 before:w-px before:bg-ink-100">
+                {provider.experiences.map((item: any) => (
+                  <li key={item.id} className="relative flex gap-3.5">
+                    <span className="relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100">
+                      <BriefcaseBusiness className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0 flex-1 pb-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-bold text-ink-950">{item.title}</p>
+                        {item.isCurrent && <span className="badge badge-success">Current</span>}
+                      </div>
+                      <p className="text-sm font-medium text-ink-700">{item.organization}</p>
+                      <p className="mt-0.5 text-xs text-ink-500">
+                        {experienceRange(item)}
+                        {item.location ? ` · ${item.location}` : ''}
+                      </p>
+                      {item.description && (
+                        <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-ink-600">{item.description}</p>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          {provider.educations?.length > 0 && (
+            <section className="surface-card p-5 sm:p-6">
+              <SectionHeading
+                icon={GraduationCap}
+                eyebrow="Learning"
+                title="Education"
+                meta={<span className="chip py-1 text-2xs">{provider.educations.length} entries</span>}
+              />
+              <ul className="grid gap-3 sm:grid-cols-2">
+                {provider.educations.map((item: any) => {
+                  const range = educationRange(item);
+                  return (
+                    <li key={item.id} className="rounded-2xl border border-ink-200 bg-surface p-4">
+                      <div className="flex items-start gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100">
+                          <GraduationCap className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-ink-950">{item.school}</p>
+                          {(item.degree || item.fieldOfStudy) && (
+                            <p className="mt-0.5 text-xs font-medium text-ink-700">
+                              {[item.degree, item.fieldOfStudy].filter(Boolean).join(' · ')}
+                            </p>
+                          )}
+                          {range && <p className="mt-0.5 text-xs text-ink-500">{range}</p>}
+                        </div>
+                      </div>
+                      {item.description && (
+                        <p className="mt-2.5 whitespace-pre-line text-sm leading-relaxed text-ink-600">{item.description}</p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
 
           <section className="surface-card p-5 sm:p-6">
             <SectionHeading
@@ -641,11 +746,6 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
                       ? `${provider.yearsOfExperience} years`
                       : 'New to the platform'}
                   </AtAGlanceRow>
-                  {provider.responseTimeMinutes != null && (
-                    <AtAGlanceRow icon={Clock} label="Typical reply">
-                      ~{provider.responseTimeMinutes} min
-                    </AtAGlanceRow>
-                  )}
                 </ul>
               </div>
 
@@ -747,9 +847,6 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
             </div>
           )}
 
-          <div className="px-1">
-            <ReportButton targetType="PROVIDER" targetId={provider.id} label="Report this provider" />
-          </div>
         </aside>
       </div>
 

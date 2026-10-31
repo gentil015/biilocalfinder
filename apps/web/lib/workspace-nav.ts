@@ -14,6 +14,8 @@ import {
   CreditCard,
   UserCog,
   History,
+  BriefcaseBusiness,
+  GraduationCap,
   type LucideIcon,
 } from 'lucide-react';
 import type { WorkspaceMemberRole, WorkspaceType } from './api';
@@ -81,6 +83,20 @@ const verification: WorkspaceNavItem = {
   icon: ShieldCheck,
   roles: ['OWNER', 'MANAGER'],
 };
+// Experience and education are provider-owned professional history, shown
+// publicly on the provider profile. Both are editable by owners/managers.
+const experience: WorkspaceNavItem = {
+  label: 'Experience',
+  href: () => '/provider/experience',
+  icon: BriefcaseBusiness,
+  roles: ['OWNER', 'MANAGER'],
+};
+const education: WorkspaceNavItem = {
+  label: 'Education',
+  href: () => '/provider/education',
+  icon: GraduationCap,
+  roles: ['OWNER', 'MANAGER'],
+};
 const serviceAreas: WorkspaceNavItem = {
   label: 'Locations & Branches',
   href: () => '/provider/service-areas',
@@ -143,6 +159,8 @@ export const WORKSPACE_NAV: Record<WorkspaceType, WorkspaceNavItem[]> = {
   INDIVIDUAL: [
     overview,
     profile,
+    experience,
+    education,
     services('My Services'),
     requests,
     messages,
@@ -150,6 +168,7 @@ export const WORKSPACE_NAV: Record<WorkspaceType, WorkspaceNavItem[]> = {
     availability,
     reviews,
     verification,
+    analytics,
     billing,
     audit,
     settings,
@@ -157,6 +176,8 @@ export const WORKSPACE_NAV: Record<WorkspaceType, WorkspaceNavItem[]> = {
   TEAM: [
     overview,
     profile,
+    experience,
+    education,
     services('Team Services'),
     requests,
     bookings,
@@ -165,6 +186,7 @@ export const WORKSPACE_NAV: Record<WorkspaceType, WorkspaceNavItem[]> = {
     messages,
     reviews,
     verification,
+    analytics,
     billing,
     audit,
     settings,
@@ -172,6 +194,8 @@ export const WORKSPACE_NAV: Record<WorkspaceType, WorkspaceNavItem[]> = {
   BUSINESS: [
     overview,
     profile,
+    experience,
+    education,
     verification,
     services('Services & Catalog'),
     requests,
@@ -187,6 +211,9 @@ export const WORKSPACE_NAV: Record<WorkspaceType, WorkspaceNavItem[]> = {
   AGENCY: [
     overview,
     profile,
+    experience,
+    education,
+    verification,
     managedProviders,
     members('Members'),
     requests,

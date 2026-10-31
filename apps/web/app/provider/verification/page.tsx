@@ -13,6 +13,7 @@ import {
 import { verificationApi, providersApi, ApiError } from '@/lib/api';
 import { ContactVerificationPanel } from '@/components/contact-verification-panel';
 import { PageHeader, Panel, LoadingBlock } from '@/components/ui/page';
+import { ProviderProfileNav } from '@/components/provider-profile-nav';
 
 const IDENTITY_DOC_OPTIONS = [
   { value: 'NATIONAL_ID', label: 'National ID' },
@@ -254,6 +255,8 @@ export default function ProviderVerificationPage() {
           </div>
         }
       />
+
+      <ProviderProfileNav className="mb-6" />
 
       <Panel title="Your verification status" description="Three steps to a verified badge." className="mb-6">
         <ol className="space-y-3">

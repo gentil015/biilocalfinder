@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ProviderRankingService, RankableProvider } from './provider-ranking.interface';
 
 // Weighted sum of relevance signals, per spec §9:
-//   Relevance + Distance + Rating + Availability + Response rate + Experience
+//   Relevance + Distance + Rating + Availability + Experience
 // Weights are intentionally simple and easy to reason about; a future
 // ML-based ranker can replace this without touching any caller.
 @Injectable()
@@ -23,9 +23,6 @@ export class RuleBasedRankingService implements ProviderRankingService {
     // Availability: available now is worth a solid bump.
     if (provider.availabilityStatus === 'AVAILABLE') score += 15;
     else if (provider.availabilityStatus === 'BUSY') score += 5;
-
-    // Response rate: 0-100% -> 0-15pts.
-    score += (provider.responseRate / 100) * 15;
 
     // Experience: diminishing returns after ~10 years.
     score += Math.min(10, provider.yearsOfExperience) * 1;

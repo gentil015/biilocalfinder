@@ -12,6 +12,7 @@ import {
   History,
   Scale,
   ShieldCheck,
+  ShieldAlert,
   SlidersHorizontal,
   UserCog,
   Users,
@@ -57,6 +58,12 @@ const QUEUES: { href: string; label: string; description: string; icon: LucideIc
     label: 'Verifications',
     description: 'Review identity and business documents before a provider badge goes live.',
     icon: ShieldCheck,
+  },
+  {
+    href: '/admin/trust-safety',
+    label: 'Trust & safety',
+    description: 'Review risk signals, security events, fraud reports and administrator restrictions.',
+    icon: ShieldAlert,
   },
   {
     href: '/admin/reports',

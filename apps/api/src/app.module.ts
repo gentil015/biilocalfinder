@@ -42,6 +42,7 @@ import { RequestAssistModule } from './request-assist/request-assist.module';
 import { BookingAssistModule } from './booking-assist/booking-assist.module';
 import { SearchAssistModule } from './search-assist/search-assist.module';
 import { CustomerAssistModule } from './customer-assist/customer-assist.module';
+import { TrustSafetyModule } from './trust-safety/trust-safety.module';
 
 function parseRedisUrl(url: string) {
   const u = new URL(url);
@@ -113,6 +114,7 @@ function parseRedisUrl(url: string) {
     // AI marketplace navigation: "Ask BII Assistant" guides a client from a
     // plain-language question to the right service and real providers.
     CustomerAssistModule,
+    TrustSafetyModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

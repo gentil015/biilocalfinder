@@ -336,6 +336,69 @@ export interface AdminDashboardStats {
   pendingProviderApplications: number;
 }
 
+export interface TrustOverview {
+  totalUsers: number;
+  pendingProviderApplications: number;
+  pendingProviderVerifications: number;
+  flaggedAccounts: number;
+  highRiskInvestigations: number;
+  openReports: number;
+  confirmedCases: number;
+  recentEvents: { id: string; userId: string | null; eventType: string; createdAt: string }[];
+}
+
+export interface TrustFlaggedAccount {
+  id: string;
+  firstName: string;
+  lastName: string;
+  role: 'CLIENT' | 'PROVIDER' | 'ADMIN';
+  createdAt: string;
+  riskAssessments: {
+    id: string;
+    riskScore: number;
+    riskLevel: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+    assessmentStatus: string;
+    summary: string | null;
+    createdAt: string;
+    indicators: { id: string; indicatorType: string; points: number; reason: string }[];
+  }[];
+}
+
+export const trustSafetyAdminApi = {
+  overview: () => authRequest<TrustOverview>('/trust/admin/overview'),
+  flaggedAccounts: (page = 1, limit = 25) =>
+    authRequest<{ items: TrustFlaggedAccount[]; total: number; page: number; limit: number }>(
+      `/trust/admin/flagged-accounts?page=${page}&limit=${limit}`,
+    ),
+  account: (userId: string) => authRequest<any>(`/trust/admin/accounts/${encodeURIComponent(userId)}`),
+  reports: (page = 1, limit = 25) =>
+    authRequest<{ items: any[]; total: number; page: number; limit: number }>(
+      `/trust/admin/reports?page=${page}&limit=${limit}`,
+    ),
+  reassess: (userId: string) =>
+    authRequest<any>(`/trust/admin/reassess/${encodeURIComponent(userId)}`, { method: 'POST' }),
+  reviewAssessment: (id: string, status: 'REVIEWED' | 'DISMISSED' | 'CONFIRMED', note: string) =>
+    authRequest<any>(`/trust/admin/assessments/${encodeURIComponent(id)}/review`, {
+      method: 'POST',
+      body: JSON.stringify({ status, note }),
+    }),
+  updateReport: (id: string, status: 'UNDER_INVESTIGATION' | 'RESOLVED' | 'DISMISSED', resolution?: string) =>
+    authRequest<any>(`/trust/admin/reports/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, resolution }),
+    }),
+  createRestriction: (userId: string, restrictionType: string, reason: string, expiresAt?: string) =>
+    authRequest<any>('/trust/admin/restrictions', {
+      method: 'POST',
+      body: JSON.stringify({ userId, restrictionType, reason, expiresAt }),
+    }),
+  liftRestriction: (id: string, reason: string) =>
+    authRequest<any>(`/trust/admin/restrictions/${encodeURIComponent(id)}/lift`, {
+      method: 'PATCH',
+      body: JSON.stringify({ reason }),
+    }),
+};
+
 export interface AdminBusinessAnalytics {
   periodDays: number;
   periodLabel: string;
@@ -1458,6 +1521,25 @@ export const reportsApi = {
   create: (data: { targetType: string; targetId: string; category: string; reason: string; details?: string }) =>
     authRequest<any>('/reports', { method: 'POST', body: JSON.stringify(data) }),
   mine: () => authRequest<any[]>('/reports/mine'),
+};
+
+export const trustReportsApi = {
+  mine: () =>
+    authRequest<{
+      id: string;
+      category: string;
+      description: string;
+      status: string;
+      resolution: string | null;
+      createdAt: string;
+      resolvedAt: string | null;
+      reportedUser: { id: string; firstName: string; lastName: string };
+    }[]>('/trust/reports/mine'),
+  reportProvider: (providerId: string, data: { category: string; description: string }) =>
+    authRequest<any>(`/trust/reports/providers/${encodeURIComponent(providerId)}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 export const adminReportsApi = {

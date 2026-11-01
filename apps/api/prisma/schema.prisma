@@ -142,6 +142,13 @@ enum NotificationType {
   DISPUTE_RESPONSE
   DISPUTE_UNDER_REVIEW
   DISPUTE_RESOLVED
+  // Trust & safety lifecycle.
+  FRAUD_REPORT_SUBMITTED
+  FRAUD_REPORT_UPDATE
+  ACCOUNT_RESTRICTED
+  ACCOUNT_RESTRICTION_LIFTED
+  TRUST_ALERT
+  VERIFICATION_ADDITIONAL_INFO_REQUIRED
 }
 
 // Groups NotificationType values for preference purposes — spec §10 asks
@@ -224,6 +231,113 @@ enum DisputeResolutionType {
   PROVIDER_SUSPENDED
   BOOKING_CANCELLED
   OTHER
+}
+
+// ---------- Trust & Safety / Fraud Detection ----------
+
+enum SecurityEventType {
+  USER_REGISTERED
+  PHONE_VERIFICATION_COMPLETED
+  EMAIL_VERIFICATION_COMPLETED
+  LOGIN_SUCCESS
+  LOGIN_FAILURE
+  PASSWORD_CHANGED
+  PROFILE_UPDATED
+  PROVIDER_APPLICATION_SUBMITTED
+  DOCUMENT_UPLOADED
+  DOCUMENT_REPLACED
+  PROVIDER_APPROVED
+  PROVIDER_REJECTED
+  BOOKING_CREATED
+  BOOKING_CANCELLED
+  REVIEW_SUBMITTED
+  FRAUD_REPORT_SUBMITTED
+  ACCOUNT_RESTRICTED
+  ACCOUNT_RESTRICTION_LIFTED
+}
+
+enum RiskLevel {
+  LOW
+  MODERATE
+  HIGH
+  CRITICAL
+}
+
+enum RiskAssessmentStatus {
+  PENDING
+  REVIEWED
+  DISMISSED
+  CONFIRMED
+}
+
+enum FraudReportCategory {
+  FAKE_PROVIDER_IDENTITY
+  SUSPICIOUS_PROVIDER_BEHAVIOR
+  MISLEADING_SERVICE_INFO
+  SUSPECTED_SCAM
+  SUSPICIOUS_BOOKING_ACTIVITY
+  IMPERSONATION
+  OTHER
+}
+
+enum FraudReportStatus {
+  PENDING
+  UNDER_INVESTIGATION
+  ADDITIONAL_INFORMATION_REQUIRED
+  RESOLVED
+  DISMISSED
+  ESCALATED
+}
+
+enum RestrictionType {
+  VERIFICATION_REQUIRED
+  BOOKING_RESTRICTED
+  PROVIDER_VISIBILITY_RESTRICTED
+  TEMPORARY_SUSPENSION
+  PERMANENT_SUSPENSION
+}
+
+enum RestrictionStatus {
+  ACTIVE
+  LIFTED
+  EXPIRED
+}
+
+enum AppealStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum VerificationCheckType {
+  PHONE_VERIFIED
+  EMAIL_VERIFIED
+  IDENTITY_DOCUMENTS
+  BUSINESS_DOCUMENTS
+  IDENTITY_CONSISTENCY
+  DUPLICATE_IDENTITY
+  BUSINESS_CONSISTENCY
+  PROFESSIONAL_QUALIFICATION
+  LICENSE
+  PORTFOLIO
+  PREVIOUS_DECISIONS
+  UNRESOLVED_FRAUD_REPORTS
+  DOCUMENT_AUTHENTICITY
+}
+
+enum VerificationCheckStatus {
+  PASS
+  WARNING
+  FAIL
+  NOT_APPLICABLE
+}
+
+enum DocumentScanStatus {
+  PENDING
+  CLEAN
+  INFECTED
+  FAILED
+  SKIPPED
 }
 
 enum BillingInterval {
@@ -330,6 +444,17 @@ model User {
   // Two relations to the same model, hence the explicit names.
   providerApplications    ProviderApplication[] @relation("ProviderApplicationApplicant")
   providerApplicationsReviewed ProviderApplication[] @relation("ProviderApplicationReviewer")
+  securityEvents          SecurityEvent[]
+  riskAssessments         RiskAssessment[]
+  riskAssessmentsReviewed RiskAssessment[] @relation("RiskAssessmentReviewer")
+  fraudReportsFiled       FraudReport[] @relation("FraudReportsFiled")
+  fraudReportsAgainst     FraudReport[] @relation("FraudReportsAgainst")
+  fraudReportsAssigned    FraudReport[] @relation("FraudReportsAssigned")
+  accountRestrictions     AccountRestriction[] @relation("AccountRestrictions")
+  restrictionsIssued      AccountRestriction[] @relation("RestrictionsIssued")
+  restrictionsLifted      AccountRestriction[] @relation("RestrictionsLifted")
+  restrictionAppeals      RestrictionAppeal[] @relation("RestrictionAppealsFiled")
+  restrictionAppealsReviewed RestrictionAppeal[] @relation("RestrictionAppealsReviewed")
 
   @@index([email])
   @@index([phone])
@@ -550,6 +675,8 @@ model Provider {
   // ProviderTeamMember for why one table covers both cases.
   teamMembers      ProviderTeamMember[] @relation("ProviderTeam")
   managedByLinks   ProviderTeamMember[] @relation("ManagedProviderLink")
+  fraudReports     FraudReport[]
+  verificationChecks ProviderVerificationCheck[]
 
   @@index([verificationStatus])
   @@index([subscriptionStatus])
@@ -1268,6 +1395,7 @@ model Booking {
   statusHistory  BookingStatusHistory[]
   review         Review?
   disputes       Dispute[]
+  fraudReports   FraudReport[]
 
   @@index([clientId])
   @@index([providerId])
@@ -1581,12 +1709,182 @@ model VerificationDocument {
   mimeType       String
   sizeBytes      Int
   originalName   String?
+  contentHash    String?
+  scanStatus     DocumentScanStatus      @default(SKIPPED)
+  scannedAt      DateTime?
   createdAt      DateTime                 @default(now())
 
   verification VerificationRecord @relation(fields: [verificationId], references: [id], onDelete: Cascade)
 
   @@index([verificationId])
+  @@index([contentHash])
   @@map("verification_documents")
+}
+
+// Append-only security telemetry. IP/device values are HMACed before storage;
+// raw addresses and user agents must never be persisted here.
+model SecurityEvent {
+  id           String           @id @default(uuid())
+  userId       String?
+  eventType    SecurityEventType
+  ipHash       String?
+  deviceIdHash String?
+  metadata     Json?
+  dedupeKey    String?          @unique
+  createdAt    DateTime         @default(now())
+
+  user            User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  riskAssessment  RiskAssessment?
+
+  @@index([userId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([ipHash, createdAt])
+  @@index([deviceIdHash, createdAt])
+  @@map("security_events")
+}
+
+model RiskAssessment {
+  id                String               @id @default(uuid())
+  userId            String
+  riskScore         Int
+  riskLevel         RiskLevel
+  assessmentStatus  RiskAssessmentStatus @default(PENDING)
+  assessmentVersion String               @default("v1")
+  sourceEventId     String?              @unique
+  summary           String?
+  reviewedById      String?
+  reviewedAt        DateTime?
+  createdAt         DateTime             @default(now())
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceEvent SecurityEvent? @relation(fields: [sourceEventId], references: [id], onDelete: SetNull)
+  reviewedBy  User?          @relation("RiskAssessmentReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  indicators  RiskIndicator[]
+
+  @@index([userId, createdAt])
+  @@index([riskLevel, assessmentStatus])
+  @@map("risk_assessments")
+}
+
+model RiskIndicator {
+  id                String   @id @default(uuid())
+  assessmentId      String
+  indicatorType     String
+  severity          String
+  points            Int
+  reason            String
+  evidenceReference String?
+  metadata          Json?
+  createdAt         DateTime @default(now())
+
+  assessment RiskAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([assessmentId])
+  @@index([indicatorType])
+  @@map("risk_indicators")
+}
+
+model ProviderVerificationCheck {
+  id            String                 @id @default(uuid())
+  providerId    String
+  applicationId String?
+  checkType     VerificationCheckType
+  status        VerificationCheckStatus
+  details       String?
+  evidence      Json?
+  createdAt     DateTime               @default(now())
+
+  provider Provider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([providerId, createdAt])
+  @@index([checkType, status])
+  @@map("provider_verification_checks")
+}
+
+model FraudReport {
+  id             String              @id @default(uuid())
+  reporterId     String
+  reportedUserId String
+  providerId     String?
+  bookingId      String?
+  category       FraudReportCategory
+  description    String
+  evidenceRefs   String[]            @default([])
+  status         FraudReportStatus   @default(PENDING)
+  priority       String              @default("NORMAL")
+  assignedToId   String?
+  resolution     String?
+  resolvedAt     DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  reporter     User     @relation("FraudReportsFiled", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser User     @relation("FraudReportsAgainst", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  provider     Provider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  booking      Booking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  assignedTo   User?     @relation("FraudReportsAssigned", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([reportedUserId, status])
+  @@index([status, createdAt])
+  @@index([reporterId, createdAt])
+  @@map("fraud_reports")
+}
+
+model AccountRestriction {
+  id              String             @id @default(uuid())
+  userId          String
+  restrictionType RestrictionType
+  reason          String
+  issuedById      String
+  expiresAt       DateTime?
+  liftedAt        DateTime?
+  liftedById      String?
+  status          RestrictionStatus  @default(ACTIVE)
+  createdAt       DateTime           @default(now())
+
+  user     User               @relation("AccountRestrictions", fields: [userId], references: [id], onDelete: Cascade)
+  issuedBy User               @relation("RestrictionsIssued", fields: [issuedById], references: [id], onDelete: Restrict)
+  liftedBy User?              @relation("RestrictionsLifted", fields: [liftedById], references: [id], onDelete: SetNull)
+  appeals  RestrictionAppeal[]
+
+  @@index([userId, status])
+  @@index([status, expiresAt])
+  @@map("account_restrictions")
+}
+
+model RestrictionAppeal {
+  id             String       @id @default(uuid())
+  restrictionId  String
+  userId         String
+  reason         String
+  status         AppealStatus @default(PENDING)
+  reviewedById   String?
+  reviewedAt     DateTime?
+  decisionNote   String?
+  createdAt      DateTime     @default(now())
+
+  restriction AccountRestriction @relation(fields: [restrictionId], references: [id], onDelete: Cascade)
+  user        User               @relation("RestrictionAppealsFiled", fields: [userId], references: [id], onDelete: Cascade)
+  reviewedBy  User?              @relation("RestrictionAppealsReviewed", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([restrictionId, status])
+  @@index([userId, createdAt])
+  @@map("restriction_appeals")
+}
+
+model FraudRule {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String?
+  points      Int
+  enabled     Boolean  @default(true)
+  windowHours Int?
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("fraud_rules")
 }
 
 // One-time codes for email/phone ownership checks. Only a keyed hash of the

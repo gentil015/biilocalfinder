@@ -201,6 +201,14 @@ export class PostgresProviderSearchService implements ProviderSearchService {
 
     const conditions: Prisma.Sql[] = [
       Prisma.sql`p."verificationStatus" != 'SUSPENDED'`,
+      Prisma.sql`NOT EXISTS (
+        SELECT 1
+        FROM account_restrictions ar
+        WHERE ar."userId" = p."userId"
+          AND ar.status = 'ACTIVE'
+          AND ar."restrictionType" IN ('PROVIDER_VISIBILITY_RESTRICTED', 'TEMPORARY_SUSPENSION', 'PERMANENT_SUSPENSION')
+          AND (ar."expiresAt" IS NULL OR ar."expiresAt" > NOW())
+      )`,
       // Never surface a profile still mid-onboarding (spec: "Prevent
       // incomplete provider profiles from being published publicly").
       // Pre-existing providers were backfilled to COMPLETED by

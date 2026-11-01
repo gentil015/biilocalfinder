@@ -3,12 +3,16 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AlertCircle, Flag, ShieldCheck } from 'lucide-react';
-import { reportsApi, ApiError } from '@/lib/api';
+import { reportsApi, trustReportsApi, ApiError } from '@/lib/api';
 import { PageHeader, EmptyState, LoadingBlock } from '@/components/ui/page';
 
 const STATUS_TONE: Record<string, string> = {
   OPEN: 'badge-warning',
   UNDER_REVIEW: 'badge-info',
+  PENDING: 'badge-warning',
+  UNDER_INVESTIGATION: 'badge-info',
+  ADDITIONAL_INFORMATION_REQUIRED: 'badge-warning',
+  ESCALATED: 'badge-danger',
   RESOLVED: 'badge-success',
   DISMISSED: 'badge-neutral',
 };
@@ -32,9 +36,17 @@ export default function AccountReportsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    reportsApi
-      .mine()
-      .then(setItems)
+    Promise.all([reportsApi.mine(), trustReportsApi.mine()])
+      .then(([existing, trustReports]) => setItems([
+        ...existing,
+        ...trustReports.map((report) => ({
+          ...report,
+          reason: report.category.replace(/_/g, ' '),
+          details: report.description,
+          targetType: 'PROVIDER',
+          target: report.reportedUser,
+        })),
+      ]))
       .catch((err) => setError(err instanceof ApiError ? err.message : 'Could not load your reports'))
       .finally(() => setLoading(false));
   }, []);

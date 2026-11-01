@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Prisma } from '@prisma/client';
+import { Prisma, RestrictionType } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -80,6 +80,23 @@ export class AuthService {
             lastName: dto.lastName,
             role: dto.role,
             ...(dto.role === 'CLIENT' ? { clientProfile: { create: {} } } : {}),
+          },
+        });
+        const registrationEvent = await tx.securityEvent.create({
+          data: {
+            userId: created.id,
+            eventType: 'USER_REGISTERED',
+            dedupeKey: `registration:${created.id}`,
+          },
+        });
+        await tx.riskAssessment.create({
+          data: {
+            userId: created.id,
+            sourceEventId: registrationEvent.id,
+            riskScore: 0,
+            riskLevel: 'LOW',
+            assessmentVersion: 'v1',
+            summary: 'Account registered. No automated fraud finding was made.',
           },
         });
 
@@ -171,6 +188,17 @@ export class AuthService {
     if (user.status !== 'ACTIVE') {
       throw new UnauthorizedException('Account is not active');
     }
+
+    const suspension = await this.prisma.accountRestriction.findFirst({
+      where: {
+        userId: user.id,
+        status: 'ACTIVE',
+        restrictionType: { in: [RestrictionType.TEMPORARY_SUSPENSION, RestrictionType.PERMANENT_SUSPENSION] },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+      select: { id: true },
+    });
+    if (suspension) throw new UnauthorizedException('Account access is temporarily restricted');
 
     return this.issueTokens(user.id, user.email, user.role);
   }

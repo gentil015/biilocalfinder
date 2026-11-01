@@ -30,6 +30,7 @@ describe('ProvidersService — onboarding', () => {
       provider: { findUnique: jest.fn(), update: jest.fn((args) => args.data) },
       workspace: { update: jest.fn((args) => args.data) },
       user: { findUnique: jest.fn(), findFirst: jest.fn(), update: jest.fn((args) => args.data) },
+      accountRestriction: { findFirst: jest.fn().mockResolvedValue(null) },
       contactVerificationCode: { updateMany: jest.fn() },
       // Lets the service's transaction callbacks run against the same mocks.
       $transaction: jest.fn((cb: any) => cb(prisma)),

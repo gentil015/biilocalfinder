@@ -15,6 +15,7 @@ import { ProviderContextService } from '../providers/provider-context.service';
 import { WorkspaceContextService } from '../common/workspace/workspace-context.service';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 import { ProposeRevisionDto } from './dto/propose-revision.dto';
+import { RestrictionType } from '@prisma/client';
 
 export const QUOTE_ATTACHMENT_PREFIX = 'quote-attachments';
 
@@ -59,6 +60,7 @@ export class QuotesService {
 
   async create(providerUserId: string, dto: CreateQuoteDto) {
     const provider = await this.providerContext.resolveForUser(providerUserId);
+    await this.assertBookingAllowed(providerUserId);
 
     const request = await this.prisma.serviceRequest.findUnique({ where: { id: dto.requestId } });
     if (!request) throw new NotFoundException('Service request not found');
@@ -301,6 +303,12 @@ export class QuotesService {
   async accept(quoteId: string, clientUserId: string) {
     const quote = await this.getQuoteOrThrow(quoteId);
     const clientProfile = await this.assertClientOwnsRequest(quote.requestId, clientUserId);
+    await this.assertBookingAllowed(clientUserId);
+    const providerOwner = await this.prisma.provider.findUniqueOrThrow({
+      where: { id: quote.providerId },
+      select: { userId: true },
+    });
+    await this.assertBookingAllowed(providerOwner.userId);
 
     if (quote.status !== 'PENDING') throw new BadRequestException('Quote is not pending');
     if (quote.expiresAt && quote.expiresAt.getTime() < Date.now()) {
@@ -451,6 +459,19 @@ export class QuotesService {
   private async providerUserId(providerId: string): Promise<string> {
     const provider = await this.prisma.provider.findUniqueOrThrow({ where: { id: providerId } });
     return provider.userId;
+  }
+
+  private async assertBookingAllowed(userId: string) {
+    const restriction = await this.prisma.accountRestriction.findFirst({
+      where: {
+        userId,
+        status: 'ACTIVE',
+        restrictionType: RestrictionType.BOOKING_RESTRICTED,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+      select: { id: true },
+    });
+    if (restriction) throw new ForbiddenException('This account is currently restricted from booking activity');
   }
 
   private async clientUserId(clientProfileId: string): Promise<string> {

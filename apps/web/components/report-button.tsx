@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react';
 import { Flag, ShieldCheck, X } from 'lucide-react';
-import { reportsApi, ApiError } from '@/lib/api';
+import { reportsApi, trustReportsApi, ApiError } from '@/lib/api';
 import { useAuth } from '@/components/auth-provider';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -14,6 +14,24 @@ const CATEGORY_LABELS: Record<string, string> = {
   HARASSMENT: 'Harassment',
   FAKE_REVIEW: 'Fake review',
   OTHER: 'Something else',
+};
+
+const PROVIDER_REPORT_CATEGORIES: Record<string, string> = {
+  FAKE_PROVIDER_IDENTITY: 'Fake provider identity',
+  SUSPICIOUS_PROVIDER_BEHAVIOR: 'Suspicious provider behavior',
+  MISLEADING_SERVICE_INFO: 'Misleading service information',
+  SUSPECTED_SCAM: 'Suspected scam',
+  IMPERSONATION: 'Impersonation',
+  OTHER: 'Other',
+};
+
+const PROVIDER_REPORT_CATEGORY_MAP: Record<string, string> = {
+  FAKE_PROVIDER_IDENTITY: 'FAKE_PROVIDER_IDENTITY',
+  SUSPICIOUS_PROVIDER_BEHAVIOR: 'SUSPICIOUS_PROVIDER_BEHAVIOR',
+  MISLEADING_SERVICE_INFO: 'MISLEADING_SERVICE_INFO',
+  SUSPECTED_SCAM: 'SUSPECTED_SCAM',
+  IMPERSONATION: 'IMPERSONATION',
+  OTHER: 'OTHER',
 };
 
 export function ReportButton({
@@ -54,7 +72,20 @@ export function ReportButton({
     setSubmitting(true);
     setError(null);
     try {
-      await reportsApi.create({ targetType, targetId, category, reason: reason.trim(), details: details.trim() || undefined });
+      if (targetType === 'PROVIDER') {
+        const description = [reason.trim(), details.trim()].filter(Boolean).join('\n\n');
+        if (description.length < 20) {
+          setError('Please add at least 20 characters describing the issue');
+          setSubmitting(false);
+          return;
+        }
+        await trustReportsApi.reportProvider(targetId, {
+          category: PROVIDER_REPORT_CATEGORY_MAP[category] ?? 'OTHER',
+          description,
+        });
+      } else {
+        await reportsApi.create({ targetType, targetId, category, reason: reason.trim(), details: details.trim() || undefined });
+      }
       setDone(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not submit your report');
@@ -115,7 +146,7 @@ export function ReportButton({
                       Category
                     </label>
                     <select id={categoryFieldId} value={category} onChange={(e) => setCategory(e.target.value)}>
-                      {Object.entries(CATEGORY_LABELS).map(([value, text]) => (
+                      {Object.entries(targetType === 'PROVIDER' ? PROVIDER_REPORT_CATEGORIES : CATEGORY_LABELS).map(([value, text]) => (
                         <option key={value} value={value}>
                           {text}
                         </option>

@@ -17,6 +17,7 @@ describe('AuthService', () => {
         findUniqueOrThrow: jest.fn(),
         create: jest.fn(),
       },
+      accountRestriction: { findFirst: jest.fn().mockResolvedValue(null) },
       refreshToken: {
         create: jest.fn(),
         findFirst: jest.fn(),
@@ -72,6 +73,8 @@ describe('AuthService', () => {
     const createdUser = { id: 'user-1', email: 'plumber@example.com', role: 'PROVIDER' };
     const tx = {
       user: { create: jest.fn().mockResolvedValue(createdUser) },
+      securityEvent: { create: jest.fn().mockResolvedValue({ id: 'event-1' }) },
+      riskAssessment: { create: jest.fn().mockResolvedValue({ id: 'assessment-1' }) },
       workspace: { create: jest.fn().mockResolvedValue({ id: 'ws-1' }), findUnique: jest.fn().mockResolvedValue(null) },
       provider: { create: jest.fn().mockResolvedValue({ id: 'provider-1' }) },
       workspaceMembership: {
@@ -102,6 +105,17 @@ describe('AuthService', () => {
         data: expect.objectContaining({ workspaceId: 'ws-1', userId: 'user-1', role: 'OWNER', status: 'ACTIVE' }),
       }),
     );
+    expect(tx.securityEvent.create).toHaveBeenCalledWith({
+      data: { userId: 'user-1', eventType: 'USER_REGISTERED', dedupeKey: 'registration:user-1' },
+    });
+    expect(tx.riskAssessment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        userId: 'user-1',
+        sourceEventId: 'event-1',
+        riskScore: 0,
+        riskLevel: 'LOW',
+      }),
+    });
   });
 
   it('maps a unique-constraint violation to 409, so a registration racing the duplicate pre-check is not a 500', async () => {

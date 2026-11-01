@@ -84,6 +84,20 @@ export class ProvidersService {
       include: PUBLIC_PROVIDER_INCLUDE,
     });
     if (!provider) throw new NotFoundException('Provider not found');
+    if (provider.userId !== viewerUserId) {
+      const visibilityRestriction = await this.prisma.accountRestriction.findFirst({
+        where: {
+          userId: provider.userId,
+          status: 'ACTIVE',
+          restrictionType: {
+            in: ['PROVIDER_VISIBILITY_RESTRICTED', 'TEMPORARY_SUSPENSION', 'PERMANENT_SUSPENSION'],
+          },
+          OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+        },
+        select: { id: true },
+      });
+      if (visibilityRestriction) throw new NotFoundException('Provider not found');
+    }
     // Incomplete profiles (still mid-onboarding) are never shown publicly
     // (spec: "Prevent incomplete provider profiles from being published
     // publicly") — except to the provider themself, who needs to see their
@@ -166,7 +180,23 @@ export class ProvidersService {
     if (unique.length > 3) throw new BadRequestException('You can compare up to 3 providers at a time');
 
     const providers = await this.prisma.provider.findMany({
-      where: { id: { in: unique }, onboardingStep: 'COMPLETED' },
+      where: {
+        id: { in: unique },
+        onboardingStep: 'COMPLETED',
+        user: {
+          is: {
+            accountRestrictions: {
+              none: {
+                status: 'ACTIVE',
+                restrictionType: {
+                  in: ['PROVIDER_VISIBILITY_RESTRICTED', 'TEMPORARY_SUSPENSION', 'PERMANENT_SUSPENSION'],
+                },
+                OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+              },
+            },
+          },
+        },
+      },
       select: {
         id: true,
         businessName: true,

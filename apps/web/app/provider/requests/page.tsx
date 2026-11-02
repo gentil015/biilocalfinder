@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Inbox, AlertCircle, Lock, Globe } from 'lucide-react';
@@ -9,6 +10,7 @@ import { PageHeader, EmptyState, LoadingBlock } from '@/components/ui/page';
 import { HelpHint } from '@/components/help-hint';
 
 export default function IncomingRequestsPage() {
+  const { translateMessage: tr } = useI18n();
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,33 +26,33 @@ export default function IncomingRequestsPage() {
   return (
     <main className="page-narrow py-6 md:py-8">
       <PageHeader
-        eyebrow="Provider"
-        title="Incoming requests"
-        description="Service requests that match your services, and where each one stands."
+        eyebrow={tr("Provider")}
+        title={tr("Incoming requests")}
+        description={tr("Service requests that match your services, and where each one stands.")}
         actions={<HelpHint text="Private requests are sent only to you. Open requests can go to matching providers — send a quote to respond." />}
       />
 
-      {loading && <LoadingBlock label="Loading requests…" />}
+      {loading && <LoadingBlock label={tr("Loading requests…")} />}
 
       {error && (
         <div className="alert alert-error">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {error}
+          {tr(error)}
         </div>
       )}
 
       {!loading && !error && requests.length === 0 && (
         <EmptyState
           icon={Inbox}
-          title="No incoming requests yet"
+          title={tr("No incoming requests yet")}
           body="When a client posts a request that matches your services, you'll see it here. To get more requests: add your services, complete verification, and keep your profile updated."
           action={
             <>
               <Link href="/provider/offerings/new" className="btn-primary">
-                Add your first service
+                {tr("Add your first service")}
               </Link>
               <Link href="/provider/verification" className="btn-secondary">
-                Get verified
+                {tr("Get verified")}
               </Link>
             </>
           }
@@ -75,21 +77,21 @@ export default function IncomingRequestsPage() {
                   {r.providerId && !r.isPublic ? (
                     <>
                       <span className="flex items-center gap-1 font-semibold text-brand-700">
-                        <Lock className="h-3 w-3" aria-hidden="true" /> Sent directly to you
+                        <Lock className="h-3 w-3" aria-hidden="true" /> {tr("Sent directly to you")}
                       </span>
                       <span aria-hidden="true">·</span>
                     </>
                   ) : r.providerId && r.isPublic ? (
                     <>
                       <span className="flex items-center gap-1 font-semibold text-brand-700">
-                        <Globe className="h-3 w-3" aria-hidden="true" /> Open to you and others
+                        <Globe className="h-3 w-3" aria-hidden="true" /> {tr("Open to you and others")}
                       </span>
                       <span aria-hidden="true">·</span>
                     </>
                   ) : (
                     <>
                       <span className="flex items-center gap-1">
-                        <Globe className="h-3 w-3" aria-hidden="true" /> Open request
+                        <Globe className="h-3 w-3" aria-hidden="true" /> {tr("Open request")}
                       </span>
                       <span aria-hidden="true">·</span>
                     </>

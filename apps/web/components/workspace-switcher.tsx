@@ -2,15 +2,33 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { Check, ChevronDown, LogOut, Menu, X, ArrowLeft, HelpCircle, type LucideIcon } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  LogOut,
+  Menu,
+  X,
+  ArrowLeft,
+  HelpCircle,
+  Loader2,
+  Mail,
+  type LucideIcon,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { setActiveWorkspace, type WorkspaceMembershipSummary } from '@/lib/api';
+import {
+  ApiError,
+  setActiveWorkspace,
+  workspacesApi,
+  type WorkspaceMembershipSummary,
+} from '@/lib/api';
 import { WORKSPACE_TYPE_LABEL } from '@/lib/workspace-nav';
 import { BrandMark } from '@/components/brand-mark';
 import { BackButton, useCanGoBack } from '@/components/back-button';
 import { useAuth } from '@/components/auth-provider';
 import { NotificationBell } from '@/components/notification-bell';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { useI18n } from '@/components/locale-provider';
+import { LOCALES, resolveLocale } from '@/lib/locales';
 
 // spec §1: "A user may own or belong to multiple workspaces and switch
 // between them without creating multiple login accounts." Today that's
@@ -29,8 +47,31 @@ export function WorkspaceSwitcher({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   const active = memberships.find((m) => m.workspace.id === activeWorkspaceId);
   const switchable = memberships.filter((m) => m.status === 'ACTIVE');
+  // A user who already belongs to a workspace still needs somewhere to see
+  // and accept an invitation to another one — the dashboard entry page
+  // redirects straight into their active workspace, so without this the
+  // invitation would only ever be discoverable from the email.
+  const pending = memberships.filter((m) => m.status === 'INVITED');
+
+  async function accept(m: WorkspaceMembershipSummary) {
+    setAcceptingId(m.membershipId);
+    setInviteError(null);
+    try {
+      await workspacesApi.acceptInvite(m.workspace.id, m.membershipId);
+      setActiveWorkspace(m.workspace.id, m.role);
+      setOpen(false);
+      router.push(`/dashboard/${m.workspace.id}`);
+      router.refresh();
+    } catch (err) {
+      setInviteError(err instanceof ApiError ? err.message : 'Could not accept this invitation');
+    } finally {
+      setAcceptingId(null);
+    }
+  }
 
   // Close on outside click / Escape so the menu behaves like a menu.
   useEffect(() => {
@@ -63,7 +104,7 @@ export function WorkspaceSwitcher({
     </>
   );
 
-  if (switchable.length <= 1) {
+  if (switchable.length <= 1 && pending.length === 0) {
     return <div className="flex min-w-0 items-center gap-2.5">{identity}</div>;
   }
 
@@ -79,6 +120,14 @@ export function WorkspaceSwitcher({
         }`}
       >
         {identity}
+        {pending.length > 0 && (
+          <span
+            className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-warning-100 px-1.5 text-2xs font-bold text-warning-800"
+            aria-label={`${pending.length} pending invitation${pending.length === 1 ? '' : 's'}`}
+          >
+            {pending.length}
+          </span>
+        )}
         <ChevronDown
           className={`h-4 w-4 shrink-0 ${inverted ? 'text-white/40' : 'text-ink-400'}`}
           aria-hidden="true"
@@ -122,6 +171,46 @@ export function WorkspaceSwitcher({
               )}
             </button>
           ))}
+
+          {pending.length > 0 && (
+            <>
+              <p className="eyebrow-muted mt-1.5 border-t border-ink-100 px-2.5 pb-1 pt-3">
+                Pending invitations
+              </p>
+              {inviteError && (
+                <p className="mx-2.5 mb-1 rounded-lg bg-danger-50 px-2 py-1.5 text-2xs font-semibold text-danger-700" role="alert">
+                  {inviteError}
+                </p>
+              )}
+              {pending.map((m) => (
+                <div
+                  key={m.membershipId}
+                  className="flex items-center gap-2.5 rounded-xl px-2.5 py-2"
+                >
+                  <WorkspaceAvatar name={m.workspace.name} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-ink-900">{m.workspace.name}</p>
+                    <p className="text-2xs text-ink-500">
+                      {WORKSPACE_TYPE_LABEL[m.workspace.type]} · invited as {m.role.toLowerCase()}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void accept(m)}
+                    disabled={acceptingId === m.membershipId}
+                    className="btn-primary btn-sm shrink-0"
+                  >
+                    {acceptingId === m.membershipId ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <Mail className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
+                    {acceptingId === m.membershipId ? 'Joining…' : 'Accept'}
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>
@@ -169,8 +258,19 @@ export function WorkspaceShell({
 }) {
   const pathname = usePathname();
   const { logout } = useAuth();
+  const { locale, setLocale, t } = useI18n();
   const [navOpen, setNavOpen] = useState(false);
+  const [languageError, setLanguageError] = useState(false);
   const canGoBack = useCanGoBack();
+
+  async function changeLocale(value: string) {
+    setLanguageError(false);
+    try {
+      await setLocale(resolveLocale(value));
+    } catch {
+      setLanguageError(true);
+    }
+  }
 
   useEffect(() => {
     setNavOpen(false);
@@ -219,6 +319,26 @@ export function WorkspaceShell({
         <span className="text-sm font-semibold text-ink-600">Theme</span>
         <ThemeToggle className="-mr-1.5" />
       </div>
+      <label className="flex items-center justify-between gap-3 rounded-xl px-3 py-1.5">
+        <span className="text-sm font-semibold text-ink-600">{t('languages.title')}</span>
+        <select
+          aria-label={t('languages.selectedLabel')}
+          value={locale}
+          onChange={(event) => void changeLocale(event.target.value)}
+          className="max-w-36 rounded-lg border border-ink-200 bg-surface px-2 py-1 text-xs font-semibold text-ink-700"
+        >
+          {LOCALES.map((option) => (
+            <option key={option.code} value={option.code}>
+              {option.nativeName}
+            </option>
+          ))}
+        </select>
+      </label>
+      {languageError && (
+        <p className="px-3 text-xs text-danger-700" role="alert">
+          {t('languages.error')}
+        </p>
+      )}
       <Link
         href="/"
         className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-ink-600 transition hover:bg-ink-100/70 hover:text-ink-950"

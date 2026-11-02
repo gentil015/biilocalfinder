@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import {
   AlertCircle,
   CalendarClock,
@@ -205,6 +206,7 @@ export function BookingProgress({
   history?: { toStatus: string }[];
   className?: string;
 }) {
+  const { translateMessage: tr } = useI18n();
   const cancelled = status === 'CANCELLED';
   const currentIndex = BOOKING_STEPS.findIndex((s) => s.status === status);
 
@@ -262,7 +264,7 @@ export function BookingProgress({
                   }`}
                 >
                   {step.label}
-                  {active && <span className="ml-2 text-2xs font-bold uppercase tracking-wide text-brand-600">Current</span>}
+                  {active && <span className="ml-2 text-2xs font-bold uppercase tracking-wide text-brand-600">{tr("Current")}</span>}
                 </p>
                 <p className={`mt-0.5 text-xs leading-relaxed ${active ? 'text-ink-600' : 'text-ink-400'}`}>
                   {step.summary}
@@ -294,6 +296,7 @@ export function BookingCurrentStep({
   onTransition: (to: string) => void;
   className?: string;
 }) {
+  const { translateMessage: tr } = useI18n();
   const meta = bookingStatusMeta(status);
   const Icon = meta.icon;
   const actions = bookingActions(status, viewerRole);

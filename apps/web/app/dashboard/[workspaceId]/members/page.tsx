@@ -98,7 +98,10 @@ export default function WorkspaceMembersPage({ params }: { params: { workspaceId
     setError(null);
     try {
       await workspacesApi.removeMember(workspaceId, membershipId);
-      setMembers((prev) => prev!.filter((m) => m.id !== membershipId));
+      // Removing a pending member also revokes their invitation server-side;
+      // reload both lists so a now-revoked invite can't linger in the
+      // "pending email invitations" panel.
+      await reloadLists();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not remove this member');
     } finally {
@@ -111,7 +114,7 @@ export default function WorkspaceMembersPage({ params }: { params: { workspaceId
     setError(null);
     try {
       await workspacesApi.revokeInvitation(workspaceId, invitationId);
-      setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
+      await reloadLists();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not revoke this invitation');
     } finally {

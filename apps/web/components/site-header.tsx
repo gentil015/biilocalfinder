@@ -7,6 +7,7 @@ import { Menu, X, Plus, LayoutDashboard, ShieldCheck } from 'lucide-react';
 import { BrandMark } from '@/components/brand-mark';
 import { BackButton, useCanGoBack } from '@/components/back-button';
 import { useAuth, useSession } from '@/components/auth-provider';
+import { useI18n } from '@/components/locale-provider';
 import { NotificationBell } from '@/components/notification-bell';
 import { ThemeSegmentedControl, ThemeToggle } from '@/components/theme-toggle';
 
@@ -51,6 +52,7 @@ export function SiteHeader() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { isProvider, isAdmin } = useSession();
+  const { translateMessage: tr } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   // A back affordance appears once the user has moved within the app, so a
   // shared link or a fresh tab doesn't offer to walk them out of the product.
@@ -87,7 +89,7 @@ export function SiteHeader() {
                   : 'text-ink-600 hover:bg-ink-100/60 hover:text-ink-950'
               }`}
             >
-              {link.label}
+              {tr(link.label)}
             </Link>
           ))}
         </nav>
@@ -99,14 +101,14 @@ export function SiteHeader() {
                 href="/requests"
                 className="hidden text-sm font-semibold text-ink-600 transition hover:text-ink-950 md:inline"
               >
-                My requests
+                {tr('My requests')}
               </Link>
               {/* Only providers have a workspace; sending a client here used to
                   bounce them through onboarding into a 403. */}
               {isProvider && (
                 <Link href="/dashboard" className="btn-secondary btn-sm hidden sm:inline-flex">
                   <LayoutDashboard className="h-4 w-4" aria-hidden="true" />
-                  Dashboard
+                  {tr('Dashboard')}
                 </Link>
               )}
               {/* Moderators have no workspace, so they get no Dashboard link —
@@ -115,7 +117,7 @@ export function SiteHeader() {
               {isAdmin && (
                 <Link href="/admin" className="btn-secondary btn-sm hidden sm:inline-flex">
                   <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-                  Admin
+                  {tr('Admin')}
                 </Link>
               )}
               <NotificationBell />
@@ -131,14 +133,14 @@ export function SiteHeader() {
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-700 text-2xs font-bold uppercase text-white dark:text-home-night">
                   {(user.firstName?.trim().charAt(0) || user.email.charAt(0) || 'U').toUpperCase()}
                 </span>
-                <span className="hidden sm:inline">Account</span>
+                <span className="hidden sm:inline">{tr('Account')}</span>
               </Link>
               <button
                 type="button"
                 onClick={() => void logout()}
                 className="hidden rounded-lg px-2.5 py-2 text-sm font-semibold text-ink-500 transition hover:bg-ink-100/70 hover:text-ink-950 md:block"
               >
-                Log out
+                {tr('Log out')}
               </button>
             </>
           ) : (
@@ -147,10 +149,10 @@ export function SiteHeader() {
                 href="/login"
                 className="hidden rounded-lg px-3 py-2 text-sm font-semibold text-ink-700 transition hover:bg-ink-100/60 hover:text-ink-950 md:inline"
               >
-                Log in
+                {tr('Log in')}
               </Link>
               <Link href="/register" className="btn-primary h-10 px-3.5 text-sm sm:px-4">
-                Get started
+                {tr('Get started')}
               </Link>
             </>
           )}
@@ -209,19 +211,19 @@ export function SiteHeader() {
               {user ? (
                 <>
                   <Link href="/requests" onClick={close} className="btn-secondary w-full justify-start">
-                    My requests
+                    {tr('My requests')}
                   </Link>
                   <Link href="/account" onClick={close} className="btn-secondary w-full justify-start">
-                    Account
+                    {tr('Account')}
                   </Link>
                   {isProvider && (
                     <Link href="/dashboard" onClick={close} className="btn-primary w-full">
-                      <LayoutDashboard className="h-4 w-4" aria-hidden="true" /> Dashboard
+                      <LayoutDashboard className="h-4 w-4" aria-hidden="true" /> {tr('Dashboard')}
                     </Link>
                   )}
                   {isAdmin && (
                     <Link href="/admin" onClick={close} className="btn-primary w-full">
-                      <ShieldCheck className="h-4 w-4" aria-hidden="true" /> Admin
+                      <ShieldCheck className="h-4 w-4" aria-hidden="true" /> {tr('Admin')}
                     </Link>
                   )}
                   <button
@@ -232,16 +234,16 @@ export function SiteHeader() {
                     }}
                     className="btn-ghost w-full"
                   >
-                    Log out
+                    {tr('Log out')}
                   </button>
                 </>
               ) : (
                 <>
                   <Link href="/login" onClick={close} className="btn-secondary w-full">
-                    Log in
+                    {tr('Log in')}
                   </Link>
                   <Link href="/register" onClick={close} className="btn-primary w-full">
-                    <Plus className="h-4 w-4" /> Get started
+                    <Plus className="h-4 w-4" /> {tr('Get started')}
                   </Link>
                 </>
               )}

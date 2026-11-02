@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Star, BadgeCheck, AlertCircle } from 'lucide-react';
@@ -7,6 +8,7 @@ import { reviewsApi, ApiError } from '@/lib/api';
 import { PageHeader, EmptyState, LoadingBlock } from '@/components/ui/page';
 
 export default function ProviderReviewsPage() {
+  const { translateMessage: tr } = useI18n();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [unansweredOnly, setUnansweredOnly] = useState(false);
@@ -43,8 +45,8 @@ export default function ProviderReviewsPage() {
   return (
     <main className="page-narrow py-6 md:py-8">
       <PageHeader
-        eyebrow="Provider"
-        title="Your reviews"
+        eyebrow={tr("Provider")}
+        title={tr("Your reviews")}
         description={
           data
             ? `${data.total} total${data.unanswered > 0 ? ` · ${data.unanswered} awaiting a response` : ''}`
@@ -56,28 +58,28 @@ export default function ProviderReviewsPage() {
             aria-pressed={unansweredOnly}
             className={`chip ${unansweredOnly ? 'chip-active' : 'chip-interactive'}`}
           >
-            Unanswered only
+            {tr("Unanswered only")}
           </button>
         }
       />
 
-      {loading && <LoadingBlock label="Loading your reviews…" />}
+      {loading && <LoadingBlock label={tr("Loading your reviews…")} />}
 
       {error && (
         <div className="alert alert-error mb-4">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {error}
+          {tr(error)}
         </div>
       )}
 
       {!loading && !error && data?.items?.length === 0 && (
         <EmptyState
           icon={Star}
-          title="No reviews yet"
-          body="Reviews appear here after clients complete a booking with you. Keep your services and availability up to date to get your first one."
+          title={tr("No reviews yet")}
+          body={tr("Reviews appear here after clients complete a booking with you. Keep your services and availability up to date to get your first one.")}
           action={
             <Link href="/provider/availability" className="btn-secondary btn-sm">
-              Check your availability
+              {tr('Check your availability')}
             </Link>
           }
         />
@@ -95,7 +97,7 @@ export default function ProviderReviewsPage() {
               {r.verifiedBooking && (
                 <span className="badge badge-success">
                   <BadgeCheck className="h-3 w-3" aria-hidden="true" />
-                  Verified booking
+                  {tr("Verified booking")}
                 </span>
               )}
             </div>
@@ -103,7 +105,7 @@ export default function ProviderReviewsPage() {
 
             {r.providerResponse ? (
               <div className="mt-3 rounded-lg border-l-2 border-brand-300 bg-brand-50/60 p-3.5 text-sm">
-                <p className="mb-1 text-2xs font-bold uppercase tracking-wider text-brand-700">Your response</p>
+                <p className="mb-1 text-2xs font-bold uppercase tracking-wider text-brand-700">{tr("Your response")}</p>
                 <p className="leading-relaxed text-ink-700">{r.providerResponse.text}</p>
               </div>
             ) : (
@@ -111,7 +113,7 @@ export default function ProviderReviewsPage() {
                 <input
                   value={drafts[r.id] ?? ''}
                   onChange={(e) => setDrafts((prev) => ({ ...prev, [r.id]: e.target.value }))}
-                  placeholder="Write a public response…"
+                  placeholder={tr("Write a public response…")}
                   aria-label={`Respond to ${r.reviewer.name}'s review`}
                   className="flex-1"
                 />

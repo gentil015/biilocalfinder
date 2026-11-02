@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useMemo, useState } from 'react';
 import {
   BriefcaseBusiness,
@@ -56,6 +57,7 @@ function rangeLabel(item: ProviderExperience): string {
 }
 
 export default function ProviderExperiencePage() {
+  const { translateMessage: tr } = useI18n();
   const [items, setItems] = useState<ProviderExperience[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -171,13 +173,13 @@ export default function ProviderExperiencePage() {
   return (
     <main className="page-narrow py-6 pb-24 md:py-8">
       <PageHeader
-        eyebrow="Professional profile"
-        title="Experience"
-        description="Your work history. Clients see this on your public profile, so keep it short and specific."
+        eyebrow={tr("Professional profile")}
+        title={tr("Experience")}
+        description={tr("Your work history. Clients see this on your public profile, so keep it short and specific.")}
         actions={
           <button type="button" onClick={openAdd} className="btn-primary">
             <Plus className="h-4 w-4" aria-hidden="true" />
-            Add experience
+            {tr("Add experience")}
           </button>
         }
       />
@@ -185,18 +187,18 @@ export default function ProviderExperiencePage() {
       <ProviderProfileNav className="mb-6" />
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <StatCard icon={BriefcaseBusiness} label="Entries" value={String(items.length)} />
-        <StatCard icon={Sparkles} label="Current role" value={currentRole ? 'Active' : '—'} sub={currentRole?.title} tone="brand" />
-        <StatCard icon={CalendarDays} label="Organizations" value={String(organizations)} />
+        <StatCard icon={BriefcaseBusiness} label={tr("Entries")} value={String(items.length)} />
+        <StatCard icon={Sparkles} label={tr("Current role")} value={currentRole ? 'Active' : '—'} sub={currentRole?.title} tone="brand" />
+        <StatCard icon={CalendarDays} label={tr("Organizations")} value={String(organizations)} />
       </div>
 
       {editorOpen && (
         <Panel
           title={editingId ? 'Edit experience' : 'Add experience'}
-          description="Dates use month and year — they are shown the same way on your public profile."
+          description={tr("Dates use month and year — they are shown the same way on your public profile.")}
           className="mb-6"
           actions={
-            <button type="button" onClick={closeEditor} className="btn-ghost btn-sm" aria-label="Close editor">
+            <button type="button" onClick={closeEditor} className="btn-ghost btn-sm" aria-label={tr("Close editor")}>
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
           }
@@ -205,26 +207,26 @@ export default function ProviderExperiencePage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="field">
                 <label htmlFor="exp-title" className="label">
-                  Job title
+                  {tr("Job title")}
                 </label>
                 <input
                   id="exp-title"
                   value={form.title}
                   onChange={(e) => update('title', e.target.value)}
-                  placeholder="e.g. Senior electrician"
+                  placeholder={tr("e.g. Senior electrician")}
                   maxLength={120}
                   required
                 />
               </div>
               <div className="field">
                 <label htmlFor="exp-org" className="label">
-                  Organization
+                  {tr("Organization")}
                 </label>
                 <input
                   id="exp-org"
                   value={form.organization}
                   onChange={(e) => update('organization', e.target.value)}
-                  placeholder="e.g. Kigali Power Ltd"
+                  placeholder={tr("e.g. Kigali Power Ltd")}
                   maxLength={160}
                   required
                 />
@@ -233,13 +235,13 @@ export default function ProviderExperiencePage() {
 
             <div className="field">
               <label htmlFor="exp-location" className="label">
-                Location <span className="font-normal text-ink-400">(optional)</span>
+                {tr("Location")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
               </label>
               <input
                 id="exp-location"
                 value={form.location}
                 onChange={(e) => update('location', e.target.value)}
-                placeholder="e.g. Kigali, Rwanda"
+                placeholder={tr("e.g. Kigali, Rwanda")}
                 maxLength={160}
               />
             </div>
@@ -247,7 +249,7 @@ export default function ProviderExperiencePage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="field">
                 <label htmlFor="exp-start" className="label">
-                  Start date
+                  {tr("Start date")}
                 </label>
                 <input
                   id="exp-start"
@@ -259,7 +261,7 @@ export default function ProviderExperiencePage() {
               </div>
               <div className="field">
                 <label htmlFor="exp-end" className="label">
-                  End date
+                  {tr("End date")}
                 </label>
                 <input
                   id="exp-end"
@@ -279,21 +281,21 @@ export default function ProviderExperiencePage() {
                 onChange={(e) => update('isCurrent', e.target.checked)}
               />
               <span>
-                <span className="block text-sm font-semibold text-ink-900">I currently work here</span>
-                <span className="block text-2xs text-ink-500">The end date stays open (“Present”).</span>
+                <span className="block text-sm font-semibold text-ink-900">{tr("I currently work here")}</span>
+                <span className="block text-2xs text-ink-500">{tr("The end date stays open (“Present”).")}</span>
               </span>
             </label>
 
             <div className="field">
               <label htmlFor="exp-description" className="label">
-                Description <span className="font-normal text-ink-400">(optional)</span>
+                {tr("Description")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
               </label>
               <textarea
                 id="exp-description"
                 rows={3}
                 value={form.description}
                 onChange={(e) => update('description', e.target.value)}
-                placeholder="What did you do, and what were you responsible for?"
+                placeholder={tr("What did you do, and what were you responsible for?")}
                 maxLength={2000}
               />
               <p className="hint">
@@ -303,13 +305,13 @@ export default function ProviderExperiencePage() {
 
             {error && (
               <p className="error-text" role="alert">
-                {error}
+                {tr(error)}
               </p>
             )}
 
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={closeEditor} className="btn-secondary" disabled={saving}>
-                Cancel
+                {tr("Cancel")}
               </button>
               <button type="submit" className="btn-primary" disabled={saving}>
                 <Check className="h-4 w-4" aria-hidden="true" />
@@ -320,23 +322,23 @@ export default function ProviderExperiencePage() {
         </Panel>
       )}
 
-      {loading && <LoadingBlock label="Loading your experience…" />}
+      {loading && <LoadingBlock label={tr("Loading your experience…")} />}
 
       {!loading && !editorOpen && error && (
         <p className="alert alert-error mb-4" role="alert">
-          {error}
+          {tr(error)}
         </p>
       )}
 
       {!loading && items.length === 0 && !editorOpen && (
         <EmptyState
           icon={BriefcaseBusiness}
-          title="No experience added yet"
+          title={tr("No experience added yet")}
           body="Add your roles and projects so clients can see what you have done before."
           action={
             <button type="button" onClick={openAdd} className="btn-primary btn-sm">
               <Plus className="h-4 w-4" aria-hidden="true" />
-              Add your first role
+              {tr("Add your first role")}
             </button>
           }
         />
@@ -359,7 +361,7 @@ export default function ProviderExperiencePage() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-sm font-bold tracking-tight text-ink-950 sm:text-base">{item.title}</h2>
-                      {item.isCurrent && <span className="badge badge-success">Current</span>}
+                      {item.isCurrent && <span className="badge badge-success">{tr("Current")}</span>}
                     </div>
                     <p className="mt-0.5 text-sm font-medium text-ink-700">{item.organization}</p>
                     <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-500">
@@ -384,7 +386,7 @@ export default function ProviderExperiencePage() {
                       aria-label={`Edit ${item.title}`}
                     >
                       <Pencil className="h-4 w-4" aria-hidden="true" />
-                      <span className="sm:sr-only">Edit</span>
+                      <span className="sm:sr-only">{tr("Edit")}</span>
                     </button>
                     <button
                       type="button"
@@ -394,7 +396,7 @@ export default function ProviderExperiencePage() {
                       aria-label={`Delete ${item.title}`}
                     >
                       <Trash2 className="h-4 w-4" aria-hidden="true" />
-                      <span className="sm:sr-only">Delete</span>
+                      <span className="sm:sr-only">{tr("Delete")}</span>
                     </button>
                   </div>
                 </div>

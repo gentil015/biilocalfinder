@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
@@ -21,6 +22,7 @@ import { HelpHint } from '@/components/help-hint';
 const DEFAULT_LOCATION = { lat: -1.9441, lng: 30.0619 }; // Kigali
 
 function NewServiceOfferingForm() {
+  const { translateMessage: tr } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const isOnboarding = searchParams.get('onboarding') === '1';
@@ -141,10 +143,10 @@ function NewServiceOfferingForm() {
 
   return (
     <main className="page-narrow py-6 pb-28 md:py-8">
-      {isOnboarding && <OnboardingProgress step={3} label="First service" />}
+      {isOnboarding && <OnboardingProgress step={3} label={tr("First service")} />}
 
       <PageHeader
-        eyebrow="Services"
+        eyebrow={tr("Services")}
         title={skipOffering ? 'Finish setting up' : 'Add a service'}
         description={
           skipOffering
@@ -156,20 +158,19 @@ function NewServiceOfferingForm() {
 
       <form onSubmit={onSubmit}>
         {skipOffering && (
-          <Panel title="First service created" className="mb-4">
+          <Panel title={tr("First service created")} className="mb-4">
             <p className="text-sm text-ink-600">
-              You already added your first service. Confirm where you are based and we&rsquo;ll take you to your
-              dashboard.
+              {tr("You already added your first service. Confirm where you are based and we'll take you to your dashboard.")}
             </p>
           </Panel>
         )}
 
         {!skipOffering && (
           <>
-        <Panel title="Choose your service" className="mb-4">
+        <Panel title={tr("Choose your service")} className="mb-4">
           <div className="field mb-0">
             <label htmlFor="offering-category" className="label">
-              Sub-category
+              {tr("Sub-category")}
             </label>
             <select
               id="offering-category"
@@ -180,7 +181,7 @@ function NewServiceOfferingForm() {
                 setServiceId('');
               }}
             >
-              <option value="">Select sub-category…</option>
+              <option value="">{tr("Select sub-category…")}</option>
               {categoryGroups(categories).map((group) => (
                 <optgroup key={group.group} label={group.group}>
                   {group.options.map((c) => (
@@ -194,21 +195,21 @@ function NewServiceOfferingForm() {
           </div>
         </Panel>
 
-        <Panel title="Describe it" className="mb-4">
+        <Panel title={tr("Describe it")} className="mb-4">
           <div className="field">
             <label htmlFor="offering-title" className="label">
-              Title <span className="font-normal text-ink-400">(optional)</span>
+              {tr("Title")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
             </label>
             <input
               id="offering-title"
-              placeholder="e.g. Wedding Photography"
+              placeholder={tr("e.g. Wedding Photography")}
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
           </div>
           <div className="field mb-0 mt-4">
             <label htmlFor="offering-description" className="label">
-              Description
+              {tr("Description")}
             </label>
             <textarea
               id="offering-description"
@@ -219,11 +220,11 @@ function NewServiceOfferingForm() {
           </div>
         </Panel>
 
-        <Panel title="Pricing & time" className="mb-4">
+        <Panel title={tr("Pricing & time")} className="mb-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="field">
               <label htmlFor="offering-price" className="label">
-                Base price (RWF)
+                {tr("Base price (RWF)")}
               </label>
               <input
                 id="offering-price"
@@ -236,28 +237,28 @@ function NewServiceOfferingForm() {
             </div>
             <div className="field">
               <label htmlFor="offering-price-type" className="label">
-                Price type
+                {tr("Price type")}
               </label>
               <select
                 id="offering-price-type"
                 value={form.priceType}
                 onChange={(e) => setForm({ ...form, priceType: e.target.value })}
               >
-                <option value="FIXED">Fixed</option>
-                <option value="HOURLY">Hourly</option>
-                <option value="PER_DAY">Per day</option>
-                <option value="STARTING_FROM">Starting from</option>
-                <option value="CUSTOM_QUOTE">Custom quote</option>
+                <option value="FIXED">{tr("Fixed")}</option>
+                <option value="HOURLY">{tr("Hourly")}</option>
+                <option value="PER_DAY">{tr("Per day")}</option>
+                <option value="STARTING_FROM">{tr("Starting from")}</option>
+                <option value="CUSTOM_QUOTE">{tr("Custom quote")}</option>
               </select>
             </div>
           </div>
           <div className="field mb-0 mt-4">
             <label htmlFor="offering-duration" className="label">
-              Duration <span className="font-normal text-ink-400">(optional)</span>
+              {tr("Duration")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
             </label>
             <input
               id="offering-duration"
-              placeholder="e.g. 2 hours, half day"
+              placeholder={tr("e.g. 2 hours, half day")}
               value={form.duration}
               onChange={(e) => setForm({ ...form, duration: e.target.value })}
             />
@@ -265,7 +266,7 @@ function NewServiceOfferingForm() {
         </Panel>
 
         {attributes.length > 0 && (
-          <Panel title="Tell clients about your service" description="Details specific to the category you chose." className="mb-4">
+          <Panel title={tr("Tell clients about your service")} description={tr("Details specific to the category you chose.")} className="mb-4">
             <DynamicAttributeForm
               attributes={attributes}
               values={attributeValues}
@@ -278,8 +279,8 @@ function NewServiceOfferingForm() {
 
         {isOnboarding && (
           <Panel
-            title="Your base location"
-            description="Clients see how far away you are. Drag the pin or click the map to adjust it."
+            title={tr("Your base location")}
+            description={tr("Clients see how far away you are. Drag the pin or click the map to adjust it.")}
             className="mb-4"
           >
             <div className="overflow-hidden rounded-xl border border-ink-200">
@@ -302,7 +303,7 @@ function NewServiceOfferingForm() {
                 });
               }}
             >
-              Use my current location
+              {tr("Use my current location")}
             </button>
           </Panel>
         )}
@@ -312,7 +313,7 @@ function NewServiceOfferingForm() {
         <div className="sticky bottom-[calc(3.25rem+env(safe-area-inset-bottom))] z-10 rounded-xl border border-ink-200 bg-surface/90 p-3 shadow-xs backdrop-blur-xl md:bottom-0">
           {error && (
             <p className="error-text mb-3" role="alert">
-              {error}
+              {tr(error)}
             </p>
           )}
           <button type="submit" disabled={loading} className="btn-primary btn-lg w-full">
@@ -326,6 +327,7 @@ function NewServiceOfferingForm() {
 
 // useSearchParams needs a Suspense boundary during static prerendering.
 export default function NewServiceOfferingPage() {
+  const { translateMessage: tr } = useI18n();
   return (
     <Suspense fallback={null}>
       <NewServiceOfferingForm />

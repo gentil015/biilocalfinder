@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useState } from 'react';
 import {
   BadgeCheck,
@@ -54,6 +55,7 @@ function SubmitForm({
   docOptions: { value: string; label: string }[];
   onSubmitted: () => void;
 }) {
+  const { translateMessage: tr } = useI18n();
   const [legalName, setLegalName] = useState('');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [docType, setDocType] = useState(docOptions[0].value);
@@ -102,7 +104,7 @@ function SubmitForm({
     <div className="grid gap-4 sm:grid-cols-2">
       <div className="field sm:col-span-2">
         <label htmlFor={`${type}-legal-name`} className="label">
-          Legal name <span className="font-normal text-ink-400">(as on document)</span>
+          {tr("Legal name")} <span className="font-normal text-ink-400">{tr('(as on document)')}</span>
         </label>
         <input
           id={`${type}-legal-name`}
@@ -114,7 +116,7 @@ function SubmitForm({
       {type === 'BUSINESS' && (
         <div className="field sm:col-span-2">
           <label htmlFor="business-ref" className="label">
-            Business registration number
+            {tr("Business registration number")}
           </label>
           <input
             id="business-ref"
@@ -126,7 +128,7 @@ function SubmitForm({
 
       <div className="field">
         <label htmlFor={`${type}-doc-type`} className="label">
-          Document type
+          {tr("Document type")}
         </label>
         <select
           id={`${type}-doc-type`}
@@ -165,7 +167,7 @@ function SubmitForm({
 
       {error && (
         <p className="error-text sm:col-span-2" role="alert">
-          {error}
+          {tr(error)}
         </p>
       )}
 
@@ -181,6 +183,7 @@ function SubmitForm({
 }
 
 export default function ProviderVerificationPage() {
+  const { translateMessage: tr } = useI18n();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const refresh = () => verificationApi.myStatus().then(setData).finally(() => setLoading(false));
@@ -192,7 +195,7 @@ export default function ProviderVerificationPage() {
   if (loading)
     return (
       <main className="page-narrow py-6 md:py-8">
-        <LoadingBlock label="Loading verification status…" />
+        <LoadingBlock label={tr("Loading verification status…")} />
       </main>
     );
   if (!data) return null;
@@ -241,15 +244,15 @@ export default function ProviderVerificationPage() {
   return (
     <main className="page-narrow py-6 md:py-8">
       <PageHeader
-        eyebrow="Provider"
-        title="Get verified"
-        description="Verified providers get a trust badge and rank higher in search. Verification usually takes 1–2 business days."
+        eyebrow={tr("Provider")}
+        title={tr("Get verified")}
+        description={tr("Verified providers get a trust badge and rank higher in search. Verification usually takes 1–2 business days.")}
         actions={
           <div className="flex items-center gap-2">
             {statusBadge(data.status)}
             {data.expiresAt && (
               <span className="text-xs text-ink-400">
-                Valid until {new Date(data.expiresAt).toLocaleDateString()}
+                {tr("Valid until")} {new Date(data.expiresAt).toLocaleDateString()}
               </span>
             )}
           </div>
@@ -258,7 +261,7 @@ export default function ProviderVerificationPage() {
 
       <ProviderProfileNav className="mb-6" />
 
-      <Panel title="Your verification status" description="Three steps to a verified badge." className="mb-6">
+      <Panel title={tr("Your verification status")} description={tr("Three steps to a verified badge.")} className="mb-6">
         <ol className="space-y-3">
           {steps.map((step) => (
             <li key={step.label}>
@@ -304,8 +307,8 @@ export default function ProviderVerificationPage() {
       />
 
       <Panel
-        title="Identity verification"
-        description="A government-issued ID links your account to a real person."
+        title={tr("Identity verification")}
+        description={tr("A government-issued ID links your account to a real person.")}
         className="mb-6"
       >
         {identity ? (
@@ -313,13 +316,13 @@ export default function ProviderVerificationPage() {
             <div className="flex flex-wrap items-center gap-2">
               {statusBadge(identity.status)}
               {identity.expiringSoon && (
-                <span className="badge badge-warning">Expiring soon</span>
+                <span className="badge badge-warning">{tr("Expiring soon")}</span>
               )}
             </div>
             {identity.decisionNote && <p className="prose-copy">{identity.decisionNote}</p>}
             {(identity.status === 'REJECTED' || identity.status === 'EXPIRED' || identity.expiringSoon) && (
               <div className="rounded-xl border border-ink-200 bg-ink-50/60 p-4">
-                <p className="label mb-3">Resubmit your documents</p>
+                <p className="label mb-3">{tr("Resubmit your documents")}</p>
                 <SubmitForm type="IDENTITY" docOptions={IDENTITY_DOC_OPTIONS} onSubmitted={refresh} />
               </div>
             )}
@@ -330,8 +333,8 @@ export default function ProviderVerificationPage() {
       </Panel>
 
       <Panel
-        title="Business verification"
-        description="Optional — a verified business name shows an extra badge of trust."
+        title={tr("Business verification")}
+        description={tr("Optional — a verified business name shows an extra badge of trust.")}
         className="mb-6"
       >
         {business ? (
@@ -340,7 +343,7 @@ export default function ProviderVerificationPage() {
             {business.decisionNote && <p className="prose-copy">{business.decisionNote}</p>}
             {(business.status === 'REJECTED' || business.status === 'EXPIRED') && (
               <div className="rounded-xl border border-ink-200 bg-ink-50/60 p-4">
-                <p className="label mb-3">Resubmit your documents</p>
+                <p className="label mb-3">{tr("Resubmit your documents")}</p>
                 <SubmitForm type="BUSINESS" docOptions={BUSINESS_DOC_OPTIONS} onSubmitted={refresh} />
               </div>
             )}

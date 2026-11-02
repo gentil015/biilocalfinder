@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useState } from 'react';
 import { AlertCircle, Check, Clock, Minus, Paperclip, X } from 'lucide-react';
 import { ApiError, quotesApi } from '@/lib/api';
@@ -16,6 +17,7 @@ export function QuoteThread({
   onChanged: () => void;
   onAccepted?: (booking: any) => void;
 }) {
+  const { translateMessage: tr } = useI18n();
   const [counterPrice, setCounterPrice] = useState('');
   const [counterMessage, setCounterMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -296,7 +298,7 @@ export function QuoteThread({
                     }
                     className="btn-primary sm:flex-[1.4]"
                   >
-                    Accept &amp; book
+                    {tr("Accept & book")}
                   </button>
                 </div>
               </div>

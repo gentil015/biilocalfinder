@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -16,6 +17,7 @@ import { LoadingBlock } from '@/components/ui/page';
 // under /dashboard/[workspaceId] does. Messages stay a marketplace route, so
 // it is intentionally not covered here.
 export default function ProviderLayout({ children }: { children: React.ReactNode }) {
+  const { translateMessage: tr } = useI18n();
   const pathname = usePathname();
   const isOnboarding = pathname.startsWith('/provider/onboarding');
 
@@ -33,6 +35,7 @@ export default function ProviderLayout({ children }: { children: React.ReactNode
 }
 
 function ProviderWorkspaceShell({ children }: { children: React.ReactNode }) {
+  const { translateMessage: tr } = useI18n();
   const [memberships, setMemberships] = useState<WorkspaceMembershipSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +49,7 @@ function ProviderWorkspaceShell({ children }: { children: React.ReactNode }) {
   if (error) {
     return (
       <main className="page-narrow py-10">
-        <div className="alert alert-error">{error}</div>
+        <div className="alert alert-error">{tr(error)}</div>
       </main>
     );
   }
@@ -54,7 +57,7 @@ function ProviderWorkspaceShell({ children }: { children: React.ReactNode }) {
   if (!memberships) {
     return (
       <main className="page-narrow py-10">
-        <LoadingBlock label="Loading your workspace…" />
+        <LoadingBlock label={tr("Loading your workspace…")} />
       </main>
     );
   }
@@ -67,12 +70,12 @@ function ProviderWorkspaceShell({ children }: { children: React.ReactNode }) {
     return (
       <main className="page-narrow py-16">
         <div className="empty-state">
-          <p className="text-sm font-bold text-ink-900">You don&rsquo;t have an active workspace</p>
+          <p className="text-sm font-bold text-ink-900">{tr("You don't have an active workspace")}</p>
           <p className="mt-1.5 text-sm text-ink-500">
-            Finish setting up your provider workspace to open your dashboard.
+            {tr("Finish setting up your provider workspace to open your dashboard.")}
           </p>
           <Link href="/provider/onboarding" className="btn-primary btn-sm mt-5">
-            Continue setup
+            {tr("Continue setup")}
           </Link>
         </div>
       </main>

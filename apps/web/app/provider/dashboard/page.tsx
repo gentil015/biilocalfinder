@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -46,6 +47,7 @@ const QUICK_LINKS: { href: string; label: string; hint: string; icon: LucideIcon
 
 // Profile strength ring — a plain SVG progress ring, no chart library.
 function StrengthRing({ percent }: { percent: number }) {
+  const { translateMessage: tr } = useI18n();
   const radius = 28;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (percent / 100) * circumference;
@@ -79,6 +81,7 @@ function StrengthRing({ percent }: { percent: number }) {
 }
 
 export default function ProviderDashboardPage() {
+  const { translateMessage: tr } = useI18n();
   const router = useRouter();
   const [insights, setInsights] = useState<ProviderInsights | null>(null);
   const [loading, setLoading] = useState(true);
@@ -113,7 +116,7 @@ export default function ProviderDashboardPage() {
   if (checkingOnboarding) {
     return (
       <main className="page-narrow py-6 md:py-8">
-        <LoadingBlock label="Loading your dashboard…" />
+        <LoadingBlock label={tr("Loading your dashboard…")} />
       </main>
     );
   }
@@ -128,16 +131,16 @@ export default function ProviderDashboardPage() {
   return (
     <main className="page-narrow py-6 md:py-8">
       <PageHeader
-        eyebrow="Provider"
-        title="Business overview"
-        description="Your business at a glance. New here? Follow the five-step setup below — recommendations use marketplace-wide activity, never any client's private searches or messages."
+        eyebrow={tr("Provider")}
+        title={tr("Business overview")}
+        description={tr("Your business at a glance. New here? Follow the five-step setup below — recommendations use marketplace-wide activity, never any client's private searches or messages.")}
       />
 
       {!loading && hasQuickStart && (
         <ProviderQuickStart checklist={checklist} className="mb-6" />
       )}
 
-      <h2 className="mb-3 text-sm font-bold text-ink-950">Shortcuts</h2>
+      <h2 className="mb-3 text-sm font-bold text-ink-950">{tr("Shortcuts")}</h2>
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {QUICK_LINKS.map((link) => (
           <Link
@@ -150,21 +153,21 @@ export default function ProviderDashboardPage() {
             </span>
             <span className="min-w-0">
               <span className="block text-sm font-bold text-ink-950 group-hover:text-brand-700">
-                {link.label}
+                {tr(link.label)}
               </span>
-              <span className="mt-0.5 block text-xs text-ink-500">{link.hint}</span>
+              <span className="mt-0.5 block text-xs text-ink-500">{tr(link.hint)}</span>
             </span>
           </Link>
         ))}
       </div>
 
-      {loading && <LoadingBlock label="Loading insights…" />}
+      {loading && <LoadingBlock label={tr("Loading insights…")} />}
 
       {!loading && showProfileGuidance && insights?.profileStrength && (
         <Panel
           className="mb-6"
-          title="Profile strength"
-          description="Complete your profile to rank higher in search and win more clients."
+          title={tr("Profile strength")}
+          description={tr("Complete your profile to rank higher in search and win more clients.")}
           actions={
             <span
               className={`font-display text-xl font-extrabold tabular ${
@@ -193,8 +196,8 @@ export default function ProviderDashboardPage() {
       {!loading && hasOpportunities && (
         <Panel
           className="mb-6"
-          title="Opportunities near you"
-          description="Services with demand in your area that you don't cover yet."
+          title={tr("Opportunities near you")}
+          description={tr("Services with demand in your area that you don't cover yet.")}
         >
           <ul className="divide-y divide-ink-100">
             {insights!.opportunities.map((o) => (
@@ -210,7 +213,7 @@ export default function ProviderDashboardPage() {
                   <span className="block text-sm font-bold tabular text-ink-950">
                     {o.approximateInterestedUsers}
                   </span>
-                  <span className="block text-2xs text-ink-500">interested users</span>
+                  <span className="block text-2xs text-ink-500">{tr("interested users")}</span>
                 </span>
               </li>
             ))}
@@ -221,7 +224,7 @@ export default function ProviderDashboardPage() {
       {!loading && showProfileGuidance && !hasActions && !hasOpportunities && (
         <div className="surface-panel px-4 py-3 text-sm text-ink-600">
           <span className="mr-1.5 inline-flex h-2 w-2 rounded-full bg-success-500" aria-hidden="true" />
-          Your profile looks complete — check back later for new opportunities.
+          {tr("Your profile looks complete — check back later for new opportunities.")}
         </div>
       )}
     </main>

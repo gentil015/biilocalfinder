@@ -10,6 +10,7 @@ import {
   interpolate,
   localeMeta,
   resolveLocale,
+  translateMessage as translateCatalogMessage,
   type LocaleCode,
   type MessageKey,
 } from '@/lib/locales';
@@ -35,6 +36,8 @@ interface LocaleContextValue {
   dir: 'ltr' | 'rtl';
   /** Translate a key, filling any `{placeholder}` tokens. */
   t: (key: MessageKey, values?: Record<string, string | number>) => string;
+  /** Resolve a source message against the existing English/Kinyarwanda catalogs. */
+  translateMessage: (message: string) => string;
   /** Apply a language to the current account. Callers show their own status UI. */
   setLocale: (code: LocaleCode) => Promise<void>;
   formats: ReturnType<typeof createFormatters>;
@@ -88,6 +91,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
       locale,
       dir: localeMeta(locale).dir,
       t: (key, values) => interpolate(catalog[key] ?? MESSAGES[DEFAULT_LOCALE][key] ?? key, values),
+      translateMessage: (message) => translateCatalogMessage(locale, message),
       setLocale,
       formats: createFormatters(locale),
     };

@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Bell, BellRing, Settings } from 'lucide-react';
@@ -79,6 +80,7 @@ function notificationHref(item: NotificationItem, isProvider: boolean): string |
 }
 
 export function NotificationBell({ align = 'right' }: { align?: 'left' | 'right' }) {
+  const { translateMessage: tr, formats } = useI18n();
   const { isProvider } = useSession();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -152,7 +154,7 @@ export function NotificationBell({ align = 'right' }: { align?: 'left' | 'right'
         onClick={openPanel}
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+        aria-label={tr(unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications')}
         className="icon-btn relative h-9 w-9"
       >
         {unreadCount > 0 ? (
@@ -171,16 +173,16 @@ export function NotificationBell({ align = 'right' }: { align?: 'left' | 'right'
         <div
           role="dialog"
           aria-modal="false"
-          aria-label="Notifications"
+          aria-label={tr("Notifications")}
           className={`animate-scale-in fixed inset-x-2 top-14 z-50 max-h-[70vh] overflow-auto rounded-xl border border-ink-200 bg-surface shadow-xl sm:absolute sm:inset-auto sm:top-auto sm:mt-2 sm:w-[22rem] sm:max-h-[70vh] ${
             align === 'left' ? 'sm:left-0 sm:origin-top-left' : 'sm:right-0 sm:origin-top-right'
           }`}
         >
           <div className="flex items-center justify-between gap-3 border-b border-ink-200 px-4 py-3">
-            <p className="eyebrow-muted">Notifications</p>
+            <p className="eyebrow-muted">{tr("Notifications")}</p>
             {items.length > 0 && (
               <span className="tabular text-2xs font-semibold text-ink-400">
-                {items.length} {items.length === 1 ? 'item' : 'items'}
+                {items.length} {tr(items.length === 1 ? 'item' : 'items')}
               </span>
             )}
           </div>
@@ -193,10 +195,10 @@ export function NotificationBell({ align = 'right' }: { align?: 'left' | 'right'
                 const href = notificationHref(n, isProvider);
                 const content = (
                   <>
-                    <p className="text-sm font-semibold text-ink-900">{n.title}</p>
-                    {n.body && <p className="mt-0.5 text-sm leading-relaxed text-ink-500">{n.body}</p>}
+                    <p className="text-sm font-semibold text-ink-900">{tr(n.title)}</p>
+                    {n.body && <p className="mt-0.5 text-sm leading-relaxed text-ink-500">{tr(n.body)}</p>}
                     <p className="tabular mt-1 text-2xs text-ink-400">
-                      <time dateTime={n.createdAt}>{new Date(n.createdAt).toLocaleString()}</time>
+                      <time dateTime={n.createdAt}>{formats.date(n.createdAt, { dateStyle: 'medium', timeStyle: 'short' })}</time>
                     </p>
                   </>
                 );
@@ -230,7 +232,7 @@ export function NotificationBell({ align = 'right' }: { align?: 'left' | 'right'
               onClick={() => setOpen(false)}
               className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-semibold text-ink-600 transition hover:bg-ink-50 hover:text-ink-950"
             >
-              <Settings className="h-3.5 w-3.5" aria-hidden="true" /> Notification settings
+              <Settings className="h-3.5 w-3.5" aria-hidden="true" /> {tr("Notification settings")}
             </Link>
           </div>
         </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useMemo, useState } from 'react';
 import {
   CalendarDays,
@@ -66,6 +67,7 @@ function rangeLabel(item: ProviderEducation): string {
 }
 
 export default function ProviderEducationPage() {
+  const { translateMessage: tr } = useI18n();
   const [items, setItems] = useState<ProviderEducation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -221,13 +223,13 @@ export default function ProviderEducationPage() {
   return (
     <main className="page-narrow py-6 pb-24 md:py-8">
       <PageHeader
-        eyebrow="Professional profile"
-        title="Education"
-        description="Schools, training and qualifications. Pick a programme to unlock the skills that belong to it."
+        eyebrow={tr("Professional profile")}
+        title={tr("Education")}
+        description={tr("Schools, training and qualifications. Pick a programme to unlock the skills that belong to it.")}
         actions={
           <button type="button" onClick={openAdd} className="btn-primary">
             <Plus className="h-4 w-4" aria-hidden="true" />
-            Add education
+            {tr("Add education")}
           </button>
         }
       />
@@ -235,18 +237,18 @@ export default function ProviderEducationPage() {
       <ProviderProfileNav className="mb-6" />
 
       <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <StatCard icon={GraduationCap} label="Qualifications" value={String(items.length)} />
-        <StatCard icon={School} label="Institutions" value={String(schools)} tone="brand" />
-        <StatCard icon={Sparkles} label="Skills added" value={String(totalSkills)} />
+        <StatCard icon={GraduationCap} label={tr("Qualifications")} value={String(items.length)} />
+        <StatCard icon={School} label={tr("Institutions")} value={String(schools)} tone="brand" />
+        <StatCard icon={Sparkles} label={tr("Skills added")} value={String(totalSkills)} />
       </div>
 
       {editorOpen && (
         <Panel
           title={editingId ? 'Edit education' : 'Add education'}
-          description="Choose a degree or programme, then select the skills you learned. Dates are optional."
+          description={tr("Choose a degree or programme, then select the skills you learned. Dates are optional.")}
           className="mb-6"
           actions={
-            <button type="button" onClick={closeEditor} className="btn-ghost btn-sm" aria-label="Close editor">
+            <button type="button" onClick={closeEditor} className="btn-ghost btn-sm" aria-label={tr("Close editor")}>
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
           }
@@ -254,13 +256,13 @@ export default function ProviderEducationPage() {
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="field">
               <label htmlFor="edu-school" className="label">
-                School or institution
+                {tr("School or institution")}
               </label>
               <input
                 id="edu-school"
                 value={form.school}
                 onChange={(e) => update('school', e.target.value)}
-                placeholder="e.g. Kigali Institute of Science and Technology"
+                placeholder={tr("e.g. Kigali Institute of Science and Technology")}
                 maxLength={160}
                 required
               />
@@ -269,31 +271,31 @@ export default function ProviderEducationPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="field">
                 <label htmlFor="edu-degree" className="label">
-                  Degree or programme
+                  {tr("Degree or programme")}
                 </label>
                 <select
                   id="edu-degree"
                   value={form.degree}
                   onChange={(e) => changeDegree(e.target.value)}
                 >
-                  <option value="">Select a degree or programme</option>
+                  <option value="">{tr("Select a degree or programme")}</option>
                   {DEGREE_PROGRAMS.map((program) => (
                     <option key={program.label} value={program.label}>
                       {program.label}
                     </option>
                   ))}
-                  <option value={OTHER_DEGREE}>Other (write your own)</option>
+                  <option value={OTHER_DEGREE}>{tr("Other (write your own)")}</option>
                 </select>
               </div>
               <div className="field">
                 <label htmlFor="edu-field" className="label">
-                  Specialization <span className="font-normal text-ink-400">(optional)</span>
+                  {tr("Specialization")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
                 </label>
                 <input
                   id="edu-field"
                   value={form.fieldOfStudy}
                   onChange={(e) => update('fieldOfStudy', e.target.value)}
-                  placeholder="e.g. Solar installation"
+                  placeholder={tr("e.g. Solar installation")}
                   maxLength={160}
                 />
               </div>
@@ -302,13 +304,13 @@ export default function ProviderEducationPage() {
             {isOtherDegree && (
               <div className="field">
                 <label htmlFor="edu-custom-degree" className="label">
-                  Your degree or programme
+                  {tr("Your degree or programme")}
                 </label>
                 <input
                   id="edu-custom-degree"
                   value={form.customDegree}
                   onChange={(e) => update('customDegree', e.target.value)}
-                  placeholder="e.g. Refrigeration technician certificate"
+                  placeholder={tr("e.g. Refrigeration technician certificate")}
                   maxLength={160}
                   required
                 />
@@ -318,7 +320,7 @@ export default function ProviderEducationPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="field">
                 <label htmlFor="edu-start" className="label">
-                  Start date <span className="font-normal text-ink-400">(optional)</span>
+                  {tr("Start date")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
                 </label>
                 <input
                   id="edu-start"
@@ -329,7 +331,7 @@ export default function ProviderEducationPage() {
               </div>
               <div className="field">
                 <label htmlFor="edu-end" className="label">
-                  End date <span className="font-normal text-ink-400">(optional)</span>
+                  {tr("End date")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
                 </label>
                 <input
                   id="edu-end"
@@ -341,24 +343,24 @@ export default function ProviderEducationPage() {
             </div>
 
             <fieldset className="rounded-2xl border border-ink-200 bg-ink-50/40 p-4">
-              <legend className="sr-only">Skills for this degree</legend>
+              <legend className="sr-only">{tr("Skills for this degree")}</legend>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <p className="text-sm font-bold text-ink-950">Skills</p>
+                  <p className="text-sm font-bold text-ink-950">{tr("Skills")}</p>
                   <p className="text-xs text-ink-500">
                     {form.degree
                       ? isOtherDegree
-                        ? 'Pick the skills that apply to your programme.'
-                        : `Skills commonly gained from ${form.degree}.`
-                      : 'Choose a degree or programme to see matching skills.'}
+                        ? tr('Pick the skills that apply to your programme.')
+                          : `${tr('Skills commonly gained from')} ${form.degree}.`
+                        : tr('Choose a degree or programme to see matching skills.')}
                   </p>
                 </div>
-                <span className="badge badge-neutral">{form.skills.length}/20 selected</span>
+                <span className="badge badge-neutral">{form.skills.length}{tr('/20 selected')}</span>
               </div>
 
               {!form.degree ? (
                 <p className="rounded-xl border border-dashed border-ink-200 bg-surface px-3 py-4 text-xs text-ink-500">
-                  Skills unlock after you select a degree or programme above.
+                  {tr("Skills unlock after you select a degree or programme above.")}
                 </p>
               ) : (
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -394,14 +396,14 @@ export default function ProviderEducationPage() {
 
             <div className="field">
               <label htmlFor="edu-description" className="label">
-                Description <span className="font-normal text-ink-400">(optional)</span>
+                {tr("Description")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
               </label>
               <textarea
                 id="edu-description"
                 rows={3}
                 value={form.description}
                 onChange={(e) => update('description', e.target.value)}
-                placeholder="Relevant modules, awards or training highlights."
+                placeholder={tr("Relevant modules, awards or training highlights.")}
                 maxLength={2000}
               />
               <p className="hint">
@@ -411,13 +413,13 @@ export default function ProviderEducationPage() {
 
             {error && (
               <p className="error-text" role="alert">
-                {error}
+                {tr(error)}
               </p>
             )}
 
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={closeEditor} className="btn-secondary" disabled={saving}>
-                Cancel
+                {tr("Cancel")}
               </button>
               <button type="submit" className="btn-primary" disabled={saving}>
                 <Check className="h-4 w-4" aria-hidden="true" />
@@ -428,23 +430,23 @@ export default function ProviderEducationPage() {
         </Panel>
       )}
 
-      {loading && <LoadingBlock label="Loading your education…" />}
+      {loading && <LoadingBlock label={tr("Loading your education…")} />}
 
       {!loading && !editorOpen && error && (
         <p className="alert alert-error mb-4" role="alert">
-          {error}
+          {tr(error)}
         </p>
       )}
 
       {!loading && items.length === 0 && !editorOpen && (
         <EmptyState
           icon={GraduationCap}
-          title="No education added yet"
+          title={tr("No education added yet")}
           body="Add a qualification or training programme to complete your professional profile."
           action={
             <button type="button" onClick={openAdd} className="btn-primary btn-sm">
               <Plus className="h-4 w-4" aria-hidden="true" />
-              Add your first qualification
+              {tr("Add your first qualification")}
             </button>
           }
         />
@@ -502,7 +504,7 @@ export default function ProviderEducationPage() {
                   aria-label={`Edit ${item.school}`}
                 >
                   <Pencil className="h-4 w-4" aria-hidden="true" />
-                  Edit
+                  {tr("Edit")}
                 </button>
                 <button
                   type="button"

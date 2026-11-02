@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useState } from 'react';
 import { Film, ImagePlus, Images, Plus, Trash2, Wand2 } from 'lucide-react';
 import { ApiError, offeringsApi, portfolioApi } from '@/lib/api';
@@ -23,6 +24,7 @@ interface PortfolioItem {
 }
 
 export default function ProviderPortfolioPage() {
+  const { translateMessage: tr } = useI18n();
   const [projects, setProjects] = useState<PortfolioItem[]>([]);
   const [offerings, setOfferings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,32 +73,32 @@ export default function ProviderPortfolioPage() {
   return (
     <main className="page-narrow py-6 pb-24 md:py-8">
       <PageHeader
-        eyebrow="Provider"
-        title="Portfolio"
-        description="Show off past work with photos, videos, and before/after pairs — clients trust a portfolio far more than a plain description."
+        eyebrow={tr("Provider")}
+        title={tr("Portfolio")}
+        description={tr("Show off past work with photos, videos, and before/after pairs — clients trust a portfolio far more than a plain description.")}
       />
 
-      <Panel title="Add a project" className="mb-8">
+      <Panel title={tr("Add a project")} className="mb-8">
         <form onSubmit={createProject} className="space-y-4">
           <div className="field">
             <label htmlFor="project-title" className="label">
-              Project title
+              {tr("Project title")}
             </label>
             <input
               id="project-title"
-              placeholder="e.g. Kimisagara wedding shoot"
+              placeholder={tr("e.g. Kimisagara wedding shoot")}
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
           </div>
           <div className="field">
             <label htmlFor="project-description" className="label">
-              Description <span className="font-normal text-ink-400">(optional)</span>
+              {tr("Description")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
             </label>
             <textarea
               id="project-description"
               rows={2}
-              placeholder="What did the job involve?"
+              placeholder={tr("What did the job involve?")}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
@@ -104,14 +106,14 @@ export default function ProviderPortfolioPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="field">
               <label htmlFor="project-service" className="label">
-                Service <span className="font-normal text-ink-400">(optional)</span>
+                {tr("Service")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
               </label>
               <select
                 id="project-service"
                 value={form.serviceId}
                 onChange={(e) => setForm({ ...form, serviceId: e.target.value })}
               >
-                <option value="">No category</option>
+                <option value="">{tr("No category")}</option>
                 {offerings.map((o) => (
                   <option key={o.service.id} value={o.service.id}>
                     {o.title || o.service.name}
@@ -121,7 +123,7 @@ export default function ProviderPortfolioPage() {
             </div>
             <div className="field">
               <label htmlFor="project-date" className="label">
-                Project date <span className="font-normal text-ink-400">(optional)</span>
+                {tr("Project date")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
               </label>
               <input
                 id="project-date"
@@ -133,7 +135,7 @@ export default function ProviderPortfolioPage() {
           </div>
           {error && (
             <p className="error-text" role="alert">
-              {error}
+              {tr(error)}
             </p>
           )}
           <button
@@ -146,12 +148,12 @@ export default function ProviderPortfolioPage() {
         </form>
       </Panel>
 
-      {loading && <LoadingBlock label="Loading your portfolio…" />}
+      {loading && <LoadingBlock label={tr("Loading your portfolio…")} />}
 
       {!loading && projects.length === 0 && (
         <EmptyState
           icon={Images}
-          title="No portfolio projects yet"
+          title={tr("No portfolio projects yet")}
           body="Add your first project above — then attach photos and videos to it."
         />
       )}
@@ -174,6 +176,7 @@ function ProjectCard({
   onChanged: () => void;
   onRemove: () => void;
 }) {
+  const { translateMessage: tr } = useI18n();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingBeforeAfter, setPendingBeforeAfter] = useState(false);
@@ -237,7 +240,7 @@ function ProjectCard({
         <button
           onClick={onRemove}
           className="icon-btn shrink-0"
-          aria-label={`Delete project ${project.title}`}
+          aria-label={`${tr('Delete project')} ${project.title}`}
         >
           <Trash2 className="h-4 w-4" aria-hidden="true" />
         </button>
@@ -266,7 +269,7 @@ function ProjectCard({
               )}
               <button
                 onClick={() => removeMedia(img.id)}
-                aria-label={`Remove ${img.mediaType === 'VIDEO' ? 'video' : 'photo'} from ${project.title}`}
+                aria-label={`${tr(img.mediaType === 'VIDEO' ? 'Remove video from' : 'Remove photo from')} ${project.title}`}
                 className="absolute inset-0 flex items-center justify-center bg-home-night/40 text-white opacity-0 transition focus:opacity-100 group-hover:opacity-100"
               >
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -278,17 +281,17 @@ function ProjectCard({
 
       {error && (
         <p className="error-text mt-2" role="alert">
-          {error}
+          {tr(error)}
         </p>
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <label className="btn-secondary btn-sm cursor-pointer">
-          <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" /> Add photos
+          <ImagePlus className="h-3.5 w-3.5" aria-hidden="true" /> {tr("Add photos")}
           <input type="file" accept="image/*" multiple hidden onChange={(e) => handleImageFiles(e.target.files)} disabled={uploading} />
         </label>
         <label className="btn-secondary btn-sm cursor-pointer">
-          <Film className="h-3.5 w-3.5" aria-hidden="true" /> Add video
+          <Film className="h-3.5 w-3.5" aria-hidden="true" /> {tr("Add video")}
           <input type="file" accept="video/*" hidden onChange={(e) => handleVideoFile(e.target.files)} disabled={uploading} />
         </label>
         <label className="btn-secondary btn-sm cursor-pointer text-ink-700">
@@ -298,9 +301,9 @@ function ProjectCard({
             checked={pendingBeforeAfter}
             onChange={(e) => setPendingBeforeAfter(e.target.checked)}
           />
-          <Wand2 className="h-3.5 w-3.5" aria-hidden="true" /> Next 2 photos are a before/after pair
+          <Wand2 className="h-3.5 w-3.5" aria-hidden="true" /> {tr("Next 2 photos are a before/after pair")}
         </label>
-        {uploading && <span className="text-xs font-medium text-ink-400">Uploading…</span>}
+        {uploading && <span className="text-xs font-medium text-ink-400">{tr("Uploading…")}</span>}
       </div>
     </div>
   );

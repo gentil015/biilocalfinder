@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useState } from 'react';
 import { MapPin, Trash2, AlertCircle } from 'lucide-react';
 import { providersApi, ApiError } from '@/lib/api';
@@ -9,6 +10,7 @@ import { PageHeader, Panel, LoadingBlock, EmptyState } from '@/components/ui/pag
 const DEFAULT_CENTER = { lat: -1.9441, lng: 30.0619 }; // Kigali
 
 export default function ServiceAreasPage() {
+  const { translateMessage: tr } = useI18n();
   const [areas, setAreas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [label, setLabel] = useState('');
@@ -63,30 +65,30 @@ export default function ServiceAreasPage() {
   if (loading)
     return (
       <main className="page-narrow py-6 md:py-8">
-        <LoadingBlock label="Loading coverage areas…" />
+        <LoadingBlock label={tr("Loading coverage areas…")} />
       </main>
     );
 
   return (
     <main className="page-narrow py-6 md:py-8">
       <PageHeader
-        eyebrow="Provider"
-        title="Coverage areas"
-        description="Draw circles for the areas you serve. Clients outside your usual radius but inside one of these will still find you, with a &quot;Serves your area&quot; badge."
+        eyebrow={tr("Provider")}
+        title={tr("Coverage areas")}
+        description={tr("Draw circles for the areas you serve. Clients outside your usual radius but inside one of these will still find you, with a \"Serves your area\" badge.")}
       />
 
       {areas.length > 0 && (
-        <Panel title="Your coverage areas" className="mb-6">
+        <Panel title={tr("Your coverage areas")} className="mb-6">
           <div className="table-wrap">
             <table className="table">
               <thead>
                 <tr>
-                  <th scope="col">Area</th>
+                  <th scope="col">{tr("Area")}</th>
                   <th scope="col" className="text-right">
-                    Radius
+                    {tr("Radius")}
                   </th>
                   <th scope="col" className="w-10">
-                    <span className="sr-only">Remove</span>
+                    <span className="sr-only">{tr("Remove")}</span>
                   </th>
                 </tr>
               </thead>
@@ -99,7 +101,7 @@ export default function ServiceAreasPage() {
                     </td>
                     <td className="whitespace-nowrap text-right">
                       <span className="text-sm font-bold tabular text-ink-900">{a.radiusKm}</span>
-                      <span className="ml-1 text-xs font-medium text-ink-500">km</span>
+                      <span className="ml-1 text-xs font-medium text-ink-500">{tr("km")}</span>
                     </td>
                     <td className="text-right">
                       <button
@@ -121,32 +123,32 @@ export default function ServiceAreasPage() {
       {areas.length === 0 && (
         <EmptyState
           icon={MapPin}
-          title="No coverage areas yet"
+          title={tr("No coverage areas yet")}
           body="Add the areas you serve so clients nearby get the confirmation that you can reach them."
         />
       )}
 
-      <Panel title="Add a coverage area" className="mt-6">
+      <Panel title={tr("Add a coverage area")} className="mt-6">
         <div className="field">
           <label htmlFor="area-label" className="label">
-            Area name
+            {tr("Area name")}
           </label>
           <input
             id="area-label"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="e.g. Kigali city or Musanze district"
+            placeholder={tr("e.g. Kigali city or Musanze district")}
           />
         </div>
 
-        <p className="mt-4 mb-2 text-xs text-ink-500">Drag the pin, or click the map, to set the center.</p>
+        <p className="mt-4 mb-2 text-xs text-ink-500">{tr("Drag the pin, or click the map, to set the center.")}</p>
         <div className="overflow-hidden rounded-xl border border-ink-200">
           <ServiceAreaEditorMap center={center} radiusKm={radiusKm} onCenterChange={setCenter} />
         </div>
 
         <div className="field mt-4">
           <label htmlFor="area-radius" className="label">
-            Radius: <span className="tabular">{radiusKm} km</span>
+            {tr("Radius:")} <span className="tabular">{radiusKm} {tr("km")}</span>
           </label>
           <input
             id="area-radius"
@@ -161,7 +163,7 @@ export default function ServiceAreasPage() {
         {error && (
           <p className="error-text" role="alert">
             <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
-            {error}
+            {tr(error)}
           </p>
         )}
 

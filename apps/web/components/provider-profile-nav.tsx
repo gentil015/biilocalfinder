@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -25,12 +26,15 @@ const TABS: { href: string; label: string; icon: LucideIcon }[] = [
  * tall block; the active tab is also exposed via aria-current.
  */
 export function ProviderProfileNav({ className = '' }: { className?: string }) {
+  const { translateMessage: tr } = useI18n();
   const pathname = usePathname();
 
+  const tabs = TABS.map((tab) => ({ ...tab, label: tr(tab.label) }));
+
   return (
-    <nav aria-label="Professional profile sections" className={className}>
+    <nav aria-label={tr("Professional profile sections")} className={className}>
       <div className="scroll-x -mx-1 flex gap-1 rounded-2xl border border-ink-200 bg-surface p-1.5 shadow-sm">
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const active = pathname === tab.href || pathname.startsWith(`${tab.href}/`);
           return (
             <Link

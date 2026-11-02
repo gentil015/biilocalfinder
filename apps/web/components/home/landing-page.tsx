@@ -37,6 +37,7 @@ import { Reveal } from '@/components/home/reveal';
 import { ProviderCard } from '@/components/provider-card';
 import { ProviderCardSkeleton } from '@/components/provider-card-skeleton';
 import { VerificationBadge } from '@/components/verification-badge';
+import { useI18n } from '@/components/locale-provider';
 
 const CATEGORIES: { name: string; hint: string; icon: LucideIcon }[] = [
   { name: 'Plumbing', hint: 'Leaks, fittings, tanks', icon: Wrench },
@@ -426,6 +427,7 @@ function HeroVisual({
 }
 
 export function LandingPage() {
+  const { translateMessage } = useI18n();
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [popular, setPopular] = useState<string[]>([]);
   const [providers, setProviders] = useState<ProviderSearchItem[] | null>(null);
@@ -484,13 +486,13 @@ export function LandingPage() {
                   <span className="absolute inline-flex h-full w-full rounded-full bg-brand-500 opacity-60" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand-600" />
                 </span>
-                Rwanda&apos;s local services marketplace
+                {translateMessage("Rwanda's local services marketplace")}
               </p>
 
               <h1 className="mt-6 max-w-[16ch] font-display text-[clamp(2rem,10vw,2.375rem)] font-extrabold leading-[1.03] tracking-[-0.035em] text-ink-950 sm:text-5xl lg:text-[58px]">
-                Find the right professional.{' '}
+                {translateMessage('Find the right professional.')} {' '}
                 <span className="relative whitespace-nowrap">
-                  <span className="relative z-10 text-brand-700">Right around you.</span>
+                  <span className="relative z-10 text-brand-700">{translateMessage('Right around you.')}</span>
                   <svg
                     className="absolute -bottom-1 left-0 z-0 h-2.5 w-full text-brand-500/60"
                     viewBox="0 0 240 12"
@@ -503,8 +505,7 @@ export function LandingPage() {
               </h1>
 
               <p className="mt-5 max-w-xl text-base leading-relaxed text-ink-600 sm:text-lg">
-                Discover trusted local professionals, compare clear quotes, and connect with
-                people who can get the job done — without paying a middleman.
+                {translateMessage('Discover trusted local professionals, compare clear quotes, and connect with people who can get the job done — without paying a middleman.')}
               </p>
 
               <div className="mt-8">
@@ -513,26 +514,26 @@ export function LandingPage() {
 
               <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
                 <Link href="/requests/new" className="btn-link">
-                  Post a request <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  {translateMessage('Post a request')} <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
                 <span aria-hidden="true" className="hidden h-4 w-px bg-ink-200 sm:block" />
                 <Link href="/register" className="inline-flex items-center gap-1.5 font-semibold text-ink-600 hover:text-ink-950">
-                  Have a service to offer? <span className="text-brand-700">Become a provider</span>
+                  {translateMessage('Have a service to offer?')} <span className="text-brand-700">{translateMessage('Become a provider')}</span>
                 </Link>
               </div>
 
               <p className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-ink-500">
                 <span className="inline-flex items-center gap-1.5">
                   <CheckCircle2 className="h-3.5 w-3.5 text-brand-600" aria-hidden="true" />
-                  Free to search and post
+                  {translateMessage('Free to search and post')}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <Wallet className="h-3.5 w-3.5 text-brand-600" aria-hidden="true" />
-                  Pay the provider directly
+                  {translateMessage('Pay the provider directly')}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <MapPin className="h-3.5 w-3.5 text-brand-600" aria-hidden="true" />
-                  Kigali · Rubavu · Musanze · Huye
+                  {translateMessage('Kigali · Rubavu · Musanze · Huye')}
                 </span>
               </p>
             </Reveal>
@@ -555,8 +556,8 @@ export function LandingPage() {
                 <Icon className="h-4 w-4" aria-hidden="true" />
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-bold text-ink-950">{title}</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-ink-500">{body}</p>
+                <p className="text-sm font-bold text-ink-950">{translateMessage(title)}</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-ink-500">{translateMessage(body)}</p>
               </div>
             </div>
           ))}
@@ -569,10 +570,10 @@ export function LandingPage() {
       <section className="page-shell py-14 sm:py-16 lg:py-20">
         <Reveal>
           <SectionIntro
-            eyebrow="Explore services"
-            title="Start with the job, not a pitch."
-            body="Pick a service to see real providers, compare their profiles and check who is available near you."
-            link={{ href: '/search', label: 'Browse all providers' }}
+            eyebrow={translateMessage('Explore services')}
+            title={translateMessage('Start with the job, not a pitch.')}
+            body={translateMessage('Pick a service to see real providers, compare their profiles and check who is available near you.')}
+            link={{ href: '/search', label: translateMessage('Browse all providers') }}
           />
         </Reveal>
 

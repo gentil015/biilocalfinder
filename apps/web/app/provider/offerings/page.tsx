@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Plus, Trash2, Package, AlertCircle } from 'lucide-react';
@@ -8,26 +9,28 @@ import { PageHeader, EmptyState, LoadingBlock } from '@/components/ui/page';
 import { HelpHint } from '@/components/help-hint';
 
 function OfferingPrice({ offering }: { offering: any }) {
+  const { translateMessage: tr, formats } = useI18n();
   if (offering.basePrice == null) {
-    return <span className="text-xs text-ink-400">Quote on request</span>;
+    return <span className="text-xs text-ink-400">{tr("Quote on request")}</span>;
   }
   return (
     <span className="text-sm font-bold tabular text-ink-900">
       {offering.priceType === 'STARTING_FROM' && (
-        <span className="mr-1 text-xs font-medium text-ink-400">From</span>
+        <span className="mr-1 text-xs font-medium text-ink-400">{tr("From")}</span>
       )}
-      {Number(offering.basePrice).toLocaleString()}{' '}
+      {formats.number(Number(offering.basePrice))}{' '}
       <span className="text-xs font-semibold text-ink-500">{offering.currency}</span>
       {offering.priceType === 'HOURLY' ? (
-        <span className="text-xs font-medium text-ink-500"> / hour</span>
+        <span className="text-xs font-medium text-ink-500">{tr(' / hour')}</span>
       ) : offering.priceType === 'PER_DAY' ? (
-        <span className="text-xs font-medium text-ink-500"> / day</span>
+        <span className="text-xs font-medium text-ink-500">{tr(' / day')}</span>
       ) : null}
     </span>
   );
 }
 
 function OfferingAttributes({ offering }: { offering: any }) {
+  const { translateMessage: tr } = useI18n();
   if (!offering.attributeValues?.length) return null;
   return (
     <div className="mt-2 flex flex-wrap gap-1">
@@ -52,6 +55,7 @@ function OfferingAttributes({ offering }: { offering: any }) {
 }
 
 export default function MyOfferingsPage() {
+  const { translateMessage: tr } = useI18n();
   const [offerings, setOfferings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,41 +82,41 @@ export default function MyOfferingsPage() {
   return (
     <main className="page-narrow py-6 md:py-8">
       <PageHeader
-        eyebrow="Services"
-        title="Your services"
-        description="The services clients can request and quote against. Pricing and details live here."
+        eyebrow={tr("Services")}
+        title={tr("Your services")}
+        description={tr("The services clients can request and quote against. Pricing and details live here.")}
         actions={
           <>
             <HelpHint text="A service offering is what appears when clients book/request you. Fill in price, details and attributes so clients know exactly what you offer." />
             <Link href="/provider/offerings/new" className="btn-primary">
               <Plus className="h-4 w-4" aria-hidden="true" />
-              Add service
+              {tr("Add service")}
             </Link>
           </>
         }
       />
 
-      {loading && <LoadingBlock label="Loading your services…" />}
+      {loading && <LoadingBlock label={tr("Loading your services…")} />}
 
       {error && (
         <div className="alert alert-error">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {error}
+          {tr(error)}
         </div>
       )}
 
       {!loading && !error && offerings.length === 0 && (
         <EmptyState
           icon={Package}
-          title="No services yet"
+          title={tr("No services yet")}
           body="Add the services you offer so clients can find and request you. Include a price, description, and details to build trust and get quoted faster."
           action={
             <>
               <Link href="/provider/offerings/new" className="btn-primary">
-                Add your first service
+                {tr("Add your first service")}
               </Link>
               <Link href="/provider/profile" className="btn-secondary">
-                Complete your profile
+                {tr("Complete your profile")}
               </Link>
             </>
           }
@@ -142,7 +146,7 @@ export default function MyOfferingsPage() {
                 {o.description && <p className="mt-1 line-clamp-2 text-xs text-ink-400">{o.description}</p>}
                 <OfferingAttributes offering={o} />
                 <div className="mt-3 flex items-center justify-between gap-3 border-t border-ink-100 pt-3">
-                  <span className="text-2xs font-bold uppercase tracking-wider text-ink-500">Price</span>
+                  <span className="text-2xs font-bold uppercase tracking-wider text-ink-500">{tr("Price")}</span>
                   <OfferingPrice offering={o} />
                 </div>
               </article>
@@ -153,12 +157,12 @@ export default function MyOfferingsPage() {
             <table className="table">
               <thead>
                 <tr>
-                  <th scope="col">Service</th>
+                  <th scope="col">{tr("Service")}</th>
                   <th scope="col" className="text-right">
-                    Price
+                    {tr("Price")}
                   </th>
                   <th scope="col" className="w-10">
-                    <span className="sr-only">Remove</span>
+                    <span className="sr-only">{tr("Remove")}</span>
                   </th>
                 </tr>
               </thead>

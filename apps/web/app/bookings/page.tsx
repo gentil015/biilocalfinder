@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CalendarClock, AlertCircle } from 'lucide-react';
@@ -15,6 +16,7 @@ function counterpart(b: any): string {
 }
 
 export default function BookingsPage() {
+  const { translateMessage: tr } = useI18n();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +40,7 @@ export default function BookingsPage() {
   return (
     <main className="page-narrow py-6 md:py-8">
       <PageHeader
-        eyebrow="Schedule"
+        eyebrow={tr("Schedule")}
         title="Your bookings"
         description="Every job you've agreed — as a client or a provider. Open one to see its stage and exactly what happens next."
       />

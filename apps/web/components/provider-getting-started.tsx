@@ -1,3 +1,6 @@
+'use client';
+
+import { useI18n } from '@/components/locale-provider';
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, ChevronRight, Circle, ListChecks, Sparkles } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -97,6 +100,7 @@ export function ProviderQuickStart({
   checklist: ProfileChecklistItem[];
   className?: string;
 }) {
+  const { translateMessage: tr } = useI18n();
   if (checklist.length === 0) return null;
 
   const checkedIds = new Set(checklist.filter((item) => item.checked).map((item) => item.id));
@@ -110,14 +114,14 @@ export function ProviderQuickStart({
       <div className="border-b border-ink-900/10 bg-gradient-to-br from-brand-50 to-surface px-5 py-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="eyebrow">Provider setup</p>
+            <p className="eyebrow">{tr("Provider setup")}</p>
             <h2 className="mt-1 font-display text-xl font-extrabold tracking-tight text-ink-950">
-              {allDone ? "You're ready to receive requests" : 'Set up in about 5 minutes'}
+              {tr(allDone ? "You're ready to receive requests" : 'Set up in about 5 minutes')}
             </h2>
             <p className="mt-1.5 max-w-xl text-sm text-ink-600">
-              {allDone
+              {tr(allDone
                 ? 'Your essential setup is complete. Add a description and pricing to help your profile rank higher.'
-                : 'These five steps are everything a client needs to find you, trust you, and get in touch.'}
+                : 'These five steps are everything a client needs to find you, trust you, and get in touch.')}
             </p>
           </div>
           <span
@@ -135,7 +139,7 @@ export function ProviderQuickStart({
           aria-valuenow={percent}
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-label="Provider setup progress"
+          aria-label={tr("Provider setup progress")}
         >
           <div
             className={`h-full rounded-full transition-all duration-700 ${
@@ -147,7 +151,7 @@ export function ProviderQuickStart({
 
         {!allDone && nextStep && (
           <Link href={nextStep.href} className="btn-primary mt-4">
-            Continue: {nextStep.cta}
+            {tr('Continue:')} {tr(nextStep.cta)}
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         )}
@@ -178,15 +182,15 @@ export function ProviderQuickStart({
                         done ? 'text-ink-500 line-through decoration-ink-300' : 'text-ink-950 group-hover:text-brand-700'
                       }`}
                     >
-                      {step.title}
+                      {tr(step.title)}
                     </span>
-                    {!done && <span className="mt-0.5 block text-xs text-ink-500">{step.description}</span>}
+                    {!done && <span className="mt-0.5 block text-xs text-ink-500">{tr(step.description)}</span>}
                   </span>
                   {!done && (
                     <span className="flex shrink-0 items-center gap-2 text-xs font-semibold text-brand-700">
                       <span className="hidden text-ink-400 sm:inline">{step.minutes}</span>
                       <span className="flex items-center gap-0.5">
-                        {step.cta}
+                        {tr(step.cta)}
                         <ChevronRight
                           className="h-3.5 w-3.5 transition group-hover:translate-x-0.5"
                           aria-hidden="true"
@@ -211,13 +215,14 @@ export function ProviderNextActions({
   actions: { action: string; label: string }[];
   className?: string;
 }) {
+  const { translateMessage: tr } = useI18n();
   if (actions.length === 0) return null;
 
   return (
     <Panel
       className={className}
-      title="Recommended next steps"
-      description="Small improvements that help clients find and trust you."
+      title={tr("Recommended next steps")}
+      description={tr("Small improvements that help clients find and trust you.")}
     >
       <ul className="divide-y divide-ink-100">
         {actions.map((action) => {
@@ -225,7 +230,7 @@ export function ProviderNextActions({
           const content = (
             <>
               <ListChecks className="h-4 w-4 shrink-0 text-brand-600" aria-hidden="true" />
-              <span className="min-w-0 flex-1 text-sm text-ink-700">{action.label}</span>
+              <span className="min-w-0 flex-1 text-sm text-ink-700">{tr(action.label)}</span>
               {href && (
                 <ArrowRight
                   className="h-4 w-4 shrink-0 text-ink-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600"
@@ -253,6 +258,7 @@ export function ProviderNextActions({
 }
 
 export function ChecklistLink({ item }: { item: ProfileChecklistItem }) {
+  const { translateMessage: tr } = useI18n();
   const href = CHECKLIST_HREF[item.id];
   const isDone = item.checked;
 
@@ -264,10 +270,10 @@ export function ChecklistLink({ item }: { item: ProfileChecklistItem }) {
         <Circle className="h-4 w-4 shrink-0 text-ink-300" aria-hidden="true" />
       )}
       {isDone || !href ? (
-        <span className={isDone ? 'text-ink-500' : 'font-medium text-ink-800'}>{item.label}</span>
+        <span className={isDone ? 'text-ink-500' : 'font-medium text-ink-800'}>{tr(item.label)}</span>
       ) : (
         <Link href={href} className="group flex items-center gap-1 hover:underline">
-          <span className="font-medium text-ink-800">{item.label}</span>
+          <span className="font-medium text-ink-800">{tr(item.label)}</span>
           <ChevronRight
             className="h-3.5 w-3.5 text-ink-300 transition group-hover:translate-x-0.5 group-hover:text-brand-600"
             aria-hidden="true"

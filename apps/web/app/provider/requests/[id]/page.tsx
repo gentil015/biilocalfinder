@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { AlertCircle, Globe, Lock } from 'lucide-react';
@@ -11,6 +12,7 @@ import { WorkspaceAssignment } from '@/components/workspace-assignment';
 import { PageHeader, Panel, LoadingBlock } from '@/components/ui/page';
 
 export default function ProviderRequestDetailPage() {
+  const { translateMessage: tr } = useI18n();
   const { id } = useParams<{ id: string }>();
   const [request, setRequest] = useState<any>(null);
   const [quotes, setQuotes] = useState<any[]>([]);
@@ -36,7 +38,7 @@ export default function ProviderRequestDetailPage() {
   if (loading)
     return (
       <main className="page-narrow py-6 md:py-8">
-        <LoadingBlock label="Loading request…" />
+        <LoadingBlock label={tr("Loading request…")} />
       </main>
     );
 
@@ -45,7 +47,7 @@ export default function ProviderRequestDetailPage() {
       <main className="page-narrow py-6 md:py-8">
         <div className="alert alert-error" role="alert">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {error ?? 'Not found'}
+          {tr(error ?? 'Not found')}
         </div>
       </main>
     );
@@ -55,7 +57,7 @@ export default function ProviderRequestDetailPage() {
   return (
     <main className="page-narrow py-6 md:py-8">
       <PageHeader
-        eyebrow="Incoming request"
+        eyebrow={tr("Incoming request")}
         title={request.title}
         description={
           request.service?.name || request.client?.user
@@ -71,30 +73,29 @@ export default function ProviderRequestDetailPage() {
         {request.isPublic ? (
           <>
             <Globe className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            Open to other providers too — matching providers can submit competing quotes. You and the
-            client see every quote; other providers only see their own.
+            {tr("Open to other providers too — matching providers can submit competing quotes. You and the client see every quote; other providers only see their own.")}
           </>
         ) : request.providerId ? (
           <>
             <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            Sent directly to you — only you and the client can see this request and its quotes.
+            {tr("Sent directly to you — only you and the client can see this request and its quotes.")}
           </>
         ) : (
           <>
             <Globe className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            Open request — any provider of this service can quote.
+            {tr("Open request — any provider of this service can quote.")}
           </>
         )}
       </p>
 
-      <Panel title="Details" className="mb-8">
+      <Panel title={tr("Details")} className="mb-8">
         <p className="prose-copy">{request.description}</p>
 
         {(request.budgetMin || request.budgetMax || request.attributeSnapshots?.length > 0) && (
           <dl className="mt-5 grid gap-x-6 gap-y-3 border-t border-ink-100 pt-5 sm:grid-cols-2">
             {(request.budgetMin || request.budgetMax) && (
               <div className="detail-row border-0 py-0">
-                <dt className="detail-key">Client budget</dt>
+                <dt className="detail-key">{tr("Client budget")}</dt>
                 <dd className="detail-value">
                   {request.budgetMin ?? '—'} – {request.budgetMax ?? '—'}
                   <span className="ml-1 text-xs font-medium text-ink-400">RWF</span>

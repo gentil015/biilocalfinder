@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ImagePlus } from 'lucide-react';
@@ -16,6 +17,7 @@ const LABELS: Record<ProviderType, { name: string; namePlaceholder: string; bio:
 };
 
 export default function ProviderOnboardingProfilePage() {
+  const { translateMessage: tr } = useI18n();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<ProviderOnboardingState | null>(null);
@@ -111,7 +113,7 @@ export default function ProviderOnboardingProfilePage() {
   if (loading || !state?.providerType) {
     return (
       <main className="page-narrow py-6 md:py-8">
-        <LoadingBlock label="Loading your profile…" />
+        <LoadingBlock label={tr("Loading your profile…")} />
       </main>
     );
   }
@@ -122,11 +124,11 @@ export default function ProviderOnboardingProfilePage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col px-4 py-8">
-      <OnboardingProgress step={2} label="Your details" />
+      <OnboardingProgress step={2} label={tr("Your details")} />
 
-      <h1 className="mb-1 text-2xl font-bold text-ink-950">Tell us about {state.providerType === 'INDIVIDUAL' ? 'you' : 'your organization'}</h1>
+      <h1 className="mb-1 text-2xl font-bold text-ink-950">{tr("Tell us about")} {state.providerType === 'INDIVIDUAL' ? 'you' : 'your organization'}</h1>
       <p className="mb-6 text-sm text-ink-500">
-        You can always update these details later from your provider dashboard.
+        {tr("You can always update these details later from your provider dashboard.")}
       </p>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
@@ -169,11 +171,11 @@ export default function ProviderOnboardingProfilePage() {
 
         <div className="field">
           <label htmlFor="profile-phone" className="label">
-            Phone number
+            {tr("Phone number")}
           </label>
           <input
             id="profile-phone"
-            placeholder="e.g. +250 7xx xxx xxx"
+            placeholder={tr("e.g. +250 7xx xxx xxx")}
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
           />
@@ -190,7 +192,7 @@ export default function ProviderOnboardingProfilePage() {
             <input
               id="profile-representative"
               required={state.providerType === 'BUSINESS' || state.providerType === 'AGENCY'}
-              placeholder="Full name"
+              placeholder={tr("Full name")}
               value={form.representativeName}
               onChange={(e) => setForm({ ...form, representativeName: e.target.value })}
             />
@@ -200,11 +202,11 @@ export default function ProviderOnboardingProfilePage() {
         {state.providerType === 'BUSINESS' && (
           <div className="field">
             <label htmlFor="profile-registration" className="label">
-              Business registration number <span className="font-normal text-ink-400">(optional)</span>
+              {tr("Business registration number")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
             </label>
             <input
               id="profile-registration"
-              placeholder="Leave blank if you don't have one yet"
+              placeholder={tr("Leave blank if you don't have one yet")}
               value={form.registrationNumber}
               onChange={(e) => setForm({ ...form, registrationNumber: e.target.value })}
             />
@@ -214,7 +216,7 @@ export default function ProviderOnboardingProfilePage() {
         {state.providerType === 'TEAM' && (
           <div className="field">
             <label htmlFor="profile-team-size" className="label">
-              Number of members <span className="font-normal text-ink-400">(optional)</span>
+              {tr("Number of members")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
             </label>
             <input
               id="profile-team-size"
@@ -241,7 +243,7 @@ export default function ProviderOnboardingProfilePage() {
 
         {error && (
           <p className="error-text" role="alert">
-            {error}
+            {tr(error)}
           </p>
         )}
 
@@ -251,7 +253,7 @@ export default function ProviderOnboardingProfilePage() {
             onClick={() => router.push('/provider/onboarding')}
             className="btn-secondary flex-1"
           >
-            Back
+            {tr("Back")}
           </button>
           <button disabled={saving} className="btn-primary flex-[1.4]">
             {saving ? 'Saving…' : 'Continue'}

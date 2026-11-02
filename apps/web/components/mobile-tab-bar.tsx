@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Home, Search, ClipboardList, MessageCircle, UserRound } from 'lucide-react';
 import { useAuth } from '@/components/auth-provider';
+import { useI18n } from '@/components/locale-provider';
 
 const TABS = [
   { label: 'Home', href: '/', icon: Home },
@@ -18,6 +19,7 @@ const TABS = [
 export function MobileTabBar() {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { translateMessage: tr } = useI18n();
 
   return (
     <nav
@@ -47,7 +49,7 @@ export function MobileTabBar() {
               >
                 <Icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.25 : 2} />
               </span>
-              {tab.label}
+              {tr(tab.label)}
             </Link>
           );
         })}

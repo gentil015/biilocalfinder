@@ -124,7 +124,7 @@ function AiChip({ chip, t }: { chip: SearchChip; t: Translate }) {
 
 function SearchResults() {
   const searchParams = useSearchParams();
-  const { t, locale } = useI18n();
+  const { t, locale, translateMessage } = useI18n();
   const compare = useCompareSelection();
   const [query, setQuery] = useState(searchParams.get('q') ?? '');
   const [sort, setSort] = useState<SortOption>('recommended');
@@ -148,6 +148,12 @@ function SearchResults() {
   const [aiState, setAiState] = useState<'off' | 'pending' | 'ready' | 'failed'>('off');
   const [aiParsed, setAiParsed] = useState<ParsedSearchResult | null>(null);
   const aiParseStarted = useRef(false);
+
+  const localizedSorts = SORTS.map((s) => ({
+    ...s,
+    label: translateMessage(s.label),
+    hint: translateMessage(s.hint),
+  }));
 
   const [items, setItems] = useState<ProviderSearchItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -321,7 +327,7 @@ function SearchResults() {
       <div>
         <h3 className="eyebrow-muted mb-3">Sort by</h3>
         <div role="radiogroup" aria-label="Sort results" className="space-y-0.5">
-          {SORTS.map((s) => {
+          {localizedSorts.map((s) => {
             const active = sort === s.value;
             return (
               <button
@@ -429,8 +435,8 @@ function SearchResults() {
   return (
     <main className="page-shell py-6 md:py-8">
       <div className="mb-5">
-        <p className="eyebrow">Marketplace</p>
-        <h1 className="page-title mt-1.5">Find a provider</h1>
+        <p className="eyebrow">{translateMessage('Marketplace')}</p>
+        <h1 className="page-title mt-1.5">{translateMessage('Find a provider')}</h1>
         <BookingPath variant="inline" showPayNote={false} className="mt-3" />
       </div>
 
@@ -441,25 +447,25 @@ function SearchResults() {
           <Search className="ml-1 h-4 w-4 shrink-0 text-brand-600 md:ml-3" aria-hidden="true" />
           <input
             className="bare-input min-w-0 flex-1 px-1 py-2 text-sm"
-            aria-label="Search for a service or provider"
-            placeholder="Search for a service or provider…"
+            aria-label={translateMessage('Search for a service or provider')}
+            placeholder={translateMessage('Search for a service or provider…')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           {query && (
-            <button onClick={() => setQuery('')} aria-label="Clear search" className="icon-btn h-8 w-8">
+            <button onClick={() => setQuery('')} aria-label={translateMessage('Clear search')} className="icon-btn h-8 w-8">
               <X className="h-4 w-4" />
             </button>
           )}
           <div className="hidden shrink-0 items-center gap-2 md:flex">
             <SaveSearchButton />
             <Link href="/saved-searches" className="btn-secondary btn-sm">
-              <Bookmark className="h-4 w-4" aria-hidden="true" /> Saved
+              <Bookmark className="h-4 w-4" aria-hidden="true" /> {translateMessage('Saved')}
             </Link>
           </div>
           <button onClick={() => setFiltersOpen(true)} className="btn-secondary btn-sm shrink-0 md:hidden">
             <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-            Filters
+            {translateMessage('Filters')}
             {activeFilterCount > 0 && <span className="count-pill">{activeFilterCount}</span>}
           </button>
         </div>
@@ -538,25 +544,25 @@ function SearchResults() {
           <div className="mb-4 flex items-center justify-between gap-3">
             <p className="text-sm text-ink-500" aria-live="polite">
               {loading ? (
-                <span className="font-medium text-ink-700">Searching…</span>
+                <span className="font-medium text-ink-700">{translateMessage('Searching…')}</span>
               ) : (
                 <>
                   <span className="font-bold tabular text-ink-950">{total}</span>{' '}
-                  {total === 1 ? 'provider' : 'providers'} found
+                  {total === 1 ? translateMessage('provider') : translateMessage('providers')} {translateMessage('found')}
                 </>
               )}
             </p>
             {/* Sort stays reachable from the results themselves — the left
                 panel's radios share this same state, so the two never drift. */}
             <label className="flex shrink-0 items-center gap-2 text-xs text-ink-500">
-              <span className="hidden font-medium sm:inline">Sort</span>
+              <span className="hidden font-medium sm:inline">{translateMessage('Sort')}</span>
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortOption)}
-                aria-label="Sort results"
+                aria-label={translateMessage('Sort results')}
                 className="rounded-lg border border-ink-200 bg-surface px-2.5 py-1.5 text-xs font-semibold text-ink-800 shadow-xs transition hover:border-ink-300 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/15"
               >
-                {SORTS.map((s) => (
+                {localizedSorts.map((s) => (
                   <option key={s.value} value={s.value}>
                     {s.label}
                   </option>
@@ -567,7 +573,7 @@ function SearchResults() {
 
           {!error && !loading && items.length > 0 && (
             <p className="-mt-1 mb-4 text-xs leading-relaxed text-ink-500">
-              Starting prices are a guide — request a booking to get an exact quote.
+              {translateMessage('Starting prices are a guide — request a booking to get an exact quote.')}
             </p>
           )}
 
@@ -586,13 +592,13 @@ function SearchResults() {
               <div className="flex h-11 w-11 items-center justify-center rounded-full bg-ink-100 text-ink-400">
                 <Search className="h-5 w-5" aria-hidden="true" />
               </div>
-              <p className="mt-4 text-sm font-bold text-ink-900">No providers match these filters</p>
+              <p className="mt-4 text-sm font-bold text-ink-900">{translateMessage('No providers match these filters')}</p>
               <p className="mt-1.5 max-w-xs text-sm text-ink-500">
-                Try a broader search term, or clear a filter or two to widen the results.
+                {translateMessage('Try a broader search term, or clear a filter or two to widen the results.')}
               </p>
               {(activeFilterCount > 0 || query || aiState !== 'off') && (
                 <button onClick={clearAll} className="btn-secondary btn-sm mt-5">
-                  Clear filters
+                  {translateMessage('Clear filters')}
                 </button>
               )}
             </div>

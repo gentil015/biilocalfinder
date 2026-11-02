@@ -1,3 +1,6 @@
+'use client';
+
+import { useI18n } from '@/components/locale-provider';
 export function OnboardingProgress({
   step,
   total = 3,
@@ -7,6 +10,7 @@ export function OnboardingProgress({
   total?: number;
   label?: string;
 }) {
+  const { t } = useI18n();
   return (
     <div className="mb-6">
       <div className="flex items-center gap-1.5" aria-hidden="true">
@@ -18,7 +22,7 @@ export function OnboardingProgress({
         ))}
       </div>
       <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-ink-400">
-        Step {step} of {total}
+        {t('onboarding.step', { step, total })}
         {label ? ` · ${label}` : ''}
       </p>
     </div>

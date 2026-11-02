@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, Images, ImagePlus, X } from 'lucide-react';
@@ -23,6 +24,7 @@ const AVAILABILITY_OPTIONS = [
  * step is COMPLETED, which used to leave these fields frozen permanently.
  */
 export default function ProviderProfilePage() {
+  const { translateMessage: tr } = useI18n();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -149,7 +151,7 @@ export default function ProviderProfilePage() {
   if (loading) {
     return (
       <main className="page-narrow py-6 md:py-8">
-        <LoadingBlock label="Loading your profile…" />
+        <LoadingBlock label={tr("Loading your profile…")} />
       </main>
     );
   }
@@ -157,13 +159,13 @@ export default function ProviderProfilePage() {
   return (
     <main className="page-narrow py-6 md:py-8">
       <PageHeader
-        eyebrow="Provider"
-        title="Profile"
-        description="This is what clients see on your public profile. Changes go live as soon as you save."
+        eyebrow={tr("Provider")}
+        title={tr("Profile")}
+        description={tr("This is what clients see on your public profile. Changes go live as soon as you save.")}
         actions={
           <Link href="/provider/portfolio" className="btn-secondary">
             <Images className="h-4 w-4" aria-hidden="true" />
-            Manage portfolio
+            {tr("Manage portfolio")}
           </Link>
         }
       />
@@ -172,7 +174,7 @@ export default function ProviderProfilePage() {
 
       <form onSubmit={onSubmit} className="grid gap-5 lg:grid-cols-[1fr_18rem] lg:items-start">
         <div className="space-y-5">
-          <Panel title={logoLabel} description="Shown on your public profile, in search results and next to your messages.">
+          <Panel title={logoLabel} description={tr("Shown on your public profile, in search results and next to your messages.")}>
             <div className="flex items-center gap-4">
               <button
                 type="button"
@@ -206,12 +208,12 @@ export default function ProviderProfilePage() {
                       disabled={uploadingLogo}
                       className="btn-ghost text-danger-600 hover:text-danger-700"
                     >
-                      <X className="h-4 w-4" aria-hidden="true" /> Remove
+                      <X className="h-4 w-4" aria-hidden="true" /> {tr("Remove")}
                     </button>
                   )}
                 </div>
                 <p className="text-2xs leading-relaxed text-ink-400">
-                  JPEG, PNG or WEBP, up to 5 MB.
+                  {tr("JPEG, PNG or WEBP, up to 5 MB.")}
                   {!form.logoUrl && previewLogoUrl ? ' Until you add one, your account photo is used.' : ''}
                 </p>
               </div>
@@ -226,7 +228,7 @@ export default function ProviderProfilePage() {
             </div>
           </Panel>
 
-          <Panel title="Basics" description="How your business appears in search results and on your profile page.">
+          <Panel title={tr("Basics")} description={tr("How your business appears in search results and on your profile page.")}>
             <div className="space-y-4">
               <div className="field">
                 <label htmlFor="businessName" className="label">
@@ -242,7 +244,7 @@ export default function ProviderProfilePage() {
 
               <div className="field">
                 <label htmlFor="description" className="label">
-                  Description
+                  {tr("Description")}
                 </label>
                 <textarea
                   id="description"
@@ -250,17 +252,17 @@ export default function ProviderProfilePage() {
                   value={form.description}
                   onChange={(e) => set('description', e.target.value)}
                   maxLength={500}
-                  placeholder="One or two lines on what you do and who you work best for."
+                  placeholder={tr("One or two lines on what you do and who you work best for.")}
                 />
                 <p className="hint">
-                  This counts toward your profile strength.{' '}
+                  {tr("This counts toward your profile strength.")}{' '}
                   <span className="tabular">{form.description.length}/500</span>
                 </p>
               </div>
 
               <div className="field">
                 <label htmlFor="bio" className="label">
-                  About you <span className="font-normal text-ink-400">(optional)</span>
+                  {tr("About you")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
                 </label>
                 <textarea
                   id="bio"
@@ -268,7 +270,7 @@ export default function ProviderProfilePage() {
                   value={form.bio}
                   onChange={(e) => set('bio', e.target.value)}
                   maxLength={2000}
-                  placeholder="More detail about your experience, approach and the work you take on."
+                  placeholder={tr("More detail about your experience, approach and the work you take on.")}
                 />
                 <p className="hint">
                   <span className="tabular">{form.bio.length}/2000</span>
@@ -277,10 +279,10 @@ export default function ProviderProfilePage() {
             </div>
           </Panel>
 
-          <Panel title="Contact">
+          <Panel title={tr("Contact")}>
             <div className="field">
               <label htmlFor="phone" className="label">
-                Phone <span className="font-normal text-ink-400">(optional)</span>
+                {tr("Phone")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
               </label>
               <input
                 id="phone"
@@ -289,15 +291,15 @@ export default function ProviderProfilePage() {
                 onChange={(e) => set('phone', e.target.value)}
                 placeholder="+250788000000"
               />
-              <p className="hint">Clients see this only after you accept their request.</p>
+              <p className="hint">{tr("Clients see this only after you accept their request.")}</p>
             </div>
           </Panel>
 
-          <Panel title="Experience and reach">
+          <Panel title={tr("Experience and reach")}>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="field">
                 <label htmlFor="yearsOfExperience" className="label">
-                  Years of experience <span className="font-normal text-ink-400">(optional)</span>
+                  {tr("Years of experience")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
                 </label>
                 <input
                   id="yearsOfExperience"
@@ -312,7 +314,7 @@ export default function ProviderProfilePage() {
 
               <div className="field">
                 <label htmlFor="serviceRadiusKm" className="label">
-                  Service radius (km)
+                  {tr("Service radius (km)")}
                 </label>
                 <input
                   id="serviceRadiusKm"
@@ -323,22 +325,22 @@ export default function ProviderProfilePage() {
                   placeholder="e.g. 25"
                 />
                 <p className="hint">
-                  For specific named areas, use{' '}
+                  {tr("For specific named areas, use")}{' '}
                   <a href="/provider/service-areas" className="font-semibold text-brand-700 underline">
-                    Coverage areas
+                    {tr("Coverage areas")}
                   </a>{' '}
-                  instead.
+                  {tr('instead.')}
                 </p>
               </div>
             </div>
           </Panel>
 
           <Panel
-            title="Availability status"
-            description="A quick signal for clients while your detailed schedule lives under Availability."
+            title={tr("Availability status")}
+            description={tr("A quick signal for clients while your detailed schedule lives under Availability.")}
           >
             <fieldset>
-              <legend className="sr-only">Availability status</legend>
+              <legend className="sr-only">{tr("Availability status")}</legend>
               <div className="grid gap-2 sm:grid-cols-3">
                 {AVAILABILITY_OPTIONS.map((o) => (
                   <label
@@ -358,8 +360,8 @@ export default function ProviderProfilePage() {
                       className="mt-0.5"
                     />
                     <span className="min-w-0">
-                      <span className="block text-sm font-semibold text-ink-900">{o.label}</span>
-                      <span className="block text-2xs text-ink-400">{o.hint}</span>
+                      <span className="block text-sm font-semibold text-ink-900">{tr(o.label)}</span>
+                      <span className="block text-2xs text-ink-400">{tr(o.hint)}</span>
                     </span>
                   </label>
                 ))}
@@ -369,7 +371,7 @@ export default function ProviderProfilePage() {
 
           {error && (
             <p role="alert" className="rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-700">
-              {error}
+              {tr(error)}
             </p>
           )}
 
@@ -379,13 +381,13 @@ export default function ProviderProfilePage() {
             </button>
             {saved && !error && (
               <span role="status" className="flex items-center gap-1.5 text-sm font-semibold text-success-600">
-                <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> Saved
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> {tr("Saved")}
               </span>
             )}
           </div>
         </div>
 
-        <Panel title="Profile strength" className="lg:sticky lg:top-6">
+        <Panel title={tr("Profile strength")} className="lg:sticky lg:top-6">
           <ul className="space-y-2">
             {checklist.map((item) => (
               <li key={item.label} className="flex items-center gap-2.5 text-sm">
@@ -394,16 +396,16 @@ export default function ProviderProfilePage() {
                 ) : (
                   <span className="h-4 w-4 shrink-0 rounded-full border-2 border-ink-300" aria-hidden="true" />
                 )}
-                <span className={item.done ? 'text-ink-500' : 'font-medium text-ink-800'}>{item.label}</span>
+                <span className={item.done ? 'text-ink-500' : 'font-medium text-ink-800'}>{tr(item.label)}</span>
               </li>
             ))}
           </ul>
           <p className="mt-4 text-2xs leading-relaxed text-ink-400">
-            Services, pricing,{' '}
+            {tr("Services, pricing,")}{' '}
             <Link href="/provider/portfolio" className="font-semibold text-brand-700 underline">
-              portfolio photos
+              {tr("portfolio photos")}
             </Link>{' '}
-            and phone verification are managed on their own pages.
+            {tr('and phone verification are managed on their own pages.')}
           </p>
         </Panel>
       </form>

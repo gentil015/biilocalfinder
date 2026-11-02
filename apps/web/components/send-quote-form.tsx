@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useId, useState } from 'react';
 import { AlertCircle, Paperclip, Plus, X } from 'lucide-react';
 import { ApiError, quotesApi } from '@/lib/api';
@@ -15,6 +16,7 @@ function ListEditor({
   items: string[];
   setItems: (items: string[]) => void;
 }) {
+  const { translateMessage: tr } = useI18n();
   const [draft, setDraft] = useState('');
   const inputId = useId();
   const hintId = `${inputId}-hint`;
@@ -80,6 +82,7 @@ function ListEditor({
 }
 
 export function SendQuoteForm({ requestId, onSent }: { requestId: string; onSent: () => void }) {
+  const { translateMessage: tr } = useI18n();
   const [price, setPrice] = useState('');
   const [estimatedDuration, setEstimatedDuration] = useState('');
   const [proposedDate, setProposedDate] = useState('');
@@ -211,7 +214,7 @@ export function SendQuoteForm({ requestId, onSent }: { requestId: string; onSent
 
       <div className="field">
         <label htmlFor={descriptionId} className="label">
-          Notes for the client <span className="font-normal text-ink-400">(optional)</span>
+          Notes for the client <span className="font-normal text-ink-400">{tr("(optional)")}</span>
         </label>
         <textarea
           id={descriptionId}
@@ -251,7 +254,7 @@ export function SendQuoteForm({ requestId, onSent }: { requestId: string; onSent
 
       <div className="field">
         <label htmlFor={fileId} className="label">
-          Attachments <span className="font-normal text-ink-400">(optional)</span>
+          Attachments <span className="font-normal text-ink-400">{tr("(optional)")}</span>
         </label>
         <label
           htmlFor={fileId}

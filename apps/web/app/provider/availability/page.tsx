@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useState } from 'react';
 import { Clock, Plus, Trash2 } from 'lucide-react';
 import { availabilityApi, ApiError } from '@/lib/api';
@@ -28,6 +29,7 @@ const STATUS_LABEL: Record<'AVAILABLE' | 'BUSY' | 'UNAVAILABLE', string> = {
 };
 
 export default function ProviderAvailabilityPage() {
+  const { translateMessage: tr } = useI18n();
   const [rows, setRows] = useState<DayRow[]>(DEFAULT_ROWS);
   const [baseline, setBaseline] = useState<DayRow[]>(() => DEFAULT_ROWS.map((r) => ({ ...r })));
   const [status, setStatus] = useState<'AVAILABLE' | 'BUSY' | 'UNAVAILABLE'>('AVAILABLE');
@@ -136,23 +138,23 @@ export default function ProviderAvailabilityPage() {
   if (loading)
     return (
       <main className="page-narrow py-6 md:py-8">
-        <LoadingBlock label="Loading your schedule…" />
+        <LoadingBlock label={tr("Loading your schedule…")} />
       </main>
     );
 
   return (
     <main className="page-narrow py-6 md:py-8">
       <PageHeader
-        eyebrow="Provider"
-        title="Availability & scheduling"
-        description="Set your weekly hours so clients can see when you're free — and block off specific dates for jobs already booked."
+        eyebrow={tr("Provider")}
+        title={tr("Availability & scheduling")}
+        description={tr("Set your weekly hours so clients can see when you're free — and block off specific dates for jobs already booked.")}
       />
 
-      <Panel title="Status" className="mb-6">
+      <Panel title={tr("Status")} className="mb-6">
         <div
           className="grid grid-cols-3 gap-1 rounded-xl border border-ink-200 bg-ink-100/70 p-1"
           role="group"
-          aria-label="Availability status"
+          aria-label={tr("Availability status")}
         >
           {(['AVAILABLE', 'BUSY', 'UNAVAILABLE'] as const).map((s) => (
             <button
@@ -163,29 +165,29 @@ export default function ProviderAvailabilityPage() {
                 status === s ? 'bg-surface text-ink-950 shadow-xs' : 'text-ink-500 hover:text-ink-900'
               }`}
             >
-              {STATUS_LABEL[s]}
+              {tr(STATUS_LABEL[s])}
             </button>
           ))}
         </div>
         {status === 'UNAVAILABLE' && (
           <p className="mt-3 rounded-lg bg-warning-50 px-3 py-2 text-xs font-medium text-warning-800">
-            While paused, you won&apos;t show as available on any day — even ones marked open below.
+            {tr("While paused, you won't show as available on any day — even ones marked open below.")}
           </p>
         )}
       </Panel>
 
       <Panel
         className="mb-6"
-        title="Weekly hours"
-        description="Tick the days you work and set the hours clients will see."
+        title={tr("Weekly hours")}
+        description={tr("Tick the days you work and set the hours clients will see.")}
         actions={
           dirty ? (
             <span className="badge badge-warning">
               <span className="h-1.5 w-1.5 rounded-full bg-warning-600" aria-hidden="true" />
-              Unsaved changes
+              {tr("Unsaved changes")}
             </span>
           ) : savedAt ? (
-            <span className="badge badge-success">Saved</span>
+            <span className="badge badge-success">{tr("Saved")}</span>
           ) : null
         }
       >
@@ -193,10 +195,10 @@ export default function ProviderAvailabilityPage() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-warning-50 px-3.5 py-3 text-sm text-warning-800">
             <span className="flex items-center gap-2">
               <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
-              No working days selected yet. Tick at least one day so clients know when to book you.
+              {tr("No working days selected yet. Tick at least one day so clients know when to book you.")}
             </span>
             <button type="button" onClick={useWeekdayHours} className="btn-secondary btn-sm shrink-0">
-              Use Mon–Fri, 9–5
+              {tr("Use Mon–Fri, 9–5")}
             </button>
           </div>
         )}
@@ -215,7 +217,7 @@ export default function ProviderAvailabilityPage() {
                   checked={row.isActive}
                   onChange={(e) => updateRow(row.dayOfWeek, { isActive: e.target.checked })}
                 />
-                {DAYS[row.dayOfWeek]}
+                {tr(DAYS[row.dayOfWeek])}
               </label>
               {row.isActive ? (
                 <div className="flex flex-1 items-center gap-2">
@@ -223,7 +225,7 @@ export default function ProviderAvailabilityPage() {
                     type="time"
                     value={row.startTime}
                     onChange={(e) => updateRow(row.dayOfWeek, { startTime: e.target.value })}
-                    aria-label={`${DAYS[row.dayOfWeek]} start time`}
+                    aria-label={`${tr(DAYS[row.dayOfWeek])} ${tr('start time')}`}
                     className="w-32 rounded-lg px-2 py-1.5 text-sm tabular sm:w-36"
                   />
                   <span className="text-sm text-ink-400" aria-hidden="true">
@@ -233,33 +235,33 @@ export default function ProviderAvailabilityPage() {
                     type="time"
                     value={row.endTime}
                     onChange={(e) => updateRow(row.dayOfWeek, { endTime: e.target.value })}
-                    aria-label={`${DAYS[row.dayOfWeek]} end time`}
+                    aria-label={`${tr(DAYS[row.dayOfWeek])} ${tr('end time')}`}
                     className="w-32 rounded-lg px-2 py-1.5 text-sm tabular sm:w-36"
                   />
                 </div>
               ) : (
-                <span className="flex-1 text-xs font-medium text-ink-400">Unavailable</span>
+                <span className="flex-1 text-xs font-medium text-ink-400">{tr("Unavailable")}</span>
               )}
             </div>
           ))}
         </div>
 
-        {error && <p className="error-text mt-3">{error}</p>}
+        {error && <p className="error-text mt-3">{tr(error)}</p>}
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button onClick={saveWeekly} disabled={saving || !dirty} className="btn-primary">
             <Clock className="h-4 w-4" aria-hidden="true" />
             {saving ? 'Saving…' : 'Save weekly hours'}
           </button>
-          {savedAt && !dirty && <p className="text-xs text-success-600">Changes saved.</p>}
+          {savedAt && !dirty && <p className="text-xs text-success-600">{tr("Changes saved.")}</p>}
         </div>
       </Panel>
 
-      <Panel title="Date overrides" description="Block a specific date (already booked) or open up a day you're normally off — this overrides your weekly hours for that date only.">
+      <Panel title={tr("Date overrides")} description={tr("Block a specific date (already booked) or open up a day you're normally off — this overrides your weekly hours for that date only.")}>
         <div className="mb-4 flex flex-wrap items-end gap-2">
           <div className="field min-w-0">
             <label htmlFor="override-date" className="label">
-              Date
+              {tr("Date")}
             </label>
             <input
               id="override-date"
@@ -271,11 +273,11 @@ export default function ProviderAvailabilityPage() {
           </div>
           <div className="field min-w-0 flex-1">
             <label htmlFor="override-note" className="label">
-              Note <span className="font-normal text-ink-400">(optional)</span>
+              {tr("Note")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
             </label>
             <input
               id="override-note"
-              placeholder="e.g. booked for a wedding"
+              placeholder={tr("e.g. booked for a wedding")}
               value={exceptionNote}
               onChange={(e) => setExceptionNote(e.target.value)}
             />
@@ -286,20 +288,20 @@ export default function ProviderAvailabilityPage() {
               disabled={!exceptionDate}
               className="btn-danger btn-sm"
             >
-              Block
+              {tr("Block")}
             </button>
             <button
               onClick={() => addException(true)}
               disabled={!exceptionDate}
               className="btn-secondary btn-sm"
             >
-              <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Open
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" /> {tr("Open")}
             </button>
           </div>
         </div>
 
         {exceptions.length === 0 ? (
-          <p className="text-sm text-ink-500">No upcoming overrides.</p>
+          <p className="text-sm text-ink-500">{tr("No upcoming overrides.")}</p>
         ) : (
           <ul className="divide-y divide-ink-100">
             {exceptions.map((e) => (

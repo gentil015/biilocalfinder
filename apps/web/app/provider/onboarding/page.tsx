@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Briefcase, Building, User, Users } from 'lucide-react';
@@ -41,6 +42,7 @@ const OPTIONS: { type: ProviderType; icon: typeof User; title: string; descripti
 ];
 
 export default function ProviderTypeSelectionPage() {
+  const { translateMessage: tr } = useI18n();
   const router = useRouter();
   const [selected, setSelected] = useState<ProviderType | null>(null);
   const [loading, setLoading] = useState(true);
@@ -83,17 +85,17 @@ export default function ProviderTypeSelectionPage() {
   if (loading) {
     return (
       <main className="page-narrow py-6 md:py-8">
-        <LoadingBlock label="Loading your onboarding…" />
+        <LoadingBlock label={tr("Loading your onboarding…")} />
       </main>
     );
   }
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col px-4 py-8">
-      <OnboardingProgress step={1} label="Account type" />
+      <OnboardingProgress step={1} label={tr("Account type")} />
 
-      <h1 className="mb-1 font-display text-2xl font-semibold text-ink-950">How will you provide services?</h1>
-      <p className="mb-6 text-sm text-ink-500">Choose the option that best describes you or your team.</p>
+      <h1 className="mb-1 font-display text-2xl font-semibold text-ink-950">{tr("How will you provide services?")}</h1>
+      <p className="mb-6 text-sm text-ink-500">{tr("Choose the option that best describes you or your team.")}</p>
 
       <div className="flex flex-1 flex-col gap-3">
         {OPTIONS.map((o) => (
@@ -111,7 +113,7 @@ export default function ProviderTypeSelectionPage() {
 
       {error && (
         <p className="error-text mt-4" role="alert">
-          {error}
+          {tr(error)}
         </p>
       )}
 

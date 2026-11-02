@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Loader2, Mail, Users } from 'lucide-react';
 import { workspacesApi, type WorkspaceMembershipSummary } from '@/lib/api';
@@ -24,7 +25,11 @@ export default function DashboardEntryPage() {
       .listMine()
       .then((list) => {
         const firstActive = list.find((m) => m.status === 'ACTIVE');
-        if (firstActive) {
+        const pendingInvites = list.filter((m) => m.status === 'INVITED');
+        // Only bounce straight into the active workspace when there is
+        // nothing to decide. If an invitation is waiting, show it here
+        // instead of hiding it behind a redirect.
+        if (firstActive && pendingInvites.length === 0) {
           router.replace(`/dashboard/${firstActive.workspace.id}`);
           return;
         }
@@ -82,6 +87,7 @@ export default function DashboardEntryPage() {
   }
 
   const pending = memberships.filter((m) => m.status === 'INVITED');
+  const firstActive = memberships.find((m) => m.status === 'ACTIVE');
 
   if (memberships.length === 0) {
     return (
@@ -145,6 +151,15 @@ export default function DashboardEntryPage() {
           ))}
         </ul>
       </Panel>
+
+      {firstActive && (
+        <p className="mt-4 text-sm text-ink-500">
+          <Link href={`/dashboard/${firstActive.workspace.id}`} className="text-link">
+            Continue to {firstActive.workspace.name}
+          </Link>{' '}
+          without accepting.
+        </p>
+      )}
     </main>
   );
 }

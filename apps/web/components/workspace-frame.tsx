@@ -4,6 +4,7 @@ import { setActiveWorkspace, type Workspace, type WorkspaceMembershipSummary } f
 import { WORKSPACE_NAV, WORKSPACE_TYPE_LABEL } from '@/lib/workspace-nav';
 import { WorkspaceShell, WorkspaceSwitcher } from '@/components/workspace-switcher';
 import { VerificationBadge } from '@/components/verification-badge';
+import { useI18n } from '@/components/locale-provider';
 
 /**
  * The shared dashboard foundation (spec §6): one shell, type-specific nav
@@ -23,15 +24,16 @@ export function WorkspaceFrame({
   overviewHref?: string;
   children: React.ReactNode;
 }) {
+  const { translateMessage } = useI18n();
   const role = memberships.find((m) => m.workspace.id === workspace.id)?.role ?? 'MEMBER';
   setActiveWorkspace(workspace.id, role);
   const navItems = WORKSPACE_NAV[workspace.type].filter((item) => !item.roles || item.roles.includes(role));
 
   return (
     <WorkspaceShell
-      navLabel={`${WORKSPACE_TYPE_LABEL[workspace.type]} dashboard navigation`}
+      navLabel={translateMessage(`${WORKSPACE_TYPE_LABEL[workspace.type]} dashboard navigation`)}
       nav={navItems.map((item) => ({
-        label: item.label,
+        label: translateMessage(item.label),
         href: item.label === 'Overview' && overviewHref ? overviewHref : item.href(workspace.id),
         icon: item.icon,
       }))}
@@ -45,9 +47,11 @@ export function WorkspaceFrame({
         <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-ink-200 bg-surface px-4 py-3">
           <VerificationBadge status={workspace.provider.verificationStatus} />
           <p className="text-sm text-ink-600">
-            {workspace.provider.verificationStatus === 'VERIFIED'
-              ? 'Your profile is verified — you appear with a trust badge in search.'
-              : 'Complete verification to appear with a trust badge in search.'}
+            {translateMessage(
+              workspace.provider.verificationStatus === 'VERIFIED'
+                ? 'Your profile is verified — you appear with a trust badge in search.'
+                : 'Complete verification to appear with a trust badge in search.',
+            )}
           </p>
         </div>
       )}

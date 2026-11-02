@@ -1,11 +1,13 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ApiError, ProviderOnboardingState, providerOnboardingApi } from '@/lib/api';
 import { LoadingBlock } from '@/components/ui/page';
 
 export default function ProviderOnboardingServicesPage() {
+  const { translateMessage: tr } = useI18n();
   const router = useRouter();
   const [state, setState] = useState<ProviderOnboardingState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,7 +33,7 @@ export default function ProviderOnboardingServicesPage() {
   if (loading || !state) {
     return (
       <main className="page-narrow py-6 md:py-8">
-        <LoadingBlock label="Redirecting to create your service…" />
+        <LoadingBlock label={tr("Redirecting to create your service…")} />
       </main>
     );
   }

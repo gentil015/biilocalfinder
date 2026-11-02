@@ -1,5 +1,6 @@
 'use client';
 
+import { useI18n } from '@/components/locale-provider';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -28,6 +29,7 @@ import {
 /** A booking is an agreement, so the price and the payment arrangement sit at
  *  the top — that is the first thing either party opens this page to check. */
 export default function BookingDetailPage() {
+  const { translateMessage: tr } = useI18n();
   const { id } = useParams<{ id: string }>();
   const [booking, setBooking] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -109,7 +111,7 @@ export default function BookingDetailPage() {
 
   return (
     <main className="page-narrow py-8">
-      <BackButton variant="link" label="All bookings" fallbackHref="/bookings" />
+      <BackButton variant="link" label={tr("All bookings")} fallbackHref="/bookings" />
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
@@ -218,7 +220,7 @@ export default function BookingDetailPage() {
             {reviewInfo.review.verifiedBooking && (
               <span className="badge badge-success gap-1">
                 <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
-                Verified booking
+                {tr("Verified booking")}
               </span>
             )}
           </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { Check, LucideIcon } from 'lucide-react';
+import { useI18n } from '@/components/locale-provider';
 
 export function ProviderTypeCard({
   icon: Icon,
@@ -17,6 +18,7 @@ export function ProviderTypeCard({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const { translateMessage: tr } = useI18n();
   return (
     <button
       type="button"
@@ -39,7 +41,7 @@ export function ProviderTypeCard({
       <span className="min-w-0 flex-1">
         <span className="flex items-center justify-between gap-3">
           <span className={`text-[15px] font-bold tracking-tight ${selected ? 'text-white' : 'text-ink-950'}`}>
-            {title}
+            {tr(title)}
           </span>
           <span
             aria-hidden="true"
@@ -52,9 +54,11 @@ export function ProviderTypeCard({
         </span>
 
         <span className={`mt-1 block text-sm leading-relaxed ${selected ? 'text-white/65' : 'text-ink-600'}`}>
-          {description}
+          {tr(description)}
         </span>
-        <span className={`mt-2 block text-xs ${selected ? 'text-white/40' : 'text-ink-400'}`}>e.g. {examples}</span>
+        <span className={`mt-2 block text-xs ${selected ? 'text-white/40' : 'text-ink-400'}`}>
+          {tr('e.g.')} {tr(examples)}
+        </span>
       </span>
     </button>
   );

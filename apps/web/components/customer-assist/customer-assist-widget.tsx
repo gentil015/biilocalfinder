@@ -8,18 +8,23 @@ import {
   CalendarDays,
   ChevronDown,
   ChevronRight,
+  FileText,
   Flag,
   MapPin,
   MessageSquare,
   Search,
+  Send,
   Sparkles,
   Star,
   Store,
+  ToggleLeft,
   UserCog,
   X,
 } from 'lucide-react';
 import {
+  availabilityApi,
   customerAssistApi,
+  quotesApi,
   type CustomerAssistAction,
   type CustomerAssistActionKind,
   type CustomerAssistResult,
@@ -46,11 +51,17 @@ const ACTION_ICONS: Record<CustomerAssistActionKind, typeof Search> = {
   'saved-searches': Bookmark,
   disputes: Flag,
   account: UserCog,
+  'prefill-request': FileText,
+  'open-request': FileText,
+  'open-booking': CalendarDays,
+  'open-offering': Store,
+  'send-quote': Send,
+  'toggle-availability': ToggleLeft,
 };
 
 /** Fanned out on chat prompts to test routing. */
 const WELCOME =
-  "Bite? I'm BII Assistant, your guide around the marketplace. Ask me to find a service or provider, or ask how BII Localfinder works — I can search, filter and point you to the right page. English, Kinyarwanda or Français.";
+  "Bite? I'm BII Assistant. Ask me to find a service or provider, explain how BII Localfinder works, or — when you're signed in — help with your requests, quotes, bookings, offerings and availability. I can prepare things for you, and anything that changes your account asks you to confirm first. English, Kinyarwanda or Français.";
 
 export function CustomerAssistWidget() {
   const router = useRouter();
@@ -116,6 +127,62 @@ export function CustomerAssistWidget() {
     // can come back and keep asking.
   }
 
+  // Write actions are only ever proposed by the assistant; the user confirms
+  // here and the real, already-validated endpoint does the work. Nothing is
+  // executed straight from model output.
+  async function runAction(action: CustomerAssistAction) {
+    if (action.href) {
+      go(action.href);
+      return;
+    }
+    if (busy) return;
+
+    setBusy(true);
+    setError(null);
+    try {
+      if (action.kind === 'send-quote') {
+        const payload = action.payload ?? {};
+        await quotesApi.create({
+          requestId: String(payload.requestId ?? ''),
+          price: Number(payload.price ?? 0),
+          ...(typeof payload.estimatedDuration === 'string'
+            ? { estimatedDuration: payload.estimatedDuration }
+            : {}),
+          ...(typeof payload.description === 'string' ? { description: payload.description } : {}),
+        });
+        setTurns((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: 'Quote sent. The client will be notified and can accept it or negotiate.',
+          },
+        ]);
+      } else if (action.kind === 'toggle-availability') {
+        const status = action.payload?.status === 'AVAILABLE' ? 'AVAILABLE' : 'UNAVAILABLE';
+        await availabilityApi.setStatus(status);
+        setTurns((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: `Availability updated to ${status.toLowerCase()}.`,
+          },
+        ]);
+      } else {
+        return;
+      }
+      scrollToBottom();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Something went wrong';
+      setError(msg);
+      setTurns((prev) => [
+        ...prev,
+        { role: 'assistant', text: `Sorry — ${msg}. Nothing was changed.` },
+      ]);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <>
       {!open && (
@@ -157,7 +224,7 @@ export function CustomerAssistWidget() {
             <div className="min-w-0">
               <p className="font-bold tracking-tight">BII Assistant</p>
               <p className="truncate text-xs text-white/80">
-                Marketplace guide · replies in English, Kinyarwanda &amp; Français
+                Guide &amp; tasks · English, Kinyarwanda &amp; Français
               </p>
             </div>
             <button
@@ -179,7 +246,9 @@ export function CustomerAssistWidget() {
               <>
                 <AssistantBubble text={WELCOME} avatar={<Sparkles className="h-4 w-4" aria-hidden="true" />} />
                 <p className="px-1 text-2xs leading-relaxed text-ink-400">
-                  AI processing: your message (and any attached photo) is sent to a third-party AI provider. Do not include ID numbers, passwords, or payment details.
+                  AI processing: your message is sent to a third-party AI provider. When you are signed in,
+                  a summary of your own requests, quotes, bookings, offerings and availability is included
+                  so I can help with your account. Do not include ID numbers, passwords, or payment details.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {QUICK_STARTS.map((q) => (
@@ -200,7 +269,14 @@ export function CustomerAssistWidget() {
               turn.role === 'user' ? (
                 <UserBubble key={i} text={turn.text} />
               ) : (
-                <AssistantTurn key={i} text={turn.text} result={turn.result} onGo={go} />
+                <AssistantTurn
+                  key={i}
+                  text={turn.text}
+                  result={turn.result}
+                  onGo={go}
+                  onRun={runAction}
+                  busy={busy}
+                />
               ),
             )}
 
@@ -302,10 +378,14 @@ function AssistantTurn({
   text,
   result,
   onGo,
+  onRun,
+  busy,
 }: {
   text: string;
   result?: CustomerAssistResult;
   onGo: (href: string) => void;
+  onRun: (action: CustomerAssistAction) => void;
+  busy: boolean;
 }) {
   const services = result?.suggestions.services ?? [];
   const providers = result?.suggestions.providers ?? [];
@@ -318,8 +398,14 @@ function AssistantTurn({
 
       {actions.length > 0 && (
         <div className="flex flex-wrap gap-1.5 pl-9">
-          {actions.map((a) => (
-            <ActionButton key={a.kind} action={a} onGo={onGo} />
+          {actions.map((a, i) => (
+            <ActionButton
+              key={`${a.kind}-${i}`}
+              action={a}
+              onGo={onGo}
+              onRun={onRun}
+              busy={busy}
+            />
           ))}
         </div>
       )}
@@ -414,21 +500,70 @@ function AssistantTurn({
   );
 }
 
-/** One deep link the assistant offered. The "search" action is the primary
- *  call to action (it opens the search page with the sentence pre-filled and
- *  AI filter parsing on); the rest are quiet page shortcuts. Both label and
- *  href are built server-side, so this only renders what it is given. */
-function ActionButton({ action, onGo }: { action: CustomerAssistAction; onGo: (href: string) => void }) {
+/** One action the assistant offered. The "search" action is the primary call
+ *  to action (it opens the search page with the sentence pre-filled and AI
+ *  filter parsing on); page shortcuts navigate; write actions ask for an
+ *  explicit confirmation first. Labels, hrefs and payloads are all built
+ *  server-side, so this only renders and executes what it is given. */
+function ActionButton({
+  action,
+  onGo,
+  onRun,
+  busy,
+}: {
+  action: CustomerAssistAction;
+  onGo: (href: string) => void;
+  onRun: (action: CustomerAssistAction) => void;
+  busy: boolean;
+}) {
+  const [confirming, setConfirming] = useState(false);
   const Icon = ACTION_ICONS[action.kind] ?? ChevronRight;
   const primary = action.kind === 'search';
+  const write = action.requiresConfirmation === true;
+
+  if (confirming) {
+    return (
+      <span className="inline-flex flex-wrap items-center gap-1.5 rounded-xl border border-brand-300 bg-brand-50 px-2.5 py-1.5 text-xs text-brand-900 shadow-sm">
+        <span className="font-semibold">{action.summary ?? action.label}</span>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            setConfirming(false);
+            onRun(action);
+          }}
+          className="rounded-full bg-brand-700 px-2.5 py-1 font-bold text-white dark:text-home-night disabled:opacity-40"
+        >
+          Confirm
+        </button>
+        <button
+          type="button"
+          onClick={() => setConfirming(false)}
+          className="rounded-full border border-brand-200 bg-surface px-2.5 py-1 font-semibold text-brand-800"
+        >
+          Cancel
+        </button>
+      </span>
+    );
+  }
+
   return (
     <button
       type="button"
-      onClick={() => onGo(action.href)}
+      disabled={busy}
+      onClick={() => {
+        if (write) {
+          setConfirming(true);
+        } else if (action.href) {
+          onGo(action.href);
+        } else {
+          onRun(action);
+        }
+      }}
       className={
         primary
-          ? 'inline-flex items-center gap-1.5 rounded-full bg-brand-700 px-3.5 py-2 text-xs font-bold text-white dark:text-home-night shadow-sm transition hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/25'
-          : 'inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-surface px-3 py-1.5 text-xs font-semibold text-ink-700 shadow-sm transition hover:border-brand-300 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20'
+          ? 'inline-flex items-center gap-1.5 rounded-full bg-brand-700 px-3.5 py-2 text-xs font-bold text-white dark:text-home-night shadow-sm transition hover:bg-brand-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/25 disabled:opacity-40'
+          : 'inline-flex items-center gap-1.5 rounded-full border border-ink-200 bg-surface px-3 py-1.5 text-xs font-semibold text-ink-700 shadow-sm transition hover:border-brand-300 hover:text-brand-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-500/20 disabled:opacity-40'
       }
     >
       <Icon className="h-3.5 w-3.5" aria-hidden="true" />

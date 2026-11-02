@@ -59,10 +59,12 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       {!auth && !appShell && <SiteFooter />}
       {!auth && !appShell && <MobileTabBar />}
 
-      {/* "Ask BII Assistant" — marketplace navigation chatbot. Public, so it
-          appears for visitors too (even on the auth screens); only the
-          self-contained app shells skip it. */}
-      {!appShell && <CustomerAssistWidget />}
+      {/* "Ask BII Assistant" — marketplace guide and task helper. It appears
+          everywhere, including the app shells and auth screens: the API is
+          public, and a valid session is picked up automatically so the same
+          widget can answer account/provider questions and offer confirmed
+          write actions. */}
+      <CustomerAssistWidget />
     </div>
   );
 }

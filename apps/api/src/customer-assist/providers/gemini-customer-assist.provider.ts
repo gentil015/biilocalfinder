@@ -29,7 +29,9 @@ export class GeminiCustomerAssistProvider implements CustomerAssistProvider {
     const system = CUSTOMER_ASSIST_SYSTEM_PROMPT.replace('{today}', new Date().toISOString().slice(0, 10));
     const payload = JSON.stringify({
       language: input.language,
+      role: input.role,
       services: input.services,
+      context: input.context ?? null,
       message: input.messages[input.messages.length - 1]?.text ?? '',
     });
 

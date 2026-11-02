@@ -1354,17 +1354,29 @@ export type CustomerAssistActionKind =
   | 'messages'
   | 'saved-searches'
   | 'disputes'
-  | 'account';
+  | 'account'
+  | 'prefill-request'
+  | 'open-booking'
+  | 'open-request'
+  | 'open-offering'
+  | 'send-quote'
+  | 'toggle-availability';
 
 export interface CustomerAssistAction {
   kind: CustomerAssistActionKind;
   label: string;
-  href: string;
+  href?: string;
+  summary?: string;
+  payload?: Record<string, unknown>;
+  requiresConfirmation?: boolean;
 }
+
+export type CustomerAssistRole = 'GUEST' | 'CLIENT' | 'PROVIDER' | 'ADMIN';
 
 export interface CustomerAssistResult {
   reply: string;
   language: 'en' | 'rw' | 'fr';
+  role: CustomerAssistRole;
   questions: string[];
   suggestions: {
     services: CustomerAssistServiceSuggestion[];
@@ -1374,8 +1386,11 @@ export interface CustomerAssistResult {
 }
 
 /**
- * "Ask BII Assistant" — marketplace navigation via plain-language chat.
- * Public endpoint: guests get the same routing help as members.
+ * "Ask BII Assistant" — marketplace navigation and tasks via plain-language
+ * chat. Public endpoint: guests get the same routing help as members, and a
+ * valid session additionally unlocks the caller's own live data. Uses
+ * authRequest so the active workspace header (and token refresh) is applied
+ * when signed in.
  */
 export const customerAssistApi = {
   chat: (
@@ -1385,7 +1400,7 @@ export const customerAssistApi = {
       language?: string;
     },
   ) =>
-    request<CustomerAssistResult>('/customer-assist/chat', {
+    authRequest<CustomerAssistResult>('/customer-assist/chat', {
       method: 'POST',
       body: JSON.stringify({
         message,

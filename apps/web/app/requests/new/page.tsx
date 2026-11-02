@@ -131,16 +131,19 @@ function NewServiceRequestForm() {
   const [services, setServices] = useState<any[]>([]);
   const [attributes, setAttributes] = useState<any[]>([]);
   const [attributeValues, setAttributeValues] = useState<Record<string, unknown>>({});
-  const [form, setForm] = useState({
+  // The BII Assistant can deep-link here with a pre-filled draft (service,
+  // title, description, schedule, budget). The client still reviews and
+  // submits — nothing is created until they press send.
+  const [form, setForm] = useState(() => ({
     serviceId: searchParams.get('serviceId') ?? '',
-    title: '',
-    description: '',
-    preferredDate: '',
-    preferredTime: '',
-    budgetMin: '',
-    budgetMax: '',
-    additionalNotes: '',
-  });
+    title: searchParams.get('title') ?? '',
+    description: searchParams.get('description') ?? '',
+    preferredDate: searchParams.get('preferredDate') ?? '',
+    preferredTime: searchParams.get('preferredTime') ?? '',
+    budgetMin: searchParams.get('budgetMin') ?? '',
+    budgetMax: searchParams.get('budgetMax') ?? '',
+    additionalNotes: searchParams.get('additionalNotes') ?? '',
+  }));
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 

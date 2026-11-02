@@ -11,11 +11,12 @@ import {
   Images,
   MapPin,
   MessageSquareQuote,
+  Phone,
   ShieldCheck,
   Sparkles,
   Star,
-  Tag,
   TrendingUp,
+  Users,
   Wrench,
   Zap,
   type LucideIcon,
@@ -401,10 +402,24 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
         {/* Left column */}
         <div className="min-w-0 space-y-6">
-          {provider.description && (
+          {(provider.description || provider.bio) && (
             <section className="surface-card p-5 sm:p-6">
               <SectionHeading icon={Sparkles} eyebrow="Overview" title={`About ${provider.businessName}`} />
-              <p className="prose-copy leading-relaxed">{provider.description}</p>
+              <div className="space-y-4">
+                {provider.description && (
+                  <p className="prose-copy whitespace-pre-line leading-relaxed">{provider.description}</p>
+                )}
+                {provider.bio && (
+                  <div className={provider.description ? 'border-t border-ink-100 pt-4' : ''}>
+                    <p className="mb-1.5 text-xs font-bold uppercase tracking-wider text-ink-400">
+                      About the provider
+                    </p>
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-ink-600">
+                      {provider.bio}
+                    </p>
+                  </div>
+                )}
+              </div>
             </section>
           )}
 
@@ -717,8 +732,8 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
 
         {/* Right column — the "trust column". Sticky so the CTA is always
             reachable while reading reviews. */}
-        <aside className="hidden space-y-4 lg:block">
-          <div className="surface-card sticky top-24 overflow-hidden">
+        <aside className="space-y-4">
+          <div className="surface-card overflow-hidden lg:sticky lg:top-24">
             {startingPrice != null ? (
               <div className="relative overflow-hidden bg-home-night px-5 py-4 text-white">
                 <div className="pointer-events-none absolute inset-0 bg-brand-gradient opacity-90" aria-hidden="true" />
@@ -745,8 +760,19 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
                 <h3 className="card-title">At a glance</h3>
                 <ul className="mt-3.5 space-y-3">
                   <AtAGlanceRow icon={MapPin} label="Based in">
-                    {provider.location?.city ?? 'Location not set'}
+                    {[provider.location?.city, provider.location?.country].filter(Boolean).join(', ') ||
+                      'Location not set'}
                   </AtAGlanceRow>
+                  {provider.phone && (
+                    <AtAGlanceRow icon={Phone} label="Contact">
+                      <a
+                        href={`tel:${provider.phone}`}
+                        className="break-all text-brand-700 underline decoration-brand-200 underline-offset-2 hover:text-brand-900"
+                      >
+                        {provider.phone}
+                      </a>
+                    </AtAGlanceRow>
+                  )}
                   <AtAGlanceRow icon={CalendarClock} label="Availability">
                     {availability ? availability.text : 'Not set'}
                   </AtAGlanceRow>
@@ -755,6 +781,16 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
                       ? `${provider.yearsOfExperience} years`
                       : 'New to the platform'}
                   </AtAGlanceRow>
+                  {provider.serviceRadiusKm > 0 && (
+                    <AtAGlanceRow icon={MapPin} label="Service radius">
+                      {provider.serviceRadiusKm} km
+                    </AtAGlanceRow>
+                  )}
+                  {provider.providerType === 'TEAM' && provider.teamSize > 0 && (
+                    <AtAGlanceRow icon={Users} label="Team size">
+                      {provider.teamSize} members
+                    </AtAGlanceRow>
+                  )}
                 </ul>
               </div>
 

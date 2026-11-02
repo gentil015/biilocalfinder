@@ -34,6 +34,12 @@ export class MockCustomerAssistProvider implements CustomerAssistProvider {
       // "search providers" action the real providers produce.
       searchQuery: matched.length > 0 ? matched[0].name : undefined,
       links: [],
+      // The mock can still demonstrate the task layer: a client who
+      // matched a service gets a pre-filled request form.
+      actions:
+        input.role === 'CLIENT' && matched.length > 0
+          ? [{ kind: 'prefill-request', serviceKey: matched[0].key, title: matched[0].name }]
+          : [],
     });
   }
 

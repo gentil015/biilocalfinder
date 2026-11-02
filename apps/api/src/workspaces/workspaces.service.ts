@@ -1,5 +1,13 @@
-import { BadRequestException, ConflictException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { Prisma, WorkspaceMemberRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../common/services/audit-log.service';
 import { EntitlementsService } from '../subscriptions/entitlements.service';
@@ -118,13 +126,41 @@ export class WorkspacesService {
       orderBy: { joinedAt: 'asc' },
     });
 
-    return memberships.map((m: (typeof memberships)[number]) => ({
-      membershipId: m.id,
-      role: m.role,
-      status: m.status,
-      joinedAt: m.joinedAt,
-      workspace: m.workspace,
-    }));
+    // A membership can stay INVITED after its invitation expires or is
+    // revoked. Surface only invitations that can still be accepted (or
+    // legacy rows with no invitation record), so the dashboard never offers
+    // an Accept button that is guaranteed to fail.
+    const invited = memberships.filter((m) => m.status === 'INVITED' && m.invitedEmail);
+    const liveInvitationKeys = new Set<string>();
+    if (invited.length > 0) {
+      const invitations = await this.prisma.workspaceInvitation.findMany({
+        where: {
+          acceptedAt: null,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+          OR: invited.map((m) => ({ workspaceId: m.workspaceId, email: m.invitedEmail!.toLowerCase() })),
+        },
+        select: { workspaceId: true, email: true },
+      });
+      for (const invitation of invitations) {
+        liveInvitationKeys.add(`${invitation.workspaceId}:${invitation.email.toLowerCase()}`);
+      }
+    }
+
+    return memberships
+      .filter(
+        (m) =>
+          m.status !== 'INVITED' ||
+          !m.invitedEmail ||
+          liveInvitationKeys.has(`${m.workspaceId}:${m.invitedEmail.toLowerCase()}`),
+      )
+      .map((m: (typeof memberships)[number]) => ({
+        membershipId: m.id,
+        role: m.role,
+        status: m.status,
+        joinedAt: m.joinedAt,
+        workspace: m.workspace,
+      }));
   }
 
   // GET /workspaces/:workspaceId — full dashboard context for the
@@ -243,6 +279,14 @@ export class WorkspacesService {
       return [membershipRow, invitationRow] as const;
     });
 
+    await this.auditLog.log(actorId, 'WORKSPACE_MEMBER_INVITED', 'WorkspaceInvitation', invitation.id, {
+      workspaceId,
+      invitedEmail: email,
+      invitedUserId: invitee?.id,
+      membershipId: membership?.id,
+      role: dto.role,
+    });
+
     const [workspace, inviter] = await Promise.all([
       this.prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId }, select: { name: true } }),
       this.prisma.user.findUniqueOrThrow({
@@ -250,8 +294,8 @@ export class WorkspacesService {
         select: { firstName: true, lastName: true },
       }),
     ]);
-    try {
-      if (this.emailSender) {
+    if (this.emailSender) {
+      try {
         await this.emailSender.send(
           workspaceInviteEmail(
             email,
@@ -261,18 +305,16 @@ export class WorkspacesService {
             token,
           ),
         );
+      } catch (err) {
+        // The invitation row is already saved (and retrying reuses it), but
+        // telling the inviter "sent" when SMTP failed leaves the invitee with
+        // no way to discover the invite. Surface it instead.
+        this.logger.error(`Workspace invitation email failed for ${email}: ${(err as Error).message}`);
+        throw new ServiceUnavailableException(
+          'The invitation was saved, but the email could not be sent. Please try again.',
+        );
       }
-    } catch (err) {
-      this.logger.error(`Workspace invitation email failed for ${email}: ${(err as Error).message}`);
     }
-
-    await this.auditLog.log(actorId, 'WORKSPACE_MEMBER_INVITED', 'WorkspaceInvitation', invitation.id, {
-      workspaceId,
-      invitedEmail: email,
-      invitedUserId: invitee?.id,
-      membershipId: membership?.id,
-      role: dto.role,
-    });
 
     return invitation;
   }
@@ -344,34 +386,11 @@ export class WorkspacesService {
       throw new BadRequestException('Sign in with the email address this invitation was sent to');
     }
 
-    const membership = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const existing = await tx.workspaceMembership.findUnique({
-        where: { workspaceId_userId: { workspaceId: invitation.workspaceId, userId } },
-      });
-      const row = existing
-        ? await tx.workspaceMembership.update({
-            where: { id: existing.id },
-            data: {
-              role: invitation.role,
-              status: 'ACTIVE',
-              invitedEmail: null,
-              joinedAt: new Date(),
-            },
-          })
-        : await tx.workspaceMembership.create({
-            data: {
-              workspaceId: invitation.workspaceId,
-              userId,
-              role: invitation.role,
-              status: 'ACTIVE',
-              joinedAt: new Date(),
-            },
-          });
-      await tx.workspaceInvitation.update({
-        where: { id: invitation.id },
-        data: { acceptedAt: new Date() },
-      });
-      return row;
+    const membership = await this.activateMembership({
+      workspaceId: invitation.workspaceId,
+      userId,
+      role: invitation.role,
+      invitationId: invitation.id,
     });
 
     await this.auditLog.log(userId, 'WORKSPACE_MEMBER_JOINED', 'WorkspaceMembership', membership.id, {
@@ -398,14 +417,26 @@ export class WorkspacesService {
   }
 
   async removeMember(workspaceId: string, membershipId: string, actorId: string) {
-    await this.getManageableMembership(workspaceId, membershipId);
+    const membership = await this.getManageableMembership(workspaceId, membershipId);
+    const email = await this.membershipEmail(membership);
 
     // Soft-removed, not deleted — keeps history for audit and prevents a
     // re-invite from colliding with a stale unique(workspaceId, userId) row
-    // in an unexpected state.
-    const updated = await this.prisma.workspaceMembership.update({
-      where: { id: membershipId },
-      data: { status: 'REMOVED' },
+    // in an unexpected state. Any still-pending invitation for this email is
+    // revoked in the same transaction: otherwise "removing" someone who has
+    // not accepted yet leaves their emailed link working.
+    const updated = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const row = await tx.workspaceMembership.update({
+        where: { id: membershipId },
+        data: { status: 'REMOVED' },
+      });
+      if (email) {
+        await tx.workspaceInvitation.updateMany({
+          where: { workspaceId, email, acceptedAt: null, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      }
+      return row;
     });
     await this.auditLog.log(actorId, 'WORKSPACE_MEMBER_REMOVED', 'WorkspaceMembership', membershipId, {
       workspaceId,
@@ -425,9 +456,88 @@ export class WorkspacesService {
       throw new BadRequestException('This invitation is no longer pending');
     }
 
-    return this.prisma.workspaceMembership.update({
-      where: { id: membershipId },
-      data: { status: 'ACTIVE', joinedAt: new Date() },
+    // The dashboard's Accept button is a convenience over the emailed link,
+    // so it must enforce the same expiry/revocation rules and close out the
+    // WorkspaceInvitation row. Without that, the invite stays listed as
+    // pending after the person joined, and the emailed link remains usable.
+    const email = await this.membershipEmail(membership);
+    const invitation = email
+      ? await this.prisma.workspaceInvitation.findFirst({
+          where: { workspaceId, email },
+          orderBy: { createdAt: 'desc' },
+        })
+      : null;
+    if (invitation) {
+      if (invitation.revokedAt || invitation.acceptedAt || invitation.expiresAt < new Date()) {
+        throw new BadRequestException(
+          'This invitation has expired. Ask the workspace owner to invite you again.',
+        );
+      }
+    }
+
+    const activated = await this.activateMembership({
+      workspaceId,
+      userId,
+      role: invitation?.role ?? membership.role,
+      invitationId: invitation?.id,
+    });
+
+    await this.auditLog.log(userId, 'WORKSPACE_MEMBER_JOINED', 'WorkspaceMembership', activated.id, {
+      workspaceId,
+      invitationId: invitation?.id,
+      role: activated.role,
+    });
+    return activated;
+  }
+
+  private async membershipEmail(membership: { userId: string; invitedEmail: string | null }): Promise<string | null> {
+    if (membership.invitedEmail) return membership.invitedEmail.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { id: membership.userId },
+      select: { email: true },
+    });
+    return user?.email.trim().toLowerCase() ?? null;
+  }
+
+  // Single place that turns a pending invitation into active access. Both the
+  // emailed token and the dashboard Accept button go through it so the two
+  // entry points can never drift on role, expiry, or invitation bookkeeping.
+  private async activateMembership(input: {
+    workspaceId: string;
+    userId: string;
+    role: WorkspaceMemberRole;
+    invitationId?: string;
+  }) {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const existing = await tx.workspaceMembership.findUnique({
+        where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: input.userId } },
+      });
+      const row = existing
+        ? await tx.workspaceMembership.update({
+            where: { id: existing.id },
+            data: {
+              role: input.role,
+              status: 'ACTIVE',
+              invitedEmail: null,
+              joinedAt: new Date(),
+            },
+          })
+        : await tx.workspaceMembership.create({
+            data: {
+              workspaceId: input.workspaceId,
+              userId: input.userId,
+              role: input.role,
+              status: 'ACTIVE',
+              joinedAt: new Date(),
+            },
+          });
+      if (input.invitationId) {
+        await tx.workspaceInvitation.update({
+          where: { id: input.invitationId },
+          data: { acceptedAt: new Date() },
+        });
+      }
+      return row;
     });
   }
 

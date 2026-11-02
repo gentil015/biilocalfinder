@@ -154,11 +154,12 @@ export class EntitlementsService {
     const value = plan[RESOURCE_LIMIT_FIELD[resource]];
     // Schema-level null means "unlimited" for services/portfolio/monthly
     // requests, but teamMembers/managedProviders are only meaningful for
-    // TEAM/BUSINESS and AGENCY respectively — null on an irrelevant type
-    // isn't "unlimited", it's "not applicable", so treat it as 0 there to
-    // avoid an INDIVIDUAL plan accidentally granting unlimited managed
-    // providers just because the column was never set.
-    if (resource === 'teamMembers' && !['TEAM', 'BUSINESS'].includes(type)) return 0;
+    // multi-person workspace types — null on an irrelevant type isn't
+    // "unlimited", it's "not applicable", so treat it as 0 there to avoid an
+    // INDIVIDUAL plan accidentally granting unlimited seats just because the
+    // column was never set. AGENCY plans do define maxTeamMembers (its
+    // dashboard has a Members page), so it belongs alongside TEAM/BUSINESS.
+    if (resource === 'teamMembers' && !['TEAM', 'BUSINESS', 'AGENCY'].includes(type)) return 0;
     if (resource === 'managedProviders' && type !== 'AGENCY') return 0;
     return typeof value === 'number' ? value : null;
   }

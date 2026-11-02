@@ -94,6 +94,17 @@ describe('EntitlementsService', () => {
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
+    it('respects a real maxTeamMembers limit for AGENCY', async () => {
+      prisma.subscriptionPlan.findFirst.mockResolvedValue({ ...freePlan, workspaceType: 'AGENCY', maxTeamMembers: 2 });
+      prisma.workspaceMembership.findMany.mockResolvedValue([
+        { invitedEmail: null, user: { email: 'member@example.com' } },
+      ]);
+
+      await expect(
+        service.assertCanAdd({ id: 'p1', providerType: 'AGENCY', workspaceId: 'ws1' } as any, 'teamMembers'),
+      ).resolves.toBeUndefined();
+    });
+
     it('allows unlimited when the plan field is null and the resource applies to the type', async () => {
       prisma.subscriptionPlan.findFirst.mockResolvedValue({ ...freePlan, maxServices: null });
       prisma.serviceOffering.count.mockResolvedValue(1000);

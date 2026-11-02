@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { WorkspacesService } from './workspaces.service';
 
@@ -23,10 +23,12 @@ describe('WorkspacesService', () => {
         create: jest.fn((args) => ({ id: 'ws-new', ...args.data })),
       },
       workspaceInvitation: {
+        findMany: jest.fn().mockResolvedValue([]),
         findFirst: jest.fn().mockResolvedValue(null),
         findUnique: jest.fn(),
         create: jest.fn((args) => ({ id: 'invitation-new', ...args.data })),
         update: jest.fn((args) => ({ id: args.where.id, ...args.data })),
+        updateMany: jest.fn(),
       },
       provider: { updateMany: jest.fn(), findUnique: jest.fn().mockResolvedValue(null), create: jest.fn() },
       user: {
@@ -130,6 +132,47 @@ describe('WorkspacesService', () => {
     });
   });
 
+  describe('listMine', () => {
+    it('hides pending memberships whose invitation has expired or been revoked', async () => {
+      prisma.workspaceMembership.findMany.mockResolvedValue([
+        {
+          id: 'm-active',
+          workspaceId: 'ws-1',
+          role: 'OWNER',
+          status: 'ACTIVE',
+          joinedAt: new Date(),
+          invitedEmail: null,
+          workspace: { id: 'ws-1' },
+        },
+        {
+          id: 'm-live',
+          workspaceId: 'ws-2',
+          role: 'MEMBER',
+          status: 'INVITED',
+          joinedAt: null,
+          invitedEmail: 'live@example.com',
+          workspace: { id: 'ws-2' },
+        },
+        {
+          id: 'm-stale',
+          workspaceId: 'ws-3',
+          role: 'MEMBER',
+          status: 'INVITED',
+          joinedAt: null,
+          invitedEmail: 'stale@example.com',
+          workspace: { id: 'ws-3' },
+        },
+      ]);
+      prisma.workspaceInvitation.findMany.mockResolvedValue([
+        { workspaceId: 'ws-2', email: 'live@example.com' },
+      ]);
+
+      const result = await service.listMine('user-1');
+
+      expect(result.map((m) => m.membershipId)).toEqual(['m-active', 'm-live']);
+    });
+  });
+
   describe('inviteMember', () => {
     it('creates a pending invitation for an email with no account', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
@@ -226,6 +269,19 @@ describe('WorkspacesService', () => {
         expect.objectContaining({ where: { id: 'invitation-existing' } }),
       );
     });
+
+    it('reports an email delivery failure instead of claiming the invite was sent', async () => {
+      const failingEmail = { send: jest.fn().mockRejectedValue(new Error('smtp down')) };
+      const serviceWithEmail = new WorkspacesService(prisma, auditLog, entitlements, failingEmail as any);
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(
+        serviceWithEmail.inviteMember('ws-1', { email: 'nobody@example.com', role: 'MEMBER' as any }, 'owner-1'),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+
+      // The invitation is still saved; retrying reuses it and sends again.
+      expect(prisma.workspaceInvitation.create).toHaveBeenCalled();
+    });
   });
 
   describe('acceptInvite', () => {
@@ -242,20 +298,69 @@ describe('WorkspacesService', () => {
       );
     });
 
-    it('activates a matching pending invitation', async () => {
+    it('activates a matching pending invitation and closes it out', async () => {
       prisma.workspaceMembership.findUnique.mockResolvedValue({
         id: 'm-1',
         workspaceId: 'ws-1',
         userId: 'user-2',
         status: 'INVITED',
+        invitedEmail: 'invited@example.com',
+        role: 'MEMBER',
+      });
+      prisma.workspaceInvitation.findFirst.mockResolvedValue({
+        id: 'inv-1',
+        workspaceId: 'ws-1',
+        email: 'invited@example.com',
+        role: 'MANAGER',
+        expiresAt: new Date(Date.now() + 60_000),
+        acceptedAt: null,
+        revokedAt: null,
       });
 
       const result = await service.acceptInvite('ws-1', 'm-1', 'user-2');
 
       expect(result.status).toBe('ACTIVE');
+      expect(result.role).toBe('MANAGER');
       expect(prisma.workspaceMembership.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: 'm-1' }, data: expect.objectContaining({ status: 'ACTIVE' }) }),
       );
+      // Without this the invite keeps appearing as pending and the emailed
+      // link stays usable after the person has already joined.
+      expect(prisma.workspaceInvitation.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: 'inv-1' }, data: expect.objectContaining({ acceptedAt: expect.any(Date) }) }),
+      );
+      expect(auditLog.log).toHaveBeenCalledWith(
+        'user-2',
+        'WORKSPACE_MEMBER_JOINED',
+        'WorkspaceMembership',
+        'm-1',
+        expect.objectContaining({ workspaceId: 'ws-1', invitationId: 'inv-1' }),
+      );
+    });
+
+    it('rejects accepting once the invitation has expired', async () => {
+      prisma.workspaceMembership.findUnique.mockResolvedValue({
+        id: 'm-1',
+        workspaceId: 'ws-1',
+        userId: 'user-2',
+        status: 'INVITED',
+        invitedEmail: 'invited@example.com',
+        role: 'MEMBER',
+      });
+      prisma.workspaceInvitation.findFirst.mockResolvedValue({
+        id: 'inv-1',
+        workspaceId: 'ws-1',
+        email: 'invited@example.com',
+        role: 'MEMBER',
+        expiresAt: new Date(Date.now() - 60_000),
+        acceptedAt: null,
+        revokedAt: null,
+      });
+
+      await expect(service.acceptInvite('ws-1', 'm-1', 'user-2')).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(prisma.workspaceMembership.update).not.toHaveBeenCalled();
     });
   });
 
@@ -442,6 +547,29 @@ describe('WorkspacesService', () => {
         'm-2',
         expect.objectContaining({ workspaceId: 'ws-1' }),
       );
+    });
+
+    it('revokes a still-pending invitation when removing an invited member', async () => {
+      prisma.workspaceMembership.findUnique.mockResolvedValue({
+        id: 'm-2',
+        workspaceId: 'ws-1',
+        userId: 'user-2',
+        role: 'MEMBER',
+        status: 'INVITED',
+        invitedEmail: 'invitee@example.com',
+      });
+
+      await service.removeMember('ws-1', 'm-2', 'owner-1');
+
+      expect(prisma.workspaceInvitation.updateMany).toHaveBeenCalledWith({
+        where: {
+          workspaceId: 'ws-1',
+          email: 'invitee@example.com',
+          acceptedAt: null,
+          revokedAt: null,
+        },
+        data: { revokedAt: expect.any(Date) },
+      });
     });
   });
 });

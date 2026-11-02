@@ -1,9 +1,7 @@
 'use client';
 
 import { io, type Socket } from 'socket.io-client';
-import { isLoggedIn } from '@/lib/api';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+import { API_URL, isLoggedIn } from '@/lib/api';
 
 let socket: Socket | null = null;
 

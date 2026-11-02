@@ -32,6 +32,10 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
         run: |
-          if [ -z "$DATABASE_URL" ]; then echo "No DATABASE_URL - skipping migrations"; exit 0; fi
+          set -euo pipefail
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL repository secret is not set - cannot deploy migrations"
+            exit 1
+          fi
           if [ -z "$DIRECT_URL" ]; then export DIRECT_URL="$DATABASE_URL"; fi
           npx prisma migrate deploy --schema=prisma/schema.prisma

@@ -8,7 +8,7 @@ const onVercel =
   !!process.env.VERCEL ||
   (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app'));
 
-const API_URL =
+export const API_URL =
   process.env.NEXT_PUBLIC_API_URL || (onVercel ? VERCEL_API_URL : 'http://localhost:4000');
 
 export class ApiError extends Error {

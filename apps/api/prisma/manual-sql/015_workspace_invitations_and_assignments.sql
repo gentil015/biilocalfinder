@@ -5,12 +5,12 @@
 -- Idempotent: re-running is a no-op.
 
 CREATE TABLE IF NOT EXISTS "workspace_invitations" (
-  "id"          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  "workspaceId" uuid NOT NULL REFERENCES "workspaces"("id") ON DELETE CASCADE,
+  "id"          text PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  "workspaceId" text NOT NULL REFERENCES "workspaces"("id") ON DELETE CASCADE,
   "email"       text NOT NULL,
   "role"        "WorkspaceMemberRole" NOT NULL,
   "tokenHash"   text NOT NULL UNIQUE,
-  "invitedById" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+  "invitedById" text NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
   "expiresAt"   timestamptz NOT NULL,
   "acceptedAt"  timestamptz,
   "revokedAt"   timestamptz,
@@ -24,17 +24,17 @@ CREATE INDEX IF NOT EXISTS "workspace_invitations_email_idx"
   ON "workspace_invitations" ("email");
 
 ALTER TABLE "service_requests"
-  ADD COLUMN IF NOT EXISTS "assignedMembershipId" uuid REFERENCES "workspace_memberships"("id") ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS "assignedMembershipId" text REFERENCES "workspace_memberships"("id") ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS "assignedAt" timestamptz,
-  ADD COLUMN IF NOT EXISTS "assignedById" uuid;
+  ADD COLUMN IF NOT EXISTS "assignedById" text;
 
 CREATE INDEX IF NOT EXISTS "service_requests_assignedMembershipId_idx"
   ON "service_requests" ("assignedMembershipId");
 
 ALTER TABLE "bookings"
-  ADD COLUMN IF NOT EXISTS "assignedMembershipId" uuid REFERENCES "workspace_memberships"("id") ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS "assignedMembershipId" text REFERENCES "workspace_memberships"("id") ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS "assignedAt" timestamptz,
-  ADD COLUMN IF NOT EXISTS "assignedById" uuid;
+  ADD COLUMN IF NOT EXISTS "assignedById" text;
 
 CREATE INDEX IF NOT EXISTS "bookings_assignedMembershipId_idx"
   ON "bookings" ("assignedMembershipId");

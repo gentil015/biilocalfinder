@@ -191,7 +191,7 @@ export function MemberHome() {
       {/* Recent activity — client's own requests and bookings */}
       {isClient && (requests.length > 0 || bookings.length > 0) && (
         <section className="page-shell py-8">
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div className="surface-card">
               <div className="flex items-center justify-between border-b border-ink-900/10 px-5 py-4">
                 <h2 className="card-title">{t('home.recentRequests')}</h2>
@@ -318,7 +318,7 @@ export function MemberHome() {
       {/* Interests + saved searches — two discovery rails in one band */}
       {(interests.length > 0 || savedSearches.length > 0) && (
         <section className="page-shell py-12 md:py-16">
-          <div className="grid gap-6 lg:grid-cols-12">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
             {interests.length > 0 && (
               <div className="lg:col-span-7">
                 <div className="mb-4 flex items-center gap-2">

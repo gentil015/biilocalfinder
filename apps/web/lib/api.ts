@@ -147,22 +147,29 @@ async function request<T>(path: string, init?: RequestInit, auth = false): Promi
   const csrfExempt = /^\/auth\/(login|register|password-reset\/request|password-reset\/confirm)$/.test(path);
   const csrfToken = !safeMethod && !csrfExempt ? await ensureCsrfToken() : null;
 
-  const send = (): Promise<Response> =>
-    fetch(`${API_URL}/api${path}`, {
-      ...init,
-      // Send and receive the HttpOnly session cookies. This is also the only
-      // credential transport now: no access/refresh token ever touches JS.
-      credentials: 'include',
-      // Always read live data. Without this, server components (e.g. the
-      // public provider page) get Next's Data Cache, which can serve a
-      // stale response — so a logo/profile change wouldn't show up.
-      cache: 'no-store',
-      headers: {
-        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-        ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
-        ...(init?.headers ?? {}),
-      },
-    });
+  const send = async (): Promise<Response> => {
+    try {
+      return await fetch(`${API_URL}/api${path}`, {
+        ...init,
+        // Send and receive the HttpOnly session cookies. This is also the only
+        // credential transport now: no access/refresh token ever touches JS.
+        credentials: 'include',
+        // Always read live data. Without this, server components (e.g. the
+        // public provider page) get Next's Data Cache, which can serve a
+        // stale response — so a logo/profile change wouldn't show up.
+        cache: 'no-store',
+        headers: {
+          ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+          ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+          ...(init?.headers ?? {}),
+        },
+      });
+    } catch {
+      // The browser reports DNS/connection/CORS/CSP failures as a bare
+      // "Failed to fetch". Name the API origin so the problem is diagnosable.
+      throw new ApiError(`Could not reach the server at ${API_URL}.`, 0);
+    }
+  };
 
   let res = await send();
 
@@ -188,6 +195,12 @@ async function request<T>(path: string, init?: RequestInit, auth = false): Promi
   if (!res.ok) {
     if (res.status === 401 && auth) {
       redirectToLogin();
+    }
+    // Hosting platforms (e.g. Vercel Functions) reject oversized bodies before
+    // the request reaches Nest, with a plain-text 413 rather than our JSON
+    // error shape. Surface that clearly instead of "Something went wrong".
+    if (res.status === 413) {
+      throw new ApiError('That file is too large for the server. Try a smaller file.', 413);
     }
     const body = await res.json().catch(() => ({}));
     const message =

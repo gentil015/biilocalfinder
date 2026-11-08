@@ -212,7 +212,12 @@ export default function ConversationThreadPage() {
         'audio/ogg',
       ];
       const mimeType = preferredTypes.find((type) => MediaRecorder.isTypeSupported(type));
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const recorder = new MediaRecorder(stream, {
+        ...(mimeType ? { mimeType } : {}),
+        // Opus at 32kbps is plenty for speech and keeps a 2-minute clip well
+        // under the serverless request-body limit.
+        audioBitsPerSecond: 32_000,
+      });
 
       recordingStreamRef.current = stream;
       recordingChunksRef.current = [];

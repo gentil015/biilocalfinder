@@ -1,3 +1,5 @@
+import { prepareImageForUpload } from './image-compression';
+
 const VERCEL_API_URL = 'https://biilocalfinder.vercel.app';
 
 // Server components run without `window`, so a client-only fallback sent their
@@ -17,6 +19,44 @@ export class ApiError extends Error {
     public status: number,
   ) {
     super(message);
+  }
+}
+
+// Vercel Functions reject request bodies over ~4.5MB before they reach Nest,
+// and that 413 response has no CORS headers — so the browser reports it as a
+// network failure. Local and VPS deployments have no such cap.
+const SERVERLESS_FORM_LIMIT_BYTES = API_URL.includes('.vercel.app') ? 4 * 1024 * 1024 : null;
+
+async function prepareFormData(form: FormData): Promise<void> {
+  if (typeof document === 'undefined') return;
+
+  // Rebuild the form so large images can be replaced with compressed versions
+  // while preserving every field and repeated file key.
+  const entries = Array.from(form.entries());
+  for (const [key] of entries) form.delete(key);
+  for (const [key, value] of entries) {
+    if (typeof File !== 'undefined' && value instanceof File) {
+      const prepared = await prepareImageForUpload(value);
+      form.append(key, prepared, prepared.name);
+    } else {
+      form.append(key, value);
+    }
+  }
+
+  if (SERVERLESS_FORM_LIMIT_BYTES) {
+    let total = 0;
+    for (const [, value] of form.entries()) {
+      total +=
+        typeof File !== 'undefined' && value instanceof File
+          ? value.size
+          : new Blob([value as string]).size;
+    }
+    if (total > SERVERLESS_FORM_LIMIT_BYTES) {
+      throw new ApiError(
+        `That file is too large for this server (max ${Math.floor(SERVERLESS_FORM_LIMIT_BYTES / (1024 * 1024))} MB).`,
+        413,
+      );
+    }
   }
 }
 
@@ -142,6 +182,7 @@ function redirectToLogin() {
 async function request<T>(path: string, init?: RequestInit, auth = false): Promise<T> {
   // FormData sets its own multipart boundary — never force JSON on it.
   const isFormData = typeof FormData !== 'undefined' && init?.body instanceof FormData;
+  if (isFormData) await prepareFormData(init!.body as FormData);
   const method = (init?.method ?? 'GET').toUpperCase();
   const safeMethod = method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
   const csrfExempt = /^\/auth\/(login|register|password-reset\/request|password-reset\/confirm)$/.test(path);

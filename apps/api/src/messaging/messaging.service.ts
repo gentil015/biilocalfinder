@@ -1,9 +1,23 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProviderContextService } from '../providers/provider-context.service';
 import { WorkspaceContextService } from '../common/workspace/workspace-context.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import {
+  ALLOWED_AUDIO_MIME_TYPES,
+  ALLOWED_IMAGE_MIME_TYPES,
+  ALLOWED_VIDEO_MIME_TYPES,
+  MAX_AUDIO_UPLOAD_BYTES,
+  MAX_UPLOAD_BYTES,
+  MAX_VIDEO_UPLOAD_BYTES,
+  STORAGE_SERVICE,
+  StorageService,
+} from '../files/storage.interface';
+import { sniffMime } from '../verification/file-sniffer';
 import { StartConversationDto } from './dto/start-conversation.dto';
+import { MAX_MESSAGE_ATTACHMENTS, MessageAttachmentRefDto } from './dto/send-message.dto';
+
+export const MESSAGE_ATTACHMENT_PREFIX = 'message-attachments';
 
 const MESSAGE_INCLUDE = {
   sender: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
@@ -35,6 +49,7 @@ export class MessagingService {
     private providerContext: ProviderContextService,
     private notifications: NotificationsService,
     private workspaceContext?: WorkspaceContextService,
+    @Inject(STORAGE_SERVICE) private storage?: StorageService,
   ) {}
 
   // Single conversation per (client, provider) pair. A client who already has
@@ -151,7 +166,11 @@ export class MessagingService {
             provider: { select: { id: true, businessName: true } },
           },
         },
-        messages: { orderBy: { createdAt: 'desc' }, take: 1 },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: { attachments: { take: 1 } },
+        },
         serviceRequest: { select: { id: true, title: true } },
       },
       orderBy: { updatedAt: 'desc' },
@@ -169,12 +188,96 @@ export class MessagingService {
     });
   }
 
-  async sendMessage(conversationId: string, senderId: string, body: string) {
+  // Images, videos, and voice notes share one upload endpoint so the composer
+  // can attach any of them without a mode switch. MIME is sniffed from the
+  // bytes (the declared type only disambiguates shared containers), and each
+  // media kind keeps its own size limit.
+  async uploadAttachment(conversationId: string, userId: string, file: Express.Multer.File | undefined) {
+    await this.assertParticipant(conversationId, userId);
+    if (!file) throw new BadRequestException('No file provided');
+
+    const mime = sniffMime(file.buffer, file.mimetype);
+    const isImage = !!mime && ALLOWED_IMAGE_MIME_TYPES.includes(mime);
+    const isVideo = !!mime && ALLOWED_VIDEO_MIME_TYPES.includes(mime);
+    const isAudio = !!mime && ALLOWED_AUDIO_MIME_TYPES.includes(mime);
+    if (!mime || (!isImage && !isVideo && !isAudio)) {
+      throw new BadRequestException(
+        'Only images (JPEG, PNG, WebP), videos (MP4, WebM, MOV), and voice notes are allowed',
+      );
+    }
+    if (isImage && file.size > MAX_UPLOAD_BYTES) {
+      throw new BadRequestException('Images must be 8 MB or smaller');
+    }
+    if (isVideo && file.size > MAX_VIDEO_UPLOAD_BYTES) {
+      throw new BadRequestException('Videos must be 100 MB or smaller');
+    }
+    if (isAudio && file.size > MAX_AUDIO_UPLOAD_BYTES) {
+      throw new BadRequestException('Voice notes must be 25 MB or smaller');
+    }
+    if (!this.storage) throw new Error('Storage service unavailable');
+
+    // Namespaced by conversation and sender so sendMessage below can reject
+    // a key the sender did not upload for this thread.
+    const result = await this.storage.upload(
+      file.buffer,
+      file.originalname,
+      mime,
+      `${MESSAGE_ATTACHMENT_PREFIX}/${conversationId}/${userId}`,
+    );
+    return { storageKey: result.key, url: result.url, mimeType: mime, sizeBytes: file.size };
+  }
+
+  async sendMessage(
+    conversationId: string,
+    senderId: string,
+    body?: string | null,
+    attachments: MessageAttachmentRefDto[] = [],
+  ) {
     await this.assertParticipant(conversationId, senderId);
+
+    const text = body?.trim() ?? '';
+    if (attachments.length > MAX_MESSAGE_ATTACHMENTS) {
+      throw new BadRequestException(`A message can include at most ${MAX_MESSAGE_ATTACHMENTS} attachments`);
+    }
+    if (!text && attachments.length === 0) {
+      throw new BadRequestException('A message needs text or at least one attachment');
+    }
+
+    const attachmentPrefix = `${MESSAGE_ATTACHMENT_PREFIX}/${conversationId}/${senderId}/`;
+    const seenKeys = new Set<string>();
+    for (const attachment of attachments) {
+      if (!attachment.storageKey.startsWith(attachmentPrefix) || attachment.storageKey.includes('..')) {
+        throw new BadRequestException('Invalid attachment reference');
+      }
+      if (seenKeys.has(attachment.storageKey)) {
+        throw new BadRequestException('The same attachment was included twice');
+      }
+      seenKeys.add(attachment.storageKey);
+    }
+
+    if (attachments.length > 0 && !this.storage) throw new Error('Storage service unavailable');
+    const stats = await Promise.all(
+      attachments.map((attachment) => this.storage!.statObject(attachment.storageKey)),
+    );
+    if (stats.some((stat) => !stat)) {
+      throw new BadRequestException('One or more attachments were not found. Upload them again.');
+    }
+
+    const attachmentData = attachments.map((attachment, index) => ({
+      storageKey: attachment.storageKey,
+      url: this.storage!.getUrl(attachment.storageKey),
+      mimeType: stats[index]!.mimeType,
+      sizeBytes: stats[index]!.sizeBytes,
+    }));
 
     const [message] = await this.prisma.$transaction([
       this.prisma.message.create({
-        data: { conversationId, senderId, body },
+        data: {
+          conversationId,
+          senderId,
+          body: text || null,
+          ...(attachmentData.length > 0 ? { attachments: { create: attachmentData } } : {}),
+        },
         include: MESSAGE_INCLUDE,
       }),
       this.prisma.conversation.update({ where: { id: conversationId }, data: { updatedAt: new Date() } }),
@@ -188,7 +291,15 @@ export class MessagingService {
     if (recipientIds.length > 0) {
       const senderName =
         `${message.sender?.firstName ?? ''} ${message.sender?.lastName ?? ''}`.trim() || 'Someone';
-      const preview = body.trim().slice(0, 140);
+      const preview = text
+        ? text.slice(0, 140)
+        : attachmentData.length === 1
+          ? attachmentData[0].mimeType.startsWith('video/')
+            ? 'Sent a video'
+            : attachmentData[0].mimeType.startsWith('audio/')
+              ? 'Sent a voice note'
+              : 'Sent a photo'
+          : `Sent ${attachmentData.length} attachments`;
       await Promise.all(
         recipientIds.map((userId) =>
           this.notifications.notify({

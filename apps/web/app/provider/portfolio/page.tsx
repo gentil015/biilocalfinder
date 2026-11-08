@@ -2,7 +2,7 @@
 
 import { useI18n } from '@/components/locale-provider';
 import { useEffect, useState } from 'react';
-import { Film, ImagePlus, Images, Plus, Trash2, Wand2 } from 'lucide-react';
+import { AlertTriangle, Film, ImagePlus, Images, Plus, Trash2, Wand2 } from 'lucide-react';
 import { ApiError, offeringsApi, portfolioApi } from '@/lib/api';
 import { PageHeader, Panel, EmptyState, LoadingBlock } from '@/components/ui/page';
 
@@ -77,6 +77,16 @@ export default function ProviderPortfolioPage() {
         title={tr("Portfolio")}
         description={tr("Show off past work with photos, videos, and before/after pairs — clients trust a portfolio far more than a plain description.")}
       />
+
+      <div className="alert alert-warning mb-8" role="note">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <div>
+          <p className="font-semibold">{tr("Only upload your own real work")}</p>
+          <p className="mt-1">
+            {tr("AI-generated videos, stock footage, or anyone else's work is not allowed in your portfolio. Content that breaks this rule may be removed.")}
+          </p>
+        </div>
+      </div>
 
       <Panel title={tr("Add a project")} className="mb-8">
         <form onSubmit={createProject} className="space-y-4">
@@ -304,6 +314,9 @@ function ProjectCard({
           <Wand2 className="h-3.5 w-3.5" aria-hidden="true" /> {tr("Next 2 photos are a before/after pair")}
         </label>
         {uploading && <span className="text-xs font-medium text-ink-400">{tr("Uploading…")}</span>}
+        <p className="w-full text-2xs leading-relaxed text-ink-400">
+          {tr("Videos must be your own real work — AI-generated, stock, or borrowed clips are not allowed.")}
+        </p>
       </div>
     </div>
   );

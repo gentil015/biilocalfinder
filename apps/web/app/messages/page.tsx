@@ -61,7 +61,16 @@ export default function ConversationsPage() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-ink-950">{name.trim() || 'Conversation'}</p>
                   {lastMessage ? (
-                    <p className="mt-0.5 line-clamp-1 text-sm text-ink-500">{lastMessage.body}</p>
+                    <p className="mt-0.5 line-clamp-1 text-sm text-ink-500">
+                      {lastMessage.body?.trim() ||
+                        (lastMessage.attachments?.length
+                          ? lastMessage.attachments[0].mimeType?.startsWith('video/')
+                            ? 'Video'
+                            : lastMessage.attachments[0].mimeType?.startsWith('audio/')
+                              ? 'Voice note'
+                              : 'Photo'
+                          : 'No messages yet')}
+                    </p>
                   ) : (
                     <p className="mt-0.5 text-sm text-ink-400">No messages yet</p>
                   )}

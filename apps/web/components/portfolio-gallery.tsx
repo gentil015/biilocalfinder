@@ -49,6 +49,7 @@ export function PortfolioGallery({ projects }: { projects: PortfolioProject[] })
 
   const visibleProjects = serviceFilter ? projects.filter((p) => p.service?.id === serviceFilter) : projects;
   const hasAnyMedia = visibleProjects.some((p) => p.images?.length);
+  const hasVideo = visibleProjects.some((p) => p.images?.some((img) => img.mediaType === 'VIDEO'));
   const visibleCount = visibleProjects.reduce((total, p) => total + (p.images?.length ?? 0), 0);
 
   return (
@@ -124,13 +125,14 @@ export function PortfolioGallery({ projects }: { projects: PortfolioProject[] })
                 img.mediaType === 'VIDEO' ? (
                   <div
                     key={img.id}
-                    className="relative aspect-square overflow-hidden rounded-xl bg-home-night ring-1 ring-inset ring-ink-200"
+                    className="relative col-span-2 aspect-video overflow-hidden rounded-xl bg-home-night ring-1 ring-inset ring-ink-200 sm:col-span-1 sm:aspect-square"
                   >
                     <video
                       src={img.url}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain"
                       muted
                       controls
+                      playsInline
                       preload="metadata"
                       aria-label={`${project.title} video`}
                     />
@@ -152,6 +154,11 @@ export function PortfolioGallery({ projects }: { projects: PortfolioProject[] })
               ),
             ];
           })}
+          {hasVideo && (
+            <p className="col-span-full mt-1 text-2xs leading-relaxed text-ink-400">
+              Videos are submitted by the provider. AI-generated or borrowed clips are not allowed.
+            </p>
+          )}
         </div>
       ) : (
         <EmptyState icon={Images} title="No portfolio items yet." className="py-10" />

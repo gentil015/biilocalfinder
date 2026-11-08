@@ -1579,6 +1579,11 @@ const PROVIDER_COPY_RW_EXTRA: Record<string, string> = {
   '/ hour': '/ isaha',
   '/ day': '/ umunsi',
   'Kigali · Rubavu · Musanze · Huye': 'Kigali · Rubavu · Musanze · Huye',
+  'Only upload your own real work': 'Ohereza gusa ibikorwa byawe nyakuri',
+  "AI-generated videos, stock footage, or anyone else's work is not allowed in your portfolio. Content that breaks this rule may be removed.":
+    'Videwo zakozwe na AI, amashusho yafashwe ahandi, cyangwa ibikorwa by’abandi ntibyemewe mu bikorwa wagaragaje. Ibintu binyuranyije n’iri tegeko bishobora gukurwaho.',
+  'Videos must be your own real work — AI-generated, stock, or borrowed clips are not allowed.':
+    'Videwo zigomba kuba ibikorwa byawe nyakuri — videwo zakozwe na AI, izafashwe ahandi cyangwa izatijwe ntizemewe.',
 };
 
 export function translateMessage(locale: LocaleCode, message: string): string {

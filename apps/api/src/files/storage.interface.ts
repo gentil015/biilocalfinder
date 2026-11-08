@@ -39,3 +39,14 @@ export const ALLOWED_DOCUMENT_MIME_TYPES = [...ALLOWED_IMAGE_MIME_TYPES, 'applic
 // image upload, so the ordinary image path keeps its small, fast limit.
 export const ALLOWED_VIDEO_MIME_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
 export const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024; // 100MB
+
+// Chat voice notes. Recorded clips are short, so the limit stays well below
+// the video one even though the browser may hand us a WebM/MP4 container.
+export const ALLOWED_AUDIO_MIME_TYPES = [
+  'audio/webm',
+  'audio/mp4',
+  'audio/mpeg',
+  'audio/ogg',
+  'audio/wav',
+];
+export const MAX_AUDIO_UPLOAD_BYTES = 25 * 1024 * 1024; // 25MB

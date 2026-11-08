@@ -96,12 +96,28 @@ export class MessagingGateway implements OnGatewayInit, OnGatewayConnection, OnG
   @SubscribeMessage('message:send')
   async onMessageSend(
     @ConnectedSocket() socket: AuthedSocket,
-    @MessageBody() payload: { conversationId: string; body: string },
+    @MessageBody()
+    payload: {
+      conversationId: string;
+      body?: string;
+      attachments?: { storageKey: string }[];
+    },
   ) {
-    if (typeof payload.body !== 'string' || payload.body.trim().length === 0 || payload.body.length > 5000) {
-      throw new Error('Invalid message body');
+    const body = typeof payload.body === 'string' ? payload.body : undefined;
+    if (body && body.length > 5000) throw new Error('Invalid message body');
+    const attachments = Array.isArray(payload.attachments) ? payload.attachments : [];
+    if ((!body || body.trim().length === 0) && attachments.length === 0) {
+      throw new Error('A message needs text or at least one attachment');
     }
-    const message = await this.messagingService.sendMessage(payload.conversationId, socket.data.userId, payload.body);
+    if (attachments.some((attachment) => typeof attachment?.storageKey !== 'string')) {
+      throw new Error('Invalid attachment');
+    }
+    const message = await this.messagingService.sendMessage(
+      payload.conversationId,
+      socket.data.userId,
+      body,
+      attachments,
+    );
     this.registry.emitToRoom(SocketServerRegistry.conversationRoom(payload.conversationId), 'message:new', message);
 
     const otherUserIds = await this.messagingService.otherParticipantUserIds(

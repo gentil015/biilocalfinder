@@ -230,3 +230,151 @@ describe('MessagingService.assertParticipant without a workspace context', () =>
     expect(prisma.conversation.findUnique).not.toHaveBeenCalled();
   });
 });
+
+describe('MessagingService attachments', () => {
+  let service: MessagingService;
+  let prisma: any;
+  let providerContext: any;
+  let notifications: any;
+  let storage: any;
+
+  const userId = 'client-user-1';
+  const conversationId = 'conv-1';
+  const prefix = `message-attachments/${conversationId}/${userId}/`;
+
+  beforeEach(() => {
+    prisma = {
+      clientProfile: { findUnique: jest.fn().mockResolvedValue({ id: 'client-1', userId }) },
+      provider: { findUnique: jest.fn() },
+      conversationParticipant: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'part-1', clientId: 'client-1' }),
+        findMany: jest.fn().mockResolvedValue([
+          { client: { userId }, provider: null },
+          { client: null, provider: { userId: 'provider-user-1' } },
+        ]),
+        update: jest.fn(),
+      },
+      conversation: { findUnique: jest.fn(), update: jest.fn() },
+      workspaceMembership: { findUnique: jest.fn() },
+      message: {
+        create: jest.fn().mockResolvedValue({
+          id: 'msg-1',
+          sender: { firstName: 'Aline', lastName: 'Mukamana' },
+        }),
+        updateMany: jest.fn(),
+      },
+      $transaction: jest.fn((ops: any[]) => Promise.all(ops)),
+    };
+    providerContext = { getProviderIdsForUser: jest.fn().mockResolvedValue([]) };
+    notifications = { notify: jest.fn() };
+    storage = {
+      upload: jest.fn(),
+      statObject: jest.fn(),
+      getUrl: jest.fn((key: string) => `https://cdn.test/${key}`),
+    };
+    service = new MessagingService(prisma, providerContext, notifications, undefined, storage);
+  });
+
+  it('uploads an image under the conversation/sender prefix', async () => {
+    const buffer = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
+    storage.upload.mockResolvedValue({ key: `${prefix}photo.jpg`, url: 'https://cdn.test/photo.jpg' });
+
+    const result = await service.uploadAttachment(conversationId, userId, {
+      buffer,
+      size: buffer.length,
+      originalname: 'photo.jpg',
+    } as any);
+
+    expect(storage.upload).toHaveBeenCalledWith(
+      buffer,
+      'photo.jpg',
+      'image/jpeg',
+      `message-attachments/${conversationId}/${userId}`,
+    );
+    expect(result).toEqual({
+      storageKey: `${prefix}photo.jpg`,
+      url: 'https://cdn.test/photo.jpg',
+      mimeType: 'image/jpeg',
+      sizeBytes: buffer.length,
+    });
+  });
+
+  it('accepts a video upload', async () => {
+    const buffer = Buffer.concat([
+      Buffer.from([0x00, 0x00, 0x00, 0x18]),
+      Buffer.from('ftypmp42', 'ascii'),
+      Buffer.alloc(8),
+    ]);
+    storage.upload.mockResolvedValue({ key: `${prefix}clip.mp4`, url: 'https://cdn.test/clip.mp4' });
+
+    const result = await service.uploadAttachment(conversationId, userId, {
+      buffer,
+      size: buffer.length,
+      originalname: 'clip.mp4',
+    } as any);
+
+    expect(result.mimeType).toBe('video/mp4');
+  });
+
+  it('accepts a voice note upload', async () => {
+    const buffer = Buffer.concat([
+      Buffer.from([0x1a, 0x45, 0xdf, 0xa3]),
+      Buffer.alloc(8),
+    ]);
+    storage.upload.mockResolvedValue({
+      key: `${prefix}voice.webm`,
+      url: 'https://cdn.test/voice.webm',
+    });
+
+    const result = await service.uploadAttachment(conversationId, userId, {
+      buffer,
+      size: buffer.length,
+      originalname: 'voice.webm',
+      mimetype: 'audio/webm;codecs=opus',
+    } as any);
+
+    expect(result.mimeType).toBe('audio/webm');
+  });
+
+  it('stores attachment metadata read from storage, not the client', async () => {
+    const storageKey = `${prefix}photo.jpg`;
+    storage.statObject.mockResolvedValue({ sizeBytes: 2048, mimeType: 'image/jpeg' });
+
+    await service.sendMessage(conversationId, userId, '', [{ storageKey }]);
+
+    expect(prisma.message.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          body: null,
+          attachments: {
+            create: [
+              {
+                storageKey,
+                url: `https://cdn.test/${storageKey}`,
+                mimeType: 'image/jpeg',
+                sizeBytes: 2048,
+              },
+            ],
+          },
+        }),
+      }),
+    );
+    expect(notifications.notify).toHaveBeenCalledWith(
+      expect.objectContaining({ body: 'Aline Mukamana: Sent a photo' }),
+    );
+  });
+
+  it('rejects a message with neither text nor attachments', async () => {
+    await expect(service.sendMessage(conversationId, userId, '   ')).rejects.toThrow(
+      'A message needs text or at least one attachment',
+    );
+  });
+
+  it('rejects an attachment uploaded by someone else', async () => {
+    await expect(
+      service.sendMessage(conversationId, userId, '', [
+        { storageKey: 'message-attachments/conv-1/someone-else/photo.jpg' },
+      ]),
+    ).rejects.toThrow('Invalid attachment reference');
+  });
+});

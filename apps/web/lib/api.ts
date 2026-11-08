@@ -1432,6 +1432,17 @@ export const savedSearchesApi = {
   remove: (id: string) => authRequest<any>(`/saved-searches/${id}`, { method: 'DELETE' }),
 };
 
+export interface MessageAttachmentRef {
+  storageKey: string;
+}
+
+export interface UploadedMessageAttachment {
+  storageKey: string;
+  url: string;
+  mimeType: string;
+  sizeBytes: number;
+}
+
 export const messagingApi = {
   conversations: () => authRequest<any[]>('/conversations'),
   conversation: (conversationId: string) => authRequest<any>(`/conversations/${conversationId}`),
@@ -1442,8 +1453,19 @@ export const messagingApi = {
       body: JSON.stringify({ providerId, ...(body?.trim() ? { body: body.trim() } : {}) }),
     }),
   messages: (conversationId: string) => authRequest<any[]>(`/conversations/${conversationId}/messages`),
-  send: (conversationId: string, body: string) =>
-    authRequest<any>(`/conversations/${conversationId}/messages`, { method: 'POST', body: JSON.stringify({ body }) }),
+  uploadAttachment: (conversationId: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return authRequest<UploadedMessageAttachment>(`/conversations/${conversationId}/attachments`, {
+      method: 'POST',
+      body: form,
+    });
+  },
+  send: (conversationId: string, body: string, attachments: MessageAttachmentRef[] = []) =>
+    authRequest<any>(`/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ body: body.trim() || undefined, attachments }),
+    }),
   markRead: (conversationId: string) =>
     authRequest<any>(`/conversations/${conversationId}/read`, { method: 'PATCH' }),
 };

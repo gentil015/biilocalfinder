@@ -1,7 +1,19 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { MAX_VIDEO_UPLOAD_BYTES } from '../files/storage.interface';
 import { MessagingService } from './messaging.service';
 import { SendMessageDto } from './dto/send-message.dto';
 import { StartConversationDto } from './dto/start-conversation.dto';
@@ -51,13 +63,24 @@ export class MessagingController {
     return this.messagingService.listMessages(id, user.id);
   }
 
+  @ApiConsumes('multipart/form-data')
+  @Post('conversations/:id/attachments')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_VIDEO_UPLOAD_BYTES } }))
+  uploadAttachment(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.messagingService.uploadAttachment(id, user.id, file);
+  }
+
   @Post('conversations/:id/messages')
   async sendMessage(
     @CurrentUser() user: { id: string },
     @Param('id') id: string,
     @Body() dto: SendMessageDto,
   ) {
-    const message = await this.messagingService.sendMessage(id, user.id, dto.body);
+    const message = await this.messagingService.sendMessage(id, user.id, dto.body, dto.attachments);
     this.registry.emitToRoom(SocketServerRegistry.conversationRoom(id), 'message:new', message);
     return message;
   }

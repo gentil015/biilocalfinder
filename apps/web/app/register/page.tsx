@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Eye, EyeOff, UserRound, Wrench } from 'lucide-react';
 import { authApi, ApiError } from '@/lib/api';
@@ -15,11 +15,16 @@ const ROLES = [
   { value: 'PROVIDER' as const, labelKey: 'register.roleProvider' as MessageKey, icon: Wrench },
 ];
 
-export default function RegisterPage() {
+function RegisterForm() {
   const { t } = useI18n();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: sessionLoading, login: adoptSession } = useAuth();
-  const [role, setRole] = useState<'CLIENT' | 'PROVIDER'>('CLIENT');
+  // Provider CTAs link here with ?role=provider so the "I'm offering" option is
+  // already selected instead of defaulting to the hiring (client) form.
+  const [role, setRole] = useState<'CLIENT' | 'PROVIDER'>(
+    searchParams.get('role') === 'provider' ? 'PROVIDER' : 'CLIENT',
+  );
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -204,5 +209,13 @@ export default function RegisterPage() {
         </button>
       </form>
     </AuthShell>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
   );
 }

@@ -19,7 +19,7 @@ const GUEST_LINKS: NavLink[] = [
   { href: '/search', label: 'Find providers' },
   { href: '/requests/new', label: 'Post a request' },
   { href: '/#how-it-works', label: 'How it works' },
-  { href: '/register', label: 'Become a provider' },
+  { href: '/register?role=provider', label: 'Become a provider' },
 ];
 
 // Signed-in users are past the pitch, so "How it works" and "Become a

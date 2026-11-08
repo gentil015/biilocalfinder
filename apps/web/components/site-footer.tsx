@@ -82,7 +82,7 @@ export function SiteFooter() {
             ))}
             {!isProvider && (
               <li>
-                <Link href="/register" className="text-ink-600 transition hover:text-brand-700">
+                <Link href="/register?role=provider" className="text-ink-600 transition hover:text-brand-700">
                   Become a provider
                 </Link>
               </li>
@@ -96,7 +96,7 @@ export function SiteFooter() {
           </p>
           <ul className="space-y-3 text-sm">
             <li>
-              <Link href="/register" className="text-ink-600 transition hover:text-brand-700">
+              <Link href="/register?role=provider" className="text-ink-600 transition hover:text-brand-700">
                 List your services
               </Link>
             </li>

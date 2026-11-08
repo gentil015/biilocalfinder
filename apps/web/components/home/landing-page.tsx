@@ -517,7 +517,7 @@ export function LandingPage() {
                   {translateMessage('Post a request')} <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
                 <span aria-hidden="true" className="hidden h-4 w-px bg-ink-200 sm:block" />
-                <Link href="/register" className="inline-flex items-center gap-1.5 font-semibold text-ink-600 hover:text-ink-950">
+                <Link href="/register?role=provider" className="inline-flex items-center gap-1.5 font-semibold text-ink-600 hover:text-ink-950">
                   {translateMessage('Have a service to offer?')} <span className="text-brand-700">{translateMessage('Become a provider')}</span>
                 </Link>
               </div>
@@ -667,7 +667,7 @@ export function LandingPage() {
                   <Link href="/requests/new" className="btn-primary">
                     Post a request
                   </Link>
-                  <Link href="/register" className="btn-secondary">
+                  <Link href="/register?role=provider" className="btn-secondary">
                     Become a provider
                   </Link>
                 </div>
@@ -902,7 +902,7 @@ export function LandingPage() {
               </ul>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                <Link href="/register" className="btn-on-dark btn-lg">
+                <Link href="/register?role=provider" className="btn-on-dark btn-lg">
                   Join as a provider <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
                 <Link href="#how-it-works" className="btn-on-dark-ghost btn-lg">

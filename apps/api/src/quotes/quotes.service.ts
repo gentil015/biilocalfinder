@@ -72,15 +72,22 @@ export class QuotesService {
     // Direct requests are private to the pinned provider — unless the client
     // opened them to the marketplace (isPublic), in which case any provider
     // of the service may compete. Broadcast requests (providerId null) are
-    // the marketplace itself.
+    // the marketplace itself. A provider the matcher identified for a
+    // related/similar service is also a legitimate participant: otherwise we
+    // would notify them about a request they are not allowed to open or quote.
+    const matched = await this.providerMatchedRequest(provider.id, request.id);
     if (request.providerId && request.providerId !== provider.id) {
       const canCompete =
-        request.isPublic &&
-        (await this.providerOffersService(provider.id, request.serviceId));
+        (request.isPublic || matched) &&
+        (matched || (await this.providerOffersService(provider.id, request.serviceId)));
       if (!canCompete) {
         throw new ForbiddenException('This request was sent to a different provider');
       }
-    } else if (request.providerId === null && !(await this.providerOffersService(provider.id, request.serviceId))) {
+    } else if (
+      request.providerId === null &&
+      !matched &&
+      !(await this.providerOffersService(provider.id, request.serviceId))
+    ) {
       throw new BadRequestException('You can only quote requests for a service you offer');
     }
 
@@ -417,14 +424,33 @@ export class QuotesService {
     return !!provider?.services.some((s) => s.serviceId === serviceId);
   }
 
+  private async providerMatchedRequest(providerId: string, requestId: string): Promise<boolean> {
+    const match = await this.prisma.serviceRequestProviderMatch.findUnique({
+      where: {
+        serviceRequestId_providerId: { serviceRequestId: requestId, providerId },
+      },
+      select: { id: true },
+    });
+    return match !== null;
+  }
+
   // Is the marketplace currently open to any of these providers on this
   // request? Mirrors ServiceRequestsService.assertParticipant: a broadcast
   // request (providerId null) while OPEN, or a client-opened direct request
-  // (isPublic) while it accepts quotes, both for a matching service.
+  // (isPublic) while it accepts quotes, both for a matching service — or a
+  // provider the matcher explicitly selected for a related/similar offering.
   private async marketVisibleTo(
-    request: { providerId: string | null; serviceId: string; status: string; isPublic: boolean },
+    request: { id: string; providerId: string | null; serviceId: string; status: string; isPublic: boolean },
     providerIds: string[],
   ): Promise<boolean> {
+    if (ACCEPTING_STATUSES.includes(request.status as AcceptingStatus)) {
+      const match = await this.prisma.serviceRequestProviderMatch.findFirst({
+        where: { serviceRequestId: request.id, providerId: { in: providerIds } },
+        select: { id: true },
+      });
+      if (match) return true;
+    }
+
     const providers = await this.prisma.provider.findMany({
       where: { id: { in: providerIds } },
       select: { id: true, services: { select: { serviceId: true } } },

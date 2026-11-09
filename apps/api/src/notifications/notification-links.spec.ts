@@ -29,6 +29,14 @@ describe('notificationLink', () => {
     expect(notificationLink('BOOKING_UPDATED', undefined)).toBeNull();
   });
 
+  it('links a matching public request to the provider request page', () => {
+    process.env.WEB_URL = 'https://app.bii.example/';
+    expect(notificationLink('NEW_SERVICE_REQUEST', { requestId: 'r-1' })).toEqual({
+      href: 'https://app.bii.example/provider/requests/r-1',
+      label: 'View request',
+    });
+  });
+
   it('links a message notification to its conversation', () => {
     process.env.WEB_URL = 'https://app.bii.example/';
     expect(notificationLink('NEW_MESSAGE', { conversationId: 'c-1' })).toEqual({

@@ -35,6 +35,23 @@ export class NotificationsService {
     });
   }
 
+  // Bulk version for fan-out cases (a public request matching many
+  // providers). One round-trip to Redis instead of one per recipient —
+  // important when a broadcast legitimately matches dozens of providers.
+  async notifyMany(items: NotificationJobData[]) {
+    if (items.length === 0) return;
+    await this.queue.addBulk(
+      items.map((data) => ({
+        name: 'dispatch',
+        data,
+        opts: {
+          attempts: 3,
+          backoff: { type: 'exponential' as const, delay: 2000 },
+        },
+      })),
+    );
+  }
+
   async findMine(userId: string, page = 1, limit = 20) {
     const [items, total, unreadCount] = await this.prisma.$transaction([
       this.prisma.notification.findMany({

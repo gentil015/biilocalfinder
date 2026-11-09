@@ -46,6 +46,22 @@ export class EmbeddingIndexService {
     }
   }
 
+  // Embeds a short free-text query (a service request, not a stored
+  // offering) for callers that need semantic candidate retrieval outside
+  // PostgresProviderSearchService — currently the public-request provider
+  // matcher. Same "never throw" contract as reindexOffering: a missing key,
+  // vendor outage, or too-short text simply means no semantic signal.
+  async embedQuery(text: string): Promise<number[] | null> {
+    const trimmed = text.trim();
+    if (trimmed.length < 3) return null;
+    try {
+      return await this.embeddingProvider.embed(trimmed, 'query');
+    } catch (err) {
+      this.logger.warn(`Request embedding failed: ${(err as Error).message}`);
+      return null;
+    }
+  }
+
   // Same free-text surface the keyword search already covers (spec:
   // "wedding photographer" should find a provider offering "Wedding
   // Photography" via its service/category, not just its business name) —

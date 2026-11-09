@@ -30,6 +30,11 @@ export function notificationLink(
     return { href: `${webUrl()}/messages/${conversationId}`, label: 'View message' };
   }
 
+  const requestId = data && typeof data.requestId === 'string' ? data.requestId : undefined;
+  if (type === 'NEW_SERVICE_REQUEST' && requestId) {
+    return { href: `${webUrl()}/provider/requests/${requestId}`, label: 'View request' };
+  }
+
   const bookingId = data && typeof data.bookingId === 'string' ? data.bookingId : undefined;
   if (!bookingId) return null;
 

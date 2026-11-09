@@ -693,6 +693,11 @@ model Provider {
   managedByLinks   ProviderTeamMember[] @relation("ManagedProviderLink")
   fraudReports     FraudReport[]
   verificationChecks ProviderVerificationCheck[]
+  // Providers identified by the public-request matcher. Drives both the
+  // notification fan-out and "may this provider see/quote this request"
+  // checks, so a related-category match is actionable rather than a dead
+  // notification.
+  serviceRequestMatches ServiceRequestProviderMatch[]
 
   @@index([verificationStatus])
   @@index([subscriptionStatus])
@@ -1231,12 +1236,38 @@ model ServiceRequest {
   quotes   Quote[]
   booking  Booking?
   conversation Conversation?
+  providerMatches ServiceRequestProviderMatch[]
 
   @@index([clientId])
   @@index([providerId])
   @@index([status])
   @@index([assignedMembershipId])
   @@map("service_requests")
+}
+
+// One row per provider the matcher selected for a public request. This is
+// deliberately persisted rather than only written into a notification:
+// notification jobs are async and transient, while access control needs a
+// durable answer to "was this related-category provider actually matched to
+// this request?". Score/reasons are kept so the provider's inbox can explain
+// why it is seeing the request.
+model ServiceRequestProviderMatch {
+  id               String   @id @default(uuid())
+  serviceRequestId String
+  providerId       String
+  score            Float
+  matchType        String
+  reasons          Json?
+  notifiedAt       DateTime?
+  createdAt        DateTime @default(now())
+
+  serviceRequest ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+  provider       Provider       @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceRequestId, providerId])
+  @@index([serviceRequestId, score])
+  @@index([providerId, createdAt])
+  @@map("service_request_provider_matches")
 }
 
 model ServiceRequestImage {

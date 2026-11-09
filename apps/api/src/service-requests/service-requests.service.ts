@@ -5,6 +5,7 @@ import { InteractionService } from '../personalization/interactions/interaction.
 import { ServiceOfferingsService } from '../service-offerings/service-offerings.service';
 import { ProviderContextService } from '../providers/provider-context.service';
 import { WorkspaceContextService } from '../common/workspace/workspace-context.service';
+import { ProviderMatchingService } from './provider-matching.service';
 import { CreateServiceRequestDto } from './dto/create-service-request.dto';
 
 const REQUEST_INCLUDE = {
@@ -69,6 +70,7 @@ export class ServiceRequestsService {
     private interactions: InteractionService,
     private offerings: ServiceOfferingsService,
     private providerContext: ProviderContextService,
+    private providerMatching: ProviderMatchingService,
     private workspaceContext?: WorkspaceContextService,
   ) {}
 
@@ -168,6 +170,14 @@ export class ServiceRequestsService {
 
     await this.interactions.record(clientUserId, 'CREATE_SERVICE_REQUEST', 'SERVICE_REQUEST', request.id);
 
+    // The marketplace-visible cases get a scored fan-out: a broadcast
+    // (no pinned provider) or a direct request the client opened to
+    // competition. Private direct requests only notify their one provider
+    // above and never enter the matcher.
+    if (!providerId || request.isPublic) {
+      await this.providerMatching.enqueue(request.id);
+    }
+
     return request;
   }
 
@@ -228,6 +238,15 @@ export class ServiceRequestsService {
             providerId: { not: provider.id },
             isPublic: true,
             serviceId: { in: serviceIds },
+            status: { in: [...ACCEPTING_STATUSES] },
+          },
+          // Providers the matcher selected for a related/similar service.
+          // Persisted at match time so a notification is always actionable:
+          // clicking it can open the request even when the provider does not
+          // offer the exact service. Still drops out once the request stops
+          // accepting quotes unless they quoted (clause above).
+          {
+            providerMatches: { some: { providerId: provider.id } },
             status: { in: [...ACCEPTING_STATUSES] },
           },
         ],
@@ -331,7 +350,28 @@ export class ServiceRequestsService {
     if (!ACCEPTING_STATUSES.includes(request.status as AcceptingStatus)) {
       throw new BadRequestException('This request can no longer be changed');
     }
-    return this.prisma.serviceRequest.update({ where: { id }, data: { isPublic }, include: REQUEST_INCLUDE });
+
+    const wasPublic = request.isPublic;
+    const updated = await this.prisma.serviceRequest.update({
+      where: { id },
+      data: { isPublic },
+      include: REQUEST_INCLUDE,
+    });
+
+    // Opening a previously private direct request is exactly the moment new
+    // providers first become eligible, so run the matcher then — not just at
+    // creation time. The matcher's own notification guard prevents the
+    // pinned provider from being told twice.
+    if (isPublic && !wasPublic) {
+      await this.providerMatching.enqueue(id);
+    } else if (!isPublic) {
+      // Closing competition must also revoke the durable matcher grants.
+      // Otherwise a previously matched related-category provider would keep
+      // seeing (and quoting) a request that is private again.
+      await this.prisma.serviceRequestProviderMatch.deleteMany({ where: { serviceRequestId: id } });
+    }
+
+    return updated;
   }
 
   // Who may view a request: its client, the pinned provider, a provider the
@@ -358,6 +398,17 @@ export class ServiceRequestsService {
         select: { id: true },
       })) !== null;
     if (hasQuote) return;
+
+    // View-only grant for matcher-selected providers. Kept even after the
+    // request stops accepting quotes so a notification click never lands on
+    // a 403; quoting is separately blocked by status. Closing competition on
+    // a direct request deletes these rows, so privacy is still revocable.
+    const hasMatch =
+      (await this.prisma.serviceRequestProviderMatch.findFirst({
+        where: { serviceRequestId: request.id, providerId: { in: providerIds } },
+        select: { id: true },
+      })) !== null;
+    if (hasMatch) return;
 
     if (await this.providerHasMarketplaceAccess(request, providerIds)) return;
 

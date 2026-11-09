@@ -1687,6 +1687,8 @@ export const authApi = {
     firstName: string;
     lastName: string;
     role: 'CLIENT' | 'PROVIDER';
+    termsAccepted: true;
+    termsVersion: string;
     phone?: string;
   }) => request<AuthTokens>('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
 

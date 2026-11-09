@@ -2,6 +2,9 @@ import { BadRequestException, ConflictException, UnauthorizedException } from '@
 import { JwtService } from '@nestjs/jwt';
 import { Prisma } from '@prisma/client';
 import { AuthService } from './auth.service';
+import { CURRENT_TERMS_VERSION } from '../legal/terms.constants';
+
+const termsAcceptance = { termsAccepted: true as const, termsVersion: CURRENT_TERMS_VERSION };
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -24,6 +27,7 @@ describe('AuthService', () => {
         update: jest.fn(),
         updateMany: jest.fn(),
       },
+      termsAcceptance: { create: jest.fn().mockResolvedValue({}) },
       passwordResetToken: {
         create: jest.fn(),
         findFirst: jest.fn(),
@@ -48,6 +52,7 @@ describe('AuthService', () => {
         firstName: 'A',
         lastName: 'B',
         role: 'CLIENT' as any,
+        ...termsAcceptance,
       }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
@@ -62,10 +67,30 @@ describe('AuthService', () => {
         firstName: 'A',
         lastName: 'B',
         role: 'ADMIN' as any, // simulates a direct API call bypassing the DTO's @IsIn check
+        ...termsAcceptance,
       }),
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(prisma.user.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ termsAccepted: false, termsVersion: CURRENT_TERMS_VERSION }],
+    [{ termsAccepted: true, termsVersion: '0.9' }],
+    [{}],
+  ])('rejects registration without affirmative acceptance of the current Terms version', async (acceptance) => {
+    await expect(
+      service.register({
+        email: 'new@example.com',
+        password: 'password123',
+        firstName: 'A',
+        lastName: 'B',
+        role: 'CLIENT',
+        ...acceptance,
+      } as any),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(prisma.user.findFirst).not.toHaveBeenCalled();
   });
 
   it('creates a Workspace, Provider, and OWNER membership for a PROVIDER signup, atomically', async () => {
@@ -82,6 +107,7 @@ describe('AuthService', () => {
         findUnique: jest.fn().mockResolvedValue(null),
       },
       workspaceInvitation: { findMany: jest.fn().mockResolvedValue([]) },
+      termsAcceptance: { create: jest.fn().mockResolvedValue({}) },
     };
     prisma.$transaction = jest.fn((cb: any) => cb(tx));
     jest.spyOn(service as any, 'issueTokens').mockResolvedValue({ accessToken: 'a', refreshToken: 'r' });
@@ -92,6 +118,7 @@ describe('AuthService', () => {
       firstName: 'Jean',
       lastName: 'Plumber',
       role: 'PROVIDER' as any,
+      ...termsAcceptance,
     });
 
     expect(tx.workspace.create).toHaveBeenCalledWith(
@@ -107,6 +134,14 @@ describe('AuthService', () => {
     );
     expect(tx.securityEvent.create).toHaveBeenCalledWith({
       data: { userId: 'user-1', eventType: 'USER_REGISTERED', dedupeKey: 'registration:user-1' },
+    });
+    expect(tx.termsAcceptance.create).toHaveBeenCalledWith({
+      data: {
+        userId: 'user-1',
+        documentType: 'TERMS',
+        version: CURRENT_TERMS_VERSION,
+        accountRole: 'PROVIDER',
+      },
     });
     expect(tx.riskAssessment.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -135,6 +170,7 @@ describe('AuthService', () => {
         firstName: 'A',
         lastName: 'B',
         role: 'CLIENT' as any,
+        ...termsAcceptance,
       }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
@@ -150,6 +186,7 @@ describe('AuthService', () => {
         firstName: 'A',
         lastName: 'B',
         role: 'CLIENT' as any,
+        ...termsAcceptance,
       }),
     ).rejects.toThrow('connection lost');
   });

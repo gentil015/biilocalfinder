@@ -455,11 +455,27 @@ model User {
   restrictionsLifted      AccountRestriction[] @relation("RestrictionsLifted")
   restrictionAppeals      RestrictionAppeal[] @relation("RestrictionAppealsFiled")
   restrictionAppealsReviewed RestrictionAppeal[] @relation("RestrictionAppealsReviewed")
+  termsAcceptances TermsAcceptance[]
 
   @@index([email])
   @@index([phone])
   @@index([role])
   @@map("users")
+}
+
+model TermsAcceptance {
+  id          String   @id @default(uuid())
+  userId      String
+  documentType String  @default("TERMS")
+  version     String
+  accountRole UserRole
+  acceptedAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, documentType, version])
+  @@index([userId, acceptedAt])
+  @@map("terms_acceptances")
 }
 
 model RefreshToken {

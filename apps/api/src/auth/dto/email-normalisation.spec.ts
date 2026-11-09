@@ -3,6 +3,9 @@ import { validate } from 'class-validator';
 import { RegisterDto } from './register.dto';
 import { LoginDto } from './login.dto';
 import { RequestPasswordResetDto } from './request-password-reset.dto';
+import { CURRENT_TERMS_VERSION } from '../../legal/terms.constants';
+
+const termsAcceptance = { termsAccepted: true, termsVersion: CURRENT_TERMS_VERSION };
 
 // The register/login payloads are normalised by @Transform before anything
 // else looks at them, so these go through class-transformer + class-validator
@@ -14,6 +17,22 @@ async function normalize<T extends object>(cls: new () => T, plain: Record<strin
 }
 
 describe('email normalisation', () => {
+  it('requires explicit acceptance of the current Terms version', async () => {
+    const dto = plainToInstance(RegisterDto, {
+      email: 'a@example.com',
+      password: 'password123',
+      firstName: 'A',
+      lastName: 'B',
+      role: 'CLIENT',
+      termsAccepted: false,
+      termsVersion: '0.9',
+    });
+
+    const errors = await validate(dto);
+
+    expect(errors.map((error) => error.property)).toEqual(expect.arrayContaining(['termsAccepted', 'termsVersion']));
+  });
+
   it.each([
     ['DUSHIMEGENTIL0@GMAIL.COM', 'dushimegentil0@gmail.com'],
     ['  Mixed@Case.com  ', 'mixed@case.com'],
@@ -24,6 +43,7 @@ describe('email normalisation', () => {
       firstName: 'A',
       lastName: 'B',
       role: 'CLIENT',
+      ...termsAcceptance,
     });
 
     expect(dto.email).toBe(expected);
@@ -49,6 +69,7 @@ describe('email normalisation', () => {
       firstName: 'A',
       lastName: 'B',
       role: 'CLIENT',
+      ...termsAcceptance,
     });
 
     // undefined (a real SQL NULL) rather than '' -- Postgres does not treat
@@ -64,6 +85,7 @@ describe('email normalisation', () => {
       firstName: 'A',
       lastName: 'B',
       role: 'CLIENT',
+      ...termsAcceptance,
     });
 
     expect(dto.phone).toBe('+226701234567');

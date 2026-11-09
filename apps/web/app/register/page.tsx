@@ -9,6 +9,7 @@ import { AuthShell, AUTH_POINTS_CLIENT, AUTH_POINTS_PROVIDER } from '@/component
 import { useAuth, homeForRole } from '@/components/auth-provider';
 import { useI18n } from '@/components/locale-provider';
 import type { MessageKey } from '@/lib/locales';
+import { CURRENT_TERMS_VERSION } from '@/lib/legal';
 
 const ROLES = [
   { value: 'CLIENT' as const, labelKey: 'register.roleClient' as MessageKey, icon: UserRound },
@@ -34,6 +35,7 @@ function RegisterForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   // Set while we are creating an account on this very page. `adoptSession`
   // populates `user`, which would otherwise trip the redirect below and
   // bounce a brand-new provider to their (empty) workspace dashboard instead
@@ -56,7 +58,12 @@ function RegisterForm() {
     setError(null);
     setLoading(true);
     try {
-      const tokens = await authApi.register({ ...form, role });
+      const tokens = await authApi.register({
+        ...form,
+        role,
+        termsAccepted: true,
+        termsVersion: CURRENT_TERMS_VERSION,
+      });
       justRegistered.current = true;
       await adoptSession(tokens);
       const requestedNext = new URLSearchParams(window.location.search).get('next');
@@ -193,6 +200,23 @@ function RegisterForm() {
             </button>
           </div>
         </div>
+
+        <label className="flex items-start gap-3 text-sm leading-relaxed text-ink-600">
+          <input
+            type="checkbox"
+            required
+            checked={termsAccepted}
+            onChange={(event) => setTermsAccepted(event.target.checked)}
+            className="mt-1 h-4 w-4 shrink-0 rounded border-ink-300 accent-brand-600"
+          />
+          <span>
+            {t('register.termsPrefix')}{' '}
+            <Link href="/terms" target="_blank" rel="noreferrer" className="font-semibold text-brand-700 underline underline-offset-2">
+              {t('register.termsLink')}
+            </Link>
+            .
+          </span>
+        </label>
 
         {error && (
           <div className="alert alert-error py-3" role="alert">

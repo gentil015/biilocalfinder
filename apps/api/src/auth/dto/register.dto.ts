@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
-import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { Equals, IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { CURRENT_TERMS_VERSION } from '../../legal/terms.constants';
 
 // Only these two roles can ever self-register. ADMIN accounts are
 // provisioned separately (seed script / an existing admin's own tooling)
@@ -50,4 +51,13 @@ export class RegisterDto {
   @ApiProperty({ enum: REGISTERABLE_ROLES })
   @IsIn(REGISTERABLE_ROLES)
   role: RegisterableRole;
+
+  @ApiProperty({ enum: [true], description: 'Explicit acceptance of the current Terms and Conditions' })
+  @Equals(true)
+  termsAccepted: true;
+
+  @ApiProperty({ example: CURRENT_TERMS_VERSION })
+  @IsString()
+  @Equals(CURRENT_TERMS_VERSION)
+  termsVersion: string;
 }

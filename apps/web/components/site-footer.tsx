@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { BadgeCheck, Quote, Wallet, ArrowUpRight } from 'lucide-react';
 import { BrandMark } from '@/components/brand-mark';
 import { useSession } from '@/components/auth-provider';
+import { useI18n } from '@/components/locale-provider';
 
 const EXPLORE_LINKS = [
   { href: '/search?q=Plumbing', label: 'Plumbing' },
@@ -29,6 +30,7 @@ const TRUST = [
 
 export function SiteFooter() {
   const { isProvider } = useSession();
+  const { t } = useI18n();
 
   return (
     <footer className="mt-8 border-t border-ink-200 bg-surface">
@@ -165,7 +167,13 @@ export function SiteFooter() {
       <div className="border-t border-ink-100">
         <div className="page-shell flex flex-col items-start justify-between gap-2 py-6 text-xs text-ink-500 sm:flex-row sm:items-center">
           <span>&copy; {new Date().getFullYear()} Bii Localfinder</span>
-          <span>Built in Rwanda for trust, quotes and local work.</span>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <Link href="/terms" className="font-semibold text-ink-600 underline-offset-4 hover:text-brand-700 hover:underline">
+              {t('footer.terms')}
+            </Link>
+            <span>{t('footer.privacyUnavailable')}</span>
+            <span>Built in Rwanda for trust, quotes and local work.</span>
+          </div>
         </div>
       </div>
     </footer>

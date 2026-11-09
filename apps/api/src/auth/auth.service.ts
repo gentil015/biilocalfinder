@@ -16,6 +16,7 @@ import { RegisterDto, REGISTERABLE_ROLES } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { passwordResetCodeEmail } from './auth-email-templates';
 import { EMAIL_SENDER, EmailSender } from '../notifications/channels/email-sender';
+import { CURRENT_TERMS_VERSION, TERMS_DOCUMENT_TYPE } from '../legal/terms.constants';
 
 const ACCESS_EXPIRES_IN = process.env.JWT_ACCESS_EXPIRES_IN ?? '15m';
 const REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN ?? '30d';
@@ -53,6 +54,9 @@ export class AuthService {
     if (!REGISTERABLE_ROLES.includes(dto.role)) {
       throw new BadRequestException('Invalid role for self-registration');
     }
+    if (dto.termsAccepted !== true || dto.termsVersion !== CURRENT_TERMS_VERSION) {
+      throw new BadRequestException('You must accept the current Terms and Conditions to register');
+    }
 
     const existing = await this.prisma.user.findFirst({
       where: { OR: [{ email: dto.email }, ...(dto.phone ? [{ phone: dto.phone }] : [])] },
@@ -80,6 +84,14 @@ export class AuthService {
             lastName: dto.lastName,
             role: dto.role,
             ...(dto.role === 'CLIENT' ? { clientProfile: { create: {} } } : {}),
+          },
+        });
+        await tx.termsAcceptance.create({
+          data: {
+            userId: created.id,
+            documentType: TERMS_DOCUMENT_TYPE,
+            version: CURRENT_TERMS_VERSION,
+            accountRole: created.role,
           },
         });
         const registrationEvent = await tx.securityEvent.create({

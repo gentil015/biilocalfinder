@@ -91,7 +91,11 @@ export default function ProviderRequestDetailPage() {
       <Panel title={tr("Details")} className="mb-8">
         <p className="prose-copy">{request.description}</p>
 
-        {(request.budgetMin || request.budgetMax || request.attributeSnapshots?.length > 0) && (
+        {(request.budgetMin ||
+          request.budgetMax ||
+          request.preferredDate ||
+          request.additionalNotes ||
+          request.attributeSnapshots?.length > 0) && (
           <dl className="mt-5 grid gap-x-6 gap-y-3 border-t border-ink-100 pt-5 sm:grid-cols-2">
             {(request.budgetMin || request.budgetMax) && (
               <div className="detail-row border-0 py-0">
@@ -100,6 +104,23 @@ export default function ProviderRequestDetailPage() {
                   {request.budgetMin ?? '—'} – {request.budgetMax ?? '—'}
                   <span className="ml-1 text-xs font-medium text-ink-400">RWF</span>
                 </dd>
+              </div>
+            )}
+            {request.preferredDate && (
+              <div className="detail-row border-0 py-0">
+                <dt className="detail-key">{tr("Preferred date")}</dt>
+                <dd className="detail-value">
+                  {new Date(request.preferredDate).toLocaleDateString()}
+                  {request.preferredTime && (
+                    <span className="ml-1.5 font-medium text-ink-500">{request.preferredTime}</span>
+                  )}
+                </dd>
+              </div>
+            )}
+            {request.additionalNotes && (
+              <div className="detail-row border-0 py-0 sm:col-span-2">
+                <dt className="detail-key">{tr("Additional notes")}</dt>
+                <dd className="detail-value whitespace-pre-wrap">{request.additionalNotes}</dd>
               </div>
             )}
             {request.attributeSnapshots?.map((a: any) => (

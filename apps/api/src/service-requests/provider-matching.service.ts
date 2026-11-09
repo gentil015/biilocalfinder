@@ -86,6 +86,7 @@ export interface RequestForMatching {
   providerId: string | null;
   isPublic: boolean;
   status: string;
+  preferredDate: Date | null;
   budgetMin: Prisma.Decimal | null;
   budgetMax: Prisma.Decimal | null;
   service: {
@@ -199,6 +200,24 @@ export class ProviderMatchingService {
     // this row is the durable authorization.
     await this.persistMatches(request.id, selected);
 
+    const preferredDate = request.preferredDate
+      ? request.preferredDate.toISOString().slice(0, 10)
+      : null;
+    const budget =
+      request.budgetMin != null && request.budgetMax != null
+        ? `${Number(request.budgetMin).toLocaleString()}–${Number(request.budgetMax).toLocaleString()} RWF`
+        : request.budgetMax != null
+          ? `Up to ${Number(request.budgetMax).toLocaleString()} RWF`
+          : request.budgetMin != null
+            ? `From ${Number(request.budgetMin).toLocaleString()} RWF`
+            : null;
+    const requestDetails = [
+      preferredDate ? `Date ${preferredDate}` : null,
+      budget ? `Budget ${budget}` : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
     if (toNotify.length > 0) {
       await this.notifications.notifyMany(
         toNotify.map((match) => {
@@ -213,7 +232,7 @@ export class ProviderMatchingService {
             userId: match.userId,
             type: 'NEW_SERVICE_REQUEST' as const,
             title,
-            body: reason ? `${preview} — ${reason}` : preview,
+            body: [preview, requestDetails, reason].filter(Boolean).join(' — '),
             data: {
               requestId: request.id,
               serviceId: request.serviceId,
@@ -223,6 +242,9 @@ export class ProviderMatchingService {
               matchScore: match.score,
               matchReasons: match.reasons,
               distanceKm: match.distanceKm,
+              preferredDate,
+              budgetMin: request.budgetMin != null ? Number(request.budgetMin) : null,
+              budgetMax: request.budgetMax != null ? Number(request.budgetMax) : null,
             },
           };
         }),
@@ -359,6 +381,7 @@ export class ProviderMatchingService {
         providerId: true,
         isPublic: true,
         status: true,
+        preferredDate: true,
         budgetMin: true,
         budgetMax: true,
         service: {

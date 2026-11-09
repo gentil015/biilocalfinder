@@ -1313,7 +1313,7 @@ export const requestsApi = {
     attributeValues?: Record<string, unknown>;
     title: string;
     description: string;
-    preferredDate?: string;
+    preferredDate: string;
     preferredTime?: string;
     budgetMin?: number;
     budgetMax?: number;

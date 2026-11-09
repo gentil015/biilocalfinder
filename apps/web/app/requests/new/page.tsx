@@ -40,6 +40,12 @@ import { useAuth } from '@/components/auth-provider';
 const TITLE_MAX = 90;
 const DESCRIPTION_MAX = 2000;
 
+function localIsoDate(date = new Date()): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
 type RequestStepId = 'basics' | 'details' | 'schedule' | 'review';
 
 interface RequestStep {
@@ -316,6 +322,8 @@ function NewServiceRequestForm() {
   const budgetMin = form.budgetMin ? Number(form.budgetMin) : null;
   const budgetMax = form.budgetMax ? Number(form.budgetMax) : null;
   const budgetInverted = budgetMin !== null && budgetMax !== null && budgetMin > budgetMax;
+  const minPreferredDate = useMemo(() => localIsoDate(), []);
+  const dateChosen = !!form.preferredDate && form.preferredDate >= minPreferredDate;
 
   // --- Provider-set features (from the pinned offering) -------------------
   // The client requests *this* provider's service, so whatever the provider
@@ -379,9 +387,10 @@ function NewServiceRequestForm() {
         { label: t('requests.new.checkService'), done: !!form.serviceId },
         { label: t('requests.new.checkTitle'), done: form.title.trim().length > 0 },
         { label: t('requests.new.checkDesc'), done: form.description.trim().length > 0 },
+        { label: t('requests.new.checkDate'), done: dateChosen },
         { label: t('requests.new.checkBudget'), done: !budgetInverted },
       ] as const,
-    [form.serviceId, form.title, form.description, budgetInverted, t],
+    [form.serviceId, form.title, form.description, dateChosen, budgetInverted, t],
   );
   const ready = checklist.every((c) => c.done);
 
@@ -454,8 +463,10 @@ function NewServiceRequestForm() {
       const missing = openAttributes.find((attribute) => attribute.isRequired && !isAttributeFilled(attribute));
       if (missing) return t('requestSteps.error.details', { name: missing.name });
     }
-    if (id === 'schedule' && budgetInverted) {
-      return t('requests.new.budgetInverted');
+    if (id === 'schedule') {
+      if (!form.preferredDate) return t('requests.new.dateRequired');
+      if (form.preferredDate < minPreferredDate) return t('requests.new.datePast');
+      if (budgetInverted) return t('requests.new.budgetInverted');
     }
     return null;
   }
@@ -532,7 +543,7 @@ function NewServiceRequestForm() {
         attributeValues: Object.keys(mergedValues).length ? mergedValues : undefined,
         title: form.title,
         description: form.description,
-        preferredDate: form.preferredDate || undefined,
+        preferredDate: form.preferredDate,
         preferredTime: form.preferredTime || undefined,
         budgetMin: form.budgetMin ? Number(form.budgetMin) : undefined,
         budgetMax: form.budgetMax ? Number(form.budgetMax) : undefined,
@@ -795,6 +806,8 @@ function NewServiceRequestForm() {
                     <input
                       id="date"
                       type="date"
+                      required
+                      min={minPreferredDate}
                       value={form.preferredDate}
                       onChange={(e) => {
                         markEdited('preferredDate');
@@ -802,6 +815,7 @@ function NewServiceRequestForm() {
                         setForm({ ...form, preferredDate: e.target.value });
                       }}
                     />
+                    <p className="mt-1.5 text-xs text-ink-500">{t('requests.new.dateHint')}</p>
                   </div>
                   <div>
                     <label htmlFor="time" className="label">

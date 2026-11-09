@@ -37,10 +37,9 @@ export class CreateServiceRequestDto {
   @IsString()
   description: string;
 
-  @ApiProperty({ required: false })
-  @IsOptional()
+  @ApiProperty({ description: 'Date the client needs the work done (YYYY-MM-DD)' })
   @IsDateString()
-  preferredDate?: string;
+  preferredDate: string;
 
   @ApiProperty({ required: false, example: '14:00' })
   @IsOptional()

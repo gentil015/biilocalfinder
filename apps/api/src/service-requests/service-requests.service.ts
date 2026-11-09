@@ -119,7 +119,7 @@ export class ServiceRequestsService {
         isPublic: !!providerId && dto.isPublic === true,
         title: dto.title,
         description: dto.description,
-        preferredDate: dto.preferredDate ? new Date(dto.preferredDate) : undefined,
+        preferredDate: new Date(dto.preferredDate),
         preferredTime: dto.preferredTime,
         budgetMin: dto.budgetMin,
         budgetMax: dto.budgetMax,

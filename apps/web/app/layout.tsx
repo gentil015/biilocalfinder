@@ -4,6 +4,14 @@ import { AppChrome } from '@/components/app-chrome';
 import { AuthProvider } from '@/components/auth-provider';
 import { LocaleProvider } from '@/components/locale-provider';
 import { ThemeProvider } from '@/components/theme-provider';
+import {
+  DEFAULT_DESCRIPTION,
+  DEFAULT_KEYWORDS,
+  DEFAULT_TITLE,
+  SITE_NAME,
+  SITE_URL,
+  absoluteUrl,
+} from '@/lib/seo';
 import './globals.css';
 
 /**
@@ -40,34 +48,88 @@ const display = localFont({
   fallback: ['var(--font-sans)', 'system-ui', 'sans-serif'],
 });
 
+const siteVerification: Metadata['verification'] = {
+  ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+    : {}),
+  ...(process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION
+    ? { other: { 'msvalidate.01': process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION } }
+    : {}),
+};
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: 'Bii Localfinder — Find trusted local service providers',
-    template: '%s · Bii Localfinder',
+    default: DEFAULT_TITLE,
+    template: `%s · ${SITE_NAME}`,
   },
-  description:
-    'Connect with verified plumbers, electricians, mechanics, developers, photographers and more, near you.',
-  applicationName: 'Bii Localfinder',
-  keywords: [
-    'local services',
-    'verified providers',
-    'get a quote',
-    'plumbers Rwanda',
-    'electricians Kigali',
-  ],
+  description: DEFAULT_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: DEFAULT_KEYWORDS,
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: 'Local services',
+  alternates: {
+    canonical: '/',
+  },
   openGraph: {
     type: 'website',
-    title: 'Bii Localfinder — Find trusted local service providers',
-    description:
-      'Search verified local pros, compare structured quotes, and book with confidence.',
-    siteName: 'Bii Localfinder',
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
+    siteName: SITE_NAME,
+    url: SITE_URL,
+    locale: 'en_RW',
+    alternateLocale: ['rw_RW'],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Bii Localfinder',
-    description: 'Search verified local pros, compare structured quotes, and book with confidence.',
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESCRIPTION,
   },
-  robots: { index: true, follow: true },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
+  ...(Object.keys(siteVerification).length > 0 ? { verification: siteVerification } : {}),
+};
+
+const websiteStructuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${SITE_URL}/#organization`,
+      name: SITE_NAME,
+      url: SITE_URL,
+      logo: absoluteUrl('/icon.svg'),
+      description: DEFAULT_DESCRIPTION,
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${SITE_URL}/#website`,
+      url: SITE_URL,
+      name: SITE_NAME,
+      description: DEFAULT_DESCRIPTION,
+      publisher: { '@id': `${SITE_URL}/#organization` },
+      inLanguage: ['en', 'rw'],
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: {
+          '@type': 'EntryPoint',
+          urlTemplate: `${SITE_URL}/search?q={search_term_string}`,
+        },
+        'query-input': 'required name=search_term_string',
+      },
+    },
+  ],
 };
 
 export const viewport: Viewport = {
@@ -120,6 +182,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* suppressHydrationWarning on <html> covers the class/style this
             script writes during parsing. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteStructuredData) }}
+        />
       </head>
       <body className="min-h-screen bg-canvas font-sans text-ink-900 antialiased">
         <AuthProvider>

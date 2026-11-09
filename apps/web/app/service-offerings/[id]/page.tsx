@@ -1,11 +1,65 @@
+import type { Metadata } from 'next';
+import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { BadgeCheck, ChevronRight, Clock, MapPin, Star } from 'lucide-react';
 import { offeringsApi } from '@/lib/api';
 import { BookingPath } from '@/components/booking-path';
 import { Panel } from '@/components/ui/page';
+import {
+  SITE_NAME,
+  SITE_URL,
+  absoluteImageUrl,
+  absoluteUrl,
+  truncateText,
+} from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
+
+const getOffering = cache((id: string) => offeringsApi.getPublic(id));
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  try {
+    const offering: any = await getOffering(params.id);
+    const provider = offering.provider;
+    const serviceName = offering.title || offering.service?.name || 'Local service';
+    const city = provider?.location?.city;
+    const title = `${serviceName}${provider?.businessName ? ` by ${provider.businessName}` : ''}${
+      city ? ` in ${city}` : ''
+    }`;
+    const description = truncateText(
+      offering.description ||
+        `Request ${serviceName} from ${provider?.businessName ?? 'a local provider'}${
+          city ? ` in ${city}` : ' in Rwanda'
+        }. Compare a clear quote and book directly on ${SITE_NAME}.`,
+    );
+    const canonical = `/service-offerings/${offering.id}`;
+    const image = absoluteImageUrl(provider?.logoUrl ?? provider?.user?.avatarUrl);
+
+    return {
+      title,
+      description,
+      alternates: { canonical },
+      openGraph: {
+        type: 'website',
+        title,
+        description,
+        url: absoluteUrl(canonical),
+        siteName: SITE_NAME,
+        ...(image ? { images: [{ url: image, alt: serviceName }] } : {}),
+      },
+      twitter: {
+        card: 'summary_large_image',
+        title,
+        description,
+        ...(image ? { images: [image] } : {}),
+      },
+      robots: { index: true, follow: true },
+    };
+  } catch {
+    return { title: 'Service offering', robots: { index: false, follow: false } };
+  }
+}
 
 function displayValue(v: any): string | null {
   if (v.booleanValue !== null) return v.booleanValue ? 'Yes' : 'No';
@@ -22,7 +76,7 @@ const PRICE_SUFFIX: Record<string, string> = {
 export default async function ServiceOfferingPage({ params }: { params: { id: string } }) {
   let offering: any;
   try {
-    offering = await offeringsApi.getPublic(params.id);
+    offering = await getOffering(params.id);
   } catch {
     notFound();
   }
@@ -31,13 +85,89 @@ export default async function ServiceOfferingPage({ params }: { params: { id: st
   const providerImage = provider.logoUrl ?? provider.user?.avatarUrl ?? null;
   const verified = provider.verificationStatus === 'VERIFIED';
   const requestHref = `/requests/new?providerId=${provider.id}&serviceOfferingId=${offering.id}&serviceId=${offering.service.id}`;
+  const serviceName = offering.title || offering.service?.name || 'Local service';
+  const serviceUrl = absoluteUrl(`/service-offerings/${offering.id}`);
+  const providerUrl = absoluteUrl(`/providers/${provider.id}`);
+  const categoryName = offering.service?.category?.name;
+
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Service',
+        '@id': `${serviceUrl}#service`,
+        name: serviceName,
+        description: offering.description || `${serviceName} offered by ${provider.businessName}.`,
+        url: serviceUrl,
+        ...(categoryName ? { serviceType: categoryName } : {}),
+        provider: {
+          '@type':
+            provider.providerType === 'BUSINESS' || provider.providerType === 'AGENCY'
+              ? 'LocalBusiness'
+              : 'ProfessionalService',
+          '@id': `${providerUrl}#business`,
+          name: provider.businessName,
+          url: providerUrl,
+          ...(providerImage ? { image: absoluteImageUrl(providerImage) } : {}),
+          ...(provider.location?.city
+            ? {
+                address: {
+                  '@type': 'PostalAddress',
+                  addressLocality: provider.location.city,
+                  addressCountry: provider.location.country || 'RW',
+                },
+              }
+            : {}),
+        },
+        ...(provider.location?.city ? { areaServed: provider.location.city } : {}),
+        ...(offering.basePrice != null
+          ? {
+              offers: {
+                '@type': 'Offer',
+                url: serviceUrl,
+                price: Number(offering.basePrice),
+                priceCurrency: offering.currency || 'RWF',
+                availability: 'https://schema.org/InStock',
+              },
+            }
+          : {}),
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
+          ...(categoryName
+            ? [
+                {
+                  '@type': 'ListItem',
+                  position: 2,
+                  name: categoryName,
+                  item: `${SITE_URL}/search?q=${encodeURIComponent(categoryName)}`,
+                },
+              ]
+            : []),
+          {
+            '@type': 'ListItem',
+            position: categoryName ? 3 : 2,
+            name: serviceName,
+            item: serviceUrl,
+          },
+        ],
+      },
+    ],
+  };
 
   const attributes = (offering.attributeValues ?? [])
     .map((v: any) => ({ id: v.id, label: v.categoryAttribute?.name, display: displayValue(v) }))
     .filter((a: any) => a.display !== null && a.label);
 
   return (
-    <main className="page-narrow py-8 pb-28 md:pb-10">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <main className="page-narrow py-8 pb-28 md:pb-10">
       {/* Provider identity leads, because trust is the reason someone books a
           specific provider rather than a generic listing. */}
       <Link href={`/providers/${provider.id}`} className="group flex items-center gap-3">
@@ -160,5 +290,6 @@ export default async function ServiceOfferingPage({ params }: { params: { id: st
         </Link>
       </div>
     </main>
+    </>
   );
 }

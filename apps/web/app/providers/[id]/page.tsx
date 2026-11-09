@@ -1,3 +1,5 @@
+import type { Metadata } from 'next';
+import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -22,6 +24,14 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { ApiError, providersApi, reviewsApi } from '@/lib/api';
+import {
+  SITE_NAME,
+  SITE_URL,
+  absoluteImageUrl,
+  absoluteUrl,
+  providerDescription,
+  providerTitle,
+} from '@/lib/seo';
 import { FavoriteButton } from '@/components/favorite-button';
 import { VerificationBadge, VerificationLabel } from '@/components/verification-badge';
 import { ReportButton } from '@/components/report-button';
@@ -214,8 +224,39 @@ async function loadProvider(id: string) {
   throw lastError;
 }
 
+const getProvider = cache(loadProvider);
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const provider: any = await getProvider(params.id);
+  const title = providerTitle(provider);
+  const description = providerDescription(provider);
+  const canonical = `/providers/${provider.id}`;
+  const image = absoluteImageUrl(provider.logoUrl ?? provider.user?.avatarUrl);
+
+  return {
+    title,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      type: 'profile',
+      title,
+      description,
+      url: absoluteUrl(canonical),
+      siteName: SITE_NAME,
+      ...(image ? { images: [{ url: image, alt: `${provider.businessName} on ${SITE_NAME}` }] } : {}),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      ...(image ? { images: [image] } : {}),
+    },
+    robots: { index: true, follow: true },
+  };
+}
+
 export default async function ProviderProfilePage({ params }: { params: { id: string } }) {
-  const provider: any = await loadProvider(params.id);
+  const provider: any = await getProvider(params.id);
   const reviewSummary: any = await reviewsApi.summary(params.id).catch(() => null);
 
   const services: any[] = provider.services ?? [];
@@ -257,8 +298,108 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
     },
   ].filter(Boolean) as { icon: LucideIcon; label: string; body: string }[];
 
+  const providerUrl = absoluteUrl(`/providers/${provider.id}`);
+  const topCategory = services[0]?.service?.category?.name;
+  const schemaType =
+    provider.providerType === 'BUSINESS' || provider.providerType === 'AGENCY'
+      ? 'LocalBusiness'
+      : 'ProfessionalService';
+
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': schemaType,
+        '@id': `${providerUrl}#business`,
+        name: provider.businessName,
+        description: provider.description || provider.bio || providerDescription(provider),
+        url: providerUrl,
+        ...(avatarUrl ? { image: absoluteImageUrl(avatarUrl) } : {}),
+        ...(provider.phone ? { telephone: provider.phone } : {}),
+        ...(provider.location
+          ? {
+              address: {
+                '@type': 'PostalAddress',
+                ...(provider.location.city ? { addressLocality: provider.location.city } : {}),
+                addressCountry: provider.location.country || 'RW',
+              },
+            }
+          : {}),
+        ...(provider.location?.latitude != null && provider.location?.longitude != null
+          ? {
+              geo: {
+                '@type': 'GeoCoordinates',
+                latitude: provider.location.latitude,
+                longitude: provider.location.longitude,
+              },
+            }
+          : {}),
+        ...(provider.serviceAreas?.length
+          ? { areaServed: provider.serviceAreas.map((area: any) => area.label) }
+          : {}),
+        ...(hasSummary
+          ? {
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: rating,
+                reviewCount,
+                bestRating: 5,
+                worstRating: 1,
+              },
+            }
+          : {}),
+        ...(services.length
+          ? {
+              hasOfferCatalog: {
+                '@type': 'OfferCatalog',
+                name: `Services by ${provider.businessName}`,
+                itemListElement: services.slice(0, 12).map((offering: any) => ({
+                  '@type': 'Offer',
+                  itemOffered: {
+                    '@type': 'Service',
+                    name: offering.title || offering.service?.name,
+                    ...(offering.description ? { description: offering.description } : {}),
+                  },
+                  ...(offering.basePrice != null
+                    ? { price: Number(offering.basePrice), priceCurrency: offering.currency || 'RWF' }
+                    : {}),
+                })),
+              },
+            }
+          : {}),
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Home', item: SITE_URL },
+          ...(topCategory
+            ? [
+                {
+                  '@type': 'ListItem',
+                  position: 2,
+                  name: topCategory,
+                  item: `${SITE_URL}/search?q=${encodeURIComponent(topCategory)}`,
+                },
+              ]
+            : []),
+          {
+            '@type': 'ListItem',
+            position: topCategory ? 3 : 2,
+            name: provider.businessName,
+            item: providerUrl,
+          },
+        ],
+      },
+    ],
+  };
+
   return (
-    <main className="page-workspace pb-28 pt-6 md:pb-12 md:pt-8">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <main className="page-workspace pb-28 pt-6 md:pb-12 md:pt-8">
       {/* ------------------------------------------------------------------
           Hero. A night surface with the aurora mesh, so the profile opens on
           the same light as the landing page. Identity, trust and the primary
@@ -908,5 +1049,6 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
         </Link>
       </div>
     </main>
+    </>
   );
 }

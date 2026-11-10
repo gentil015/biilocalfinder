@@ -111,6 +111,8 @@ const websiteStructuredData = {
       url: SITE_URL,
       logo: absoluteUrl('/icon.svg'),
       description: DEFAULT_DESCRIPTION,
+      areaServed: { '@type': 'Country', name: 'Rwanda' },
+      knowsLanguage: ['en', 'rw', 'fr'],
     },
     {
       '@type': 'WebSite',

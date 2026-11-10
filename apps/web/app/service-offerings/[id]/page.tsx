@@ -35,10 +35,19 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     );
     const canonical = `/service-offerings/${offering.id}`;
     const image = absoluteImageUrl(provider?.logoUrl ?? provider?.user?.avatarUrl);
+    const keywords = [
+      serviceName,
+      provider?.businessName,
+      provider?.location?.city,
+      offering.service?.category?.name,
+      'local service Rwanda',
+      'request a quote',
+    ].filter(Boolean) as string[];
 
     return {
       title,
       description,
+      keywords,
       alternates: { canonical },
       openGraph: {
         type: 'website',
@@ -120,6 +129,17 @@ export default async function ServiceOfferingPage({ params }: { params: { id: st
             : {}),
         },
         ...(provider.location?.city ? { areaServed: provider.location.city } : {}),
+        ...(Number(provider.reviewCount) > 0 && Number(provider.rating) > 0
+          ? {
+              aggregateRating: {
+                '@type': 'AggregateRating',
+                ratingValue: Number(provider.rating),
+                reviewCount: Number(provider.reviewCount),
+                bestRating: 5,
+                worstRating: 1,
+              },
+            }
+          : {}),
         ...(offering.basePrice != null
           ? {
               offers: {

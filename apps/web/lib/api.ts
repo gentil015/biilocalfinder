@@ -1,17 +1,14 @@
 import { prepareImageForUpload } from './image-compression';
 
-const VERCEL_API_URL = 'https://biilocalfinder.vercel.app';
+const PRODUCTION_API_URL = 'https://api.biilocalfinder.com';
 
 // Server components run without `window`, so a client-only fallback sent their
 // fetches to http://localhost:4000 in production — which made every
-// server-rendered provider profile 404. Apply the fallback on the server too
-// (an explicitly configured NEXT_PUBLIC_API_URL always wins).
-const onVercel =
-  !!process.env.VERCEL ||
-  (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app'));
-
+// server-rendered provider profile 404. Apply the production fallback on the
+// server too (an explicitly configured NEXT_PUBLIC_API_URL always wins).
 export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || (onVercel ? VERCEL_API_URL : 'http://localhost:4000');
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === 'production' ? PRODUCTION_API_URL : 'http://localhost:4000');
 
 export class ApiError extends Error {
   constructor(

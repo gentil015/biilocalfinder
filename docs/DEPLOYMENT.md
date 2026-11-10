@@ -6,7 +6,9 @@ Kubernetes is explicitly not required for this MVP (spec §Deployment).
 ## 1. Provision the VPS
 
 - Ubuntu 22.04+ (or similar), Docker + Docker Compose plugin installed.
-- Point a DNS A record at the VPS for your domain (e.g. `app.example.com`).
+- Point DNS at the VPS for both hosts used by this project:
+  `biilocalfinder.com` (web) and `api.biilocalfinder.com` (API). Add a `www`
+  CNAME/A record too — the web app permanently redirects it to the apex.
 - Open ports 80 and 443.
 
 ## 2. Get the code onto the server
@@ -29,10 +31,13 @@ Edit `.env.production` and set real values for at minimum:
   from `.env.example`
 - `S3_ACCESS_KEY`, `S3_SECRET_KEY` (MinIO root credentials, or real S3 IAM
   keys if you point `S3_ENDPOINT` at AWS instead of the bundled MinIO)
-- `CORS_ORIGIN` — your real frontend origin, e.g. `https://app.example.com`
-- `NEXT_PUBLIC_API_URL` — the frontend/API origin, e.g.
-  `https://app.example.com` (without `/api`; the frontend adds that path).
-  This is embedded in the frontend during the Docker image build.
+- `CORS_ORIGIN` — your real frontend origin(s), e.g.
+  `https://biilocalfinder.com,https://www.biilocalfinder.com`
+- `NEXT_PUBLIC_API_URL` — the API origin, e.g.
+  `https://api.biilocalfinder.com` (without `/api`; the frontend adds that
+  path). This is embedded in the frontend during the Docker image build.
+- `WEB_URL` and `NEXT_PUBLIC_SITE_URL` — `https://biilocalfinder.com`, used
+  for email links, canonical URLs, `sitemap.xml` and `robots.txt`.
 - `MAP_PROVIDER_KEY` — a real Mapbox token, once you're ready; the app
   runs fine without one (falls back to the offline mock provider)
 - `SENTRY_DSN` — optional; leave blank to skip error reporting
@@ -103,12 +108,13 @@ path already. A minimal certbot flow:
 
 ```bash
 docker run --rm -v bii_certbot_www:/var/www/certbot -v bii_certbot_conf:/etc/letsencrypt \
-  certbot/certbot certonly --webroot -w /var/www/certbot -d app.example.com
+  certbot/certbot certonly --webroot -w /var/www/certbot \
+  -d biilocalfinder.com -d www.biilocalfinder.com -d api.biilocalfinder.com
 ```
 
 Then uncomment the HTTPS redirect in `nginx.conf`, add a `server { listen
 443 ssl; ... }` block pointing `ssl_certificate`/`ssl_certificate_key` at
-`/etc/letsencrypt/live/app.example.com/`, and reload:
+`/etc/letsencrypt/live/biilocalfinder.com/`, and reload:
 
 ```bash
 docker compose -f infra/docker/docker-compose.prod.yml exec nginx nginx -s reload

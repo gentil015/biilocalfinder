@@ -220,9 +220,22 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   const canonical = `/providers/${provider.id}`;
   const image = absoluteImageUrl(provider.logoUrl ?? provider.user?.avatarUrl);
 
+  const serviceNames = (provider.services ?? [])
+    .map((offering: any) => offering.title || offering.service?.name)
+    .filter(Boolean)
+    .slice(0, 6);
+  const keywords = [
+    provider.businessName,
+    ...serviceNames,
+    provider.location?.city,
+    'local service provider Rwanda',
+    'verified provider',
+  ].filter(Boolean) as string[];
+
   return {
     title,
     description,
+    keywords,
     alternates: { canonical },
     openGraph: {
       type: 'profile',
@@ -342,6 +355,7 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
                 name: `Services by ${provider.businessName}`,
                 itemListElement: services.slice(0, 12).map((offering: any) => ({
                   '@type': 'Offer',
+                  ...(offering.id ? { url: absoluteUrl(`/service-offerings/${offering.id}`) } : {}),
                   itemOffered: {
                     '@type': 'Service',
                     name: offering.title || offering.service?.name,

@@ -78,7 +78,7 @@ services:
       context: ../..
       dockerfile: infra/docker/web.Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set the frontend origin, for example https://app.example.com}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set the API origin, for example https://api.biilocalfinder.com}
     restart: unless-stopped
     depends_on: [api]
     environment:

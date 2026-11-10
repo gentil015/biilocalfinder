@@ -4,24 +4,30 @@ import { absoluteUrl } from '@/lib/seo';
 
 export const revalidate = 3600;
 
+const LAST_MODIFIED = new Date();
+
 const STATIC_ROUTES: MetadataRoute.Sitemap = [
   {
     url: absoluteUrl('/'),
+    lastModified: LAST_MODIFIED,
     changeFrequency: 'daily',
     priority: 1,
   },
   {
     url: absoluteUrl('/search'),
+    lastModified: LAST_MODIFIED,
     changeFrequency: 'daily',
     priority: 0.9,
   },
   {
     url: absoluteUrl('/become-a-provider'),
+    lastModified: LAST_MODIFIED,
     changeFrequency: 'weekly',
     priority: 0.7,
   },
   {
     url: absoluteUrl('/terms'),
+    lastModified: LAST_MODIFIED,
     changeFrequency: 'yearly',
     priority: 0.3,
   },
@@ -55,6 +61,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const ids = await loadProviderIds();
     providerRoutes = ids.map((id) => ({
       url: absoluteUrl(`/providers/${id}`),
+      lastModified: LAST_MODIFIED,
       changeFrequency: 'weekly',
       priority: 0.8,
     }));

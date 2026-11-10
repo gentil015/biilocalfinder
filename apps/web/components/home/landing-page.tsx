@@ -176,6 +176,19 @@ const FAQS = [
   },
 ];
 
+const FAQ_STRUCTURED_DATA = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQS.map((faq) => ({
+    '@type': 'Question',
+    name: faq.q,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.a,
+    },
+  })),
+};
+
 function SectionIntro({
   eyebrow,
   title,
@@ -460,6 +473,10 @@ export function LandingPage() {
 
   return (
     <main className="bg-canvas text-ink-900">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_STRUCTURED_DATA) }}
+      />
       {/* ------------------------------------------------------------------
           Hero — light, spacious and built around the search. The only dark
           surfaces on this page are deliberate focal bands further down.

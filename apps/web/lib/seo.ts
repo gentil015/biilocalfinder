@@ -1,3 +1,5 @@
+export const PRODUCTION_SITE_URL = 'https://biilocalfinder.com';
+
 const PROJECT_PRODUCTION_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
   ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
   : null;
@@ -5,11 +7,14 @@ const DEPLOYMENT_URL = process.env.VERCEL_URL ? `https://${process.env.VERCEL_UR
 
 export const SITE_NAME = 'BII Localfinder';
 
+// `NEXT_PUBLIC_SITE_URL` always wins. Otherwise production canonicalises to the
+// custom domain, not to a Vercel preview/deployment URL, so crawlers never see
+// multiple hosts for the same page. Local development keeps localhost.
 export const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL ||
-  PROJECT_PRODUCTION_URL ||
-  DEPLOYMENT_URL ||
-  process.env.WEB_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? PRODUCTION_SITE_URL
+    : PROJECT_PRODUCTION_URL || DEPLOYMENT_URL || process.env.WEB_URL) ||
   'http://localhost:3000'
 ).replace(/\/+$/, '');
 

@@ -34,14 +34,73 @@ const securityHeaders = [
     : []),
 ];
 
+const CANONICAL_ORIGIN = 'https://biilocalfinder.com';
+const WWW_HOST = 'www.biilocalfinder.com';
+
+// Older deployment hosts still exist in links and bookmarks. Send every path
+// to the canonical custom domain so only one host is ever indexed.
+const LEGACY_HOSTS = ['biilocalfinder.vercel.app', 'biilocalfinder-m.vercel.app'];
+
+// Authenticated and account-specific surfaces should never be indexed, even
+// if a crawler ignores robots.txt. The public marketplace routes are excluded.
+const PRIVATE_ROUTES = [
+  '/account',
+  '/account/:path*',
+  '/admin',
+  '/admin/:path*',
+  '/bookings',
+  '/bookings/:path*',
+  '/compare',
+  '/dashboard',
+  '/dashboard/:path*',
+  '/disputes',
+  '/disputes/:path*',
+  '/forgot-password',
+  '/invite/:path*',
+  '/login',
+  '/messages',
+  '/messages/:path*',
+  '/provider',
+  '/provider/:path*',
+  '/register',
+  '/requests',
+  '/requests/:path*',
+  '/reset-password',
+  '/saved-searches',
+  '/settings',
+  '/settings/:path*',
+];
+
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   images: {
     remotePatterns: [{ protocol: 'http', hostname: 'localhost' }],
   },
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: WWW_HOST }],
+        destination: `${CANONICAL_ORIGIN}/:path*`,
+        permanent: true,
+      },
+      ...LEGACY_HOSTS.map((host) => ({
+        source: '/:path*',
+        has: [{ type: 'host', value: host }],
+        destination: `${CANONICAL_ORIGIN}/:path*`,
+        permanent: true,
+      })),
+    ];
+  },
   async headers() {
-    return [{ source: '/(.*)', headers: securityHeaders }];
+    return [
+      { source: '/(.*)', headers: securityHeaders },
+      ...PRIVATE_ROUTES.map((source) => ({
+        source,
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
+      })),
+    ];
   },
 };
 export default nextConfig;

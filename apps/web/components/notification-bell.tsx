@@ -188,7 +188,7 @@ export function NotificationBell({ align = 'right' }: { align?: 'left' | 'right'
           </div>
 
           {items.length === 0 ? (
-            <EmptyState icon={Bell} title="No notifications yet." className="border-0 px-4 py-10" />
+            <EmptyState icon={Bell} title={tr("No notifications yet.")} className="border-0 px-4 py-10" />
           ) : (
             <ul className="max-h-96 divide-y divide-ink-100 overflow-y-auto">
               {items.map((n) => {

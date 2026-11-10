@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { Check, Monitor, Moon, Sun } from 'lucide-react';
 import { useTheme, type ThemePreference } from '@/components/theme-provider';
+import { useI18n } from '@/components/locale-provider';
 
 /**
  * Theme switcher, Light / Dark / System.
@@ -27,6 +28,7 @@ const OPTIONS: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
 ];
 
 export function ThemeToggle({ className = '' }: { className?: string }) {
+  const { translateMessage: tr } = useI18n();
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -54,7 +56,7 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
   }, [open]);
 
   const ActiveIcon = theme === 'system' ? Monitor : resolvedTheme === 'dark' ? Moon : Sun;
-  const activeLabel = OPTIONS.find((o) => o.value === theme)?.label ?? 'System';
+  const activeLabel = tr(OPTIONS.find((o) => o.value === theme)?.label ?? 'System');
 
   return (
     <div ref={wrapRef} className={`relative ${className}`}>
@@ -64,8 +66,8 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        aria-label={`Theme: ${activeLabel}. Change theme`}
-        title="Change theme"
+        aria-label={`${tr('Theme')}: ${activeLabel}. ${tr('Change theme')}`}
+        title={tr('Change theme')}
         className="icon-btn"
       >
         <ActiveIcon className="h-[18px] w-[18px]" aria-hidden="true" />
@@ -75,11 +77,11 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
         <div
           id={menuId}
           role="menu"
-          aria-label="Theme"
+          aria-label={tr('Theme')}
           className="animate-scale-in absolute right-0 top-[calc(100%+6px)] z-50 w-44 overflow-hidden rounded-xl border border-ink-200 bg-surface p-1 shadow-lg"
         >
           <p className="px-2.5 pb-1 pt-2 text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
-            Theme
+            {tr('Theme')}
           </p>
           {OPTIONS.map((option) => {
             const active = theme === option.value;
@@ -101,13 +103,13 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
                 }`}
               >
                 <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                {option.label}
+                {tr(option.label)}
                 {active && <Check className="ml-auto h-3.5 w-3.5" aria-hidden="true" />}
               </button>
             );
           })}
           <p className="border-t border-ink-100 px-2.5 pb-2 pt-2 text-2xs leading-relaxed text-ink-400">
-            System follows your device setting.
+            {tr('System follows your device setting.')}
           </p>
         </div>
       )}
@@ -117,10 +119,11 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
 
 /** All-three-at-once variant for mobile sheets. */
 export function ThemeSegmentedControl({ className = '' }: { className?: string }) {
+  const { translateMessage: tr } = useI18n();
   const { theme, setTheme } = useTheme();
 
   return (
-    <div className={className} role="radiogroup" aria-label="Theme">
+    <div className={className} role="radiogroup" aria-label={tr('Theme')}>
       <div className="flex items-center gap-1 rounded-xl border border-ink-200 bg-ink-50/70 p-1">
         {OPTIONS.map((option) => {
           const active = theme === option.value;
@@ -139,7 +142,7 @@ export function ThemeSegmentedControl({ className = '' }: { className?: string }
               }`}
             >
               <Icon className="h-3.5 w-3.5" aria-hidden="true" />
-              {option.label}
+              {tr(option.label)}
             </button>
           );
         })}

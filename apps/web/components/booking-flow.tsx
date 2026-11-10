@@ -223,14 +223,14 @@ export function BookingProgress({
 
   return (
     <Panel
-      title="Booking progress"
-      description="Follow the job from an agreed price through to completion."
+      title={tr('Booking progress')}
+      description={tr('Follow the job from an agreed price through to completion.')}
       className={className}
     >
       {cancelled && (
         <div className="alert alert-error mb-5">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-          This booking was cancelled before it was completed.
+          {tr('This booking was cancelled before it was completed.')}
         </div>
       )}
 
@@ -263,11 +263,11 @@ export function BookingProgress({
                     active ? 'text-brand-700' : done ? 'text-ink-900' : 'text-ink-400'
                   }`}
                 >
-                  {step.label}
+                  {tr(step.label)}
                   {active && <span className="ml-2 text-2xs font-bold uppercase tracking-wide text-brand-600">{tr("Current")}</span>}
                 </p>
                 <p className={`mt-0.5 text-xs leading-relaxed ${active ? 'text-ink-600' : 'text-ink-400'}`}>
-                  {step.summary}
+                  {tr(step.summary)}
                 </p>
               </div>
             </li>
@@ -310,13 +310,13 @@ export function BookingCurrentStep({
           <Icon className="h-5 w-5" aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <p className="eyebrow-muted">Current step</p>
-          <h2 className="mt-1 font-display text-lg font-bold tracking-tight text-ink-950">{meta.label}</h2>
-          <p className="prose-copy mt-1.5">{meta.description}</p>
+          <p className="eyebrow-muted">{tr('Current step')}</p>
+          <h2 className="mt-1 font-display text-lg font-bold tracking-tight text-ink-950">{tr(meta.label)}</h2>
+          <p className="prose-copy mt-1.5">{tr(meta.description)}</p>
           {meta.next && (
             <p className="mt-3 text-sm leading-relaxed text-ink-600">
-              <span className="font-semibold text-ink-800">What happens next: </span>
-              {meta.next}
+              <span className="font-semibold text-ink-800">{tr('What happens next:')} </span>
+              {tr(meta.next)}
             </p>
           )}
         </div>
@@ -332,9 +332,9 @@ export function BookingCurrentStep({
                 onClick={() => onTransition(a.to)}
                 className={a.destructive ? 'btn-secondary' : 'btn-primary'}
               >
-                {a.label}
+                {tr(a.label)}
               </button>
-              <p className="mt-1.5 text-xs leading-relaxed text-ink-500">{a.description}</p>
+              <p className="mt-1.5 text-xs leading-relaxed text-ink-500">{tr(a.description)}</p>
             </div>
           ))}
         </div>

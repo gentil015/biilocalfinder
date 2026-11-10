@@ -16,7 +16,7 @@ function ListEditor({
   items: string[];
   setItems: (items: string[]) => void;
 }) {
-  const { translateMessage: tr } = useI18n();
+  const { translateMessage: tr, t } = useI18n();
   const [draft, setDraft] = useState('');
   const inputId = useId();
   const hintId = `${inputId}-hint`;
@@ -50,14 +50,14 @@ function ListEditor({
         />
         <button type="button" onClick={add} disabled={items.length >= 20} className="btn-secondary shrink-0">
           <Plus className="h-4 w-4" aria-hidden="true" />
-          Add
+          {tr('Add')}
         </button>
       </div>
 
       <p id={hintId} className="hint">
         {items.length > 0
-          ? `${items.length} of 20 added. Press Enter to add another.`
-          : 'Type an item and press Enter. Up to 20 per list.'}
+          ? t('provider.quote.addedCount', { count: items.length })
+          : tr('Type an item and press Enter. Up to 20 per list.')}
       </p>
 
       {items.length > 0 && (
@@ -68,7 +68,7 @@ function ListEditor({
               <button
                 type="button"
                 onClick={() => setItems(items.filter((_, j) => j !== i))}
-                aria-label={`Remove ${item}`}
+                aria-label={`${tr('Remove')} ${item}`}
                 className="-mr-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-ink-400 transition hover:bg-ink-200 hover:text-ink-700"
               >
                 <X className="h-3 w-3" aria-hidden="true" />
@@ -148,15 +148,15 @@ export function SendQuoteForm({ requestId, onSent }: { requestId: string; onSent
   return (
     <form onSubmit={submit} className="surface-card space-y-5 p-5 sm:p-6">
       <div>
-        <p className="eyebrow-muted">Quote</p>
-        <h3 className="card-title mt-1">Send a quote</h3>
-        <p className="hint">Dates are optional — leave them blank if you want the client to decide.</p>
+        <p className="eyebrow-muted">{tr('Quote')}</p>
+        <h3 className="card-title mt-1">{tr('Send a quote')}</h3>
+        <p className="hint">{tr('Dates are optional — leave them blank if you want the client to decide.')}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="field">
           <label htmlFor={priceId} className="label">
-            Price (RWF)
+            {tr('Price (RWF)')}
           </label>
           <div className="relative">
             <span
@@ -181,11 +181,11 @@ export function SendQuoteForm({ requestId, onSent }: { requestId: string; onSent
 
         <div className="field">
           <label htmlFor={durationId} className="label">
-            Estimated duration
+            {tr('Estimated duration')}
           </label>
           <input
             id={durationId}
-            placeholder="e.g. 2 days"
+            placeholder={tr('e.g. 2 days')}
             value={estimatedDuration}
             onChange={(e) => setEstimatedDuration(e.target.value)}
           />
@@ -195,7 +195,7 @@ export function SendQuoteForm({ requestId, onSent }: { requestId: string; onSent
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="field">
           <label htmlFor={proposedDateId} className="label">
-            Proposed date
+            {tr('Proposed date')}
           </label>
           <input
             id={proposedDateId}
@@ -206,7 +206,7 @@ export function SendQuoteForm({ requestId, onSent }: { requestId: string; onSent
         </div>
         <div className="field">
           <label htmlFor={expiresAtId} className="label">
-            Quote expires
+            {tr('Quote expires')}
           </label>
           <input id={expiresAtId} type="date" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
         </div>
@@ -214,12 +214,12 @@ export function SendQuoteForm({ requestId, onSent }: { requestId: string; onSent
 
       <div className="field">
         <label htmlFor={descriptionId} className="label">
-          Notes for the client <span className="font-normal text-ink-400">{tr("(optional)")}</span>
+          {tr('Notes for the client')} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
         </label>
         <textarea
           id={descriptionId}
           rows={2}
-          placeholder="Anything the client should know before accepting"
+          placeholder={tr('Anything the client should know before accepting')}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
@@ -227,11 +227,11 @@ export function SendQuoteForm({ requestId, onSent }: { requestId: string; onSent
 
       <div className="field">
         <label htmlFor={materialsId} className="label">
-          Materials
+          {tr('Materials')}
         </label>
         <input
           id={materialsId}
-          placeholder="e.g. Paint and brushes included"
+          placeholder={tr('e.g. Paint and brushes included')}
           value={materials}
           onChange={(e) => setMaterials(e.target.value)}
         />
@@ -240,21 +240,21 @@ export function SendQuoteForm({ requestId, onSent }: { requestId: string; onSent
       <div className="section-divider" />
 
       <ListEditor
-        label="What's included"
-        placeholder="e.g. 2 hours of coverage"
+        label={tr("What's included")}
+        placeholder={tr('e.g. 2 hours of coverage')}
         items={includedItems}
         setItems={setIncludedItems}
       />
       <ListEditor
-        label="What's NOT included"
-        placeholder="e.g. Travel outside Kigali"
+        label={tr("What's NOT included")}
+        placeholder={tr('e.g. Travel outside Kigali')}
         items={excludedItems}
         setItems={setExcludedItems}
       />
 
       <div className="field">
         <label htmlFor={fileId} className="label">
-          Attachments <span className="font-normal text-ink-400">{tr("(optional)")}</span>
+          {tr('Attachments')} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
         </label>
         <label
           htmlFor={fileId}
@@ -268,7 +268,7 @@ export function SendQuoteForm({ requestId, onSent }: { requestId: string; onSent
           ) : (
             <Paperclip className="h-4 w-4" aria-hidden="true" />
           )}
-          {uploading ? 'Uploading…' : 'Add a photo or PDF'}
+          {uploading ? tr('Uploading…') : tr('Add a photo or PDF')}
           <input
             id={fileId}
             type="file"
@@ -278,7 +278,7 @@ export function SendQuoteForm({ requestId, onSent }: { requestId: string; onSent
             onChange={(e) => handleFiles(e.target.files)}
           />
         </label>
-        <p className="hint">JPEG, PNG, WebP or PDF. Up to 5 files.</p>
+        <p className="hint">{tr('JPEG, PNG, WebP or PDF. Up to 5 files.')}</p>
 
         {attachments.length > 0 && (
           <ul className="mt-2.5 space-y-1.5">
@@ -288,7 +288,7 @@ export function SendQuoteForm({ requestId, onSent }: { requestId: string; onSent
                 <button
                   type="button"
                   onClick={() => setAttachments((prev) => prev.filter((x) => x.storageKey !== a.storageKey))}
-                  aria-label={`Remove ${a.fileName}`}
+                  aria-label={`${tr('Remove')} ${a.fileName}`}
                   className="-mr-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-ink-400 transition hover:bg-ink-200 hover:text-ink-700"
                 >
                   <X className="h-3 w-3" aria-hidden="true" />
@@ -302,14 +302,14 @@ export function SendQuoteForm({ requestId, onSent }: { requestId: string; onSent
       {error && (
         <div className="alert alert-error" role="alert">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>{error}</span>
+          <span>{tr(error)}</span>
         </div>
       )}
 
       <div className="section-divider" />
 
       <button disabled={busy || uploading} aria-busy={busy} className="btn-primary btn-lg w-full">
-        {busy ? 'Sending…' : 'Send quote'}
+        {busy ? tr('Sending…') : tr('Send a quote')}
       </button>
     </form>
   );

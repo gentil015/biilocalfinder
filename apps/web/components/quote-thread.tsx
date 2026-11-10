@@ -28,9 +28,9 @@ export function QuoteThread({
     .find((r: any) => r.status === 'PENDING');
 
   const terms: [string, string][] = [
-    ...(quote.estimatedDuration ? ([['Duration', quote.estimatedDuration]] as [string, string][]) : []),
-    ...(quote.proposedDate ? ([['Proposed', new Date(quote.proposedDate).toLocaleDateString()]] as [string, string][]) : []),
-    ...(quote.expiresAt ? ([['Expires', new Date(quote.expiresAt).toLocaleDateString()]] as [string, string][]) : []),
+    ...(quote.estimatedDuration ? ([[tr('Duration'), quote.estimatedDuration]] as [string, string][]) : []),
+    ...(quote.proposedDate ? ([[tr('Proposed'), new Date(quote.proposedDate).toLocaleDateString()]] as [string, string][]) : []),
+    ...(quote.expiresAt ? ([[tr('Expires'), new Date(quote.expiresAt).toLocaleDateString()]] as [string, string][]) : []),
   ];
 
   async function run(action: () => Promise<any>) {
@@ -52,7 +52,7 @@ export function QuoteThread({
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-ink-200 p-5">
         <div className="min-w-0">
           <p className="eyebrow-muted">
-            {viewerRole === 'CLIENT' ? quote.provider?.businessName : 'Your quote'}
+            {viewerRole === 'CLIENT' ? quote.provider?.businessName : tr('Your quote')}
           </p>
           <p className="mt-1.5 font-display text-3xl font-extrabold tabular tracking-tight text-ink-950">
             {Number(quote.price).toLocaleString()}
@@ -67,8 +67,7 @@ export function QuoteThread({
           <div className="alert alert-info mb-4">
             <Clock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             <p>
-              Quote sent. The client can accept, decline, or propose a different price — you will
-              be notified when they respond.
+              {tr('Quote sent. The client can accept, decline, or propose a different price — you will be notified when they respond.')}
             </p>
           </div>
         )}
@@ -77,8 +76,7 @@ export function QuoteThread({
           <div className="alert alert-success mb-4">
             <Check className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             <p>
-              The client accepted this quote, so a booking has been created. Open your bookings to
-              confirm it and arrange the date.
+              {tr('The client accepted this quote, so a booking has been created. Open your bookings to confirm it and arrange the date.')}
             </p>
           </div>
         )}
@@ -86,7 +84,7 @@ export function QuoteThread({
         {viewerRole === 'PROVIDER' && quote.status === 'REJECTED' && (
           <div className="alert alert-error mb-4">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <p>The client declined this quote. No further action is needed on it.</p>
+            <p>{tr('The client declined this quote. No further action is needed on it.')}</p>
           </div>
         )}
 
@@ -105,7 +103,7 @@ export function QuoteThread({
 
         {quote.materials && (
           <p className="mt-4 text-sm text-ink-600">
-            <span className="font-semibold text-ink-800">Materials: </span>
+            <span className="font-semibold text-ink-800">{tr('Materials')}: </span>
             {quote.materials}
           </p>
         )}
@@ -116,7 +114,7 @@ export function QuoteThread({
           <div className="mt-5 grid gap-4 border-t border-ink-100 pt-5 sm:grid-cols-2">
             {quote.includedItems?.length > 0 && (
               <div>
-                <p className="eyebrow-muted mb-2">Included</p>
+                <p className="eyebrow-muted mb-2">{tr('Included')}</p>
                 <ul className="space-y-1.5">
                   {quote.includedItems.map((item: string, i: number) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-ink-700">
@@ -129,7 +127,7 @@ export function QuoteThread({
             )}
             {quote.excludedItems?.length > 0 && (
               <div>
-                <p className="eyebrow-muted mb-2">Not included</p>
+                <p className="eyebrow-muted mb-2">{tr('Not included')}</p>
                 <ul className="space-y-1.5">
                   {quote.excludedItems.map((item: string, i: number) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-ink-500">
@@ -154,7 +152,7 @@ export function QuoteThread({
                 className="chip-interactive max-w-full"
               >
                 <Paperclip className="h-3 w-3 shrink-0" aria-hidden="true" />
-                <span className="truncate">{a.fileName ?? 'Attachment'}</span>
+                <span className="truncate">{a.fileName ?? tr('Attachment')}</span>
               </a>
             ))}
           </div>
@@ -163,7 +161,7 @@ export function QuoteThread({
         {/* Negotiation history — newest first, so the live state is on top. */}
         {quote.revisions?.length > 0 && (
           <div className="mt-5 border-t border-ink-100 pt-4">
-            <p className="eyebrow-muted mb-3">Negotiation history</p>
+            <p className="eyebrow-muted mb-3">{tr('Negotiation history')}</p>
             <ol className="space-y-2.5">
               {[...quote.revisions].reverse().map((rev: any) => (
                 <li
@@ -174,9 +172,9 @@ export function QuoteThread({
                     <Clock className="h-3.5 w-3.5 shrink-0 text-ink-400" aria-hidden="true" />
                     <span>
                       <span className="font-semibold text-ink-900">
-                        {rev.proposedBy === viewerRole ? 'You' : 'They'}
+                        {tr(rev.proposedBy === viewerRole ? 'You' : 'They')}
                       </span>{' '}
-                      proposed{' '}
+                      {tr(rev.proposedBy === viewerRole ? 'You proposed' : 'They proposed')}{' '}
                       <span className="font-bold tabular text-ink-950">
                         {Number(rev.price).toLocaleString()} {quote.currency}
                       </span>
@@ -193,7 +191,7 @@ export function QuoteThread({
         {error && (
           <div className="alert alert-error mt-4 py-3" role="alert">
             <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {error}
+            {tr(error)}
           </div>
         )}
 
@@ -204,7 +202,7 @@ export function QuoteThread({
             {latestPendingRevision && latestPendingRevision.proposedBy !== viewerRole && (
               <div className="rounded-lg border border-warning-200 bg-warning-50 p-4">
                 <p className="text-sm font-semibold text-warning-800">
-                  They countered at{' '}
+                  {tr('They countered at')}{' '}
                   <span className="tabular">
                     {Number(latestPendingRevision.price).toLocaleString()} {quote.currency}
                   </span>
@@ -218,14 +216,14 @@ export function QuoteThread({
                     onClick={() => run(() => quotesApi.rejectRevision(latestPendingRevision.id))}
                     className="btn-secondary btn-sm flex-1"
                   >
-                    Decline
+                    {tr('Decline')}
                   </button>
                   <button
                     disabled={busy}
                     onClick={() => run(() => quotesApi.acceptRevision(latestPendingRevision.id))}
                     className="btn-primary btn-sm flex-1"
                   >
-                    Accept counter
+                    {tr('Accept counter')}
                   </button>
                 </div>
               </div>
@@ -233,20 +231,20 @@ export function QuoteThread({
 
             {/* Counter-offer composer */}
             <div>
-              <p className="label">Propose a different price</p>
+              <p className="label">{tr('Propose a different price')}</p>
               <div className="flex flex-col gap-2 sm:flex-row">
                 <input
                   type="number"
                   min={0}
-                  aria-label="Counter price in RWF"
-                  placeholder="Price (RWF)"
+                  aria-label={tr('Counter price in RWF')}
+                  placeholder={tr('Price (RWF)')}
                   className="tabular sm:w-40"
                   value={counterPrice}
                   onChange={(e) => setCounterPrice(e.target.value)}
                 />
                 <input
-                  aria-label="Message"
-                  placeholder="Message (optional)"
+                  aria-label={tr('Message')}
+                  placeholder={tr('Message (optional)')}
                   className="min-w-0 flex-1"
                   value={counterMessage}
                   onChange={(e) => setCounterMessage(e.target.value)}
@@ -266,7 +264,7 @@ export function QuoteThread({
                   }
                   className="btn-secondary shrink-0"
                 >
-                  Propose
+                  {tr('Propose')}
                 </button>
               </div>
             </div>
@@ -276,9 +274,7 @@ export function QuoteThread({
             {viewerRole === 'CLIENT' && (
               <div className="space-y-3 border-t border-ink-100 pt-4">
                 <p className="text-xs leading-relaxed text-ink-500">
-                  Accepting creates a booking at this exact price and closes any other quotes on
-                  your request. The provider then confirms and schedules the job. Payment is
-                  handled directly with the provider — never through the platform.
+                  {tr('Accepting creates a booking at this exact price and closes any other quotes on your request. The provider then confirms and schedules the job. Payment is handled directly with the provider — never through the platform.')}
                 </p>
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <button
@@ -286,7 +282,7 @@ export function QuoteThread({
                     onClick={() => run(() => quotesApi.reject(quote.id))}
                     className="btn-secondary sm:flex-1"
                   >
-                    <X className="h-4 w-4" aria-hidden="true" /> Reject
+                    <X className="h-4 w-4" aria-hidden="true" /> {tr('Reject')}
                   </button>
                   <button
                     disabled={busy}

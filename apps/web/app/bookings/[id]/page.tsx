@@ -29,7 +29,7 @@ import {
 /** A booking is an agreement, so the price and the payment arrangement sit at
  *  the top — that is the first thing either party opens this page to check. */
 export default function BookingDetailPage() {
-  const { translateMessage: tr } = useI18n();
+  const { translateMessage: tr, t } = useI18n();
   const { id } = useParams<{ id: string }>();
   const [booking, setBooking] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -90,11 +90,11 @@ export default function BookingDetailPage() {
       <main className="page-narrow py-8">
         <EmptyState
           icon={AlertCircle}
-          title="We couldn't load this booking"
-          body={error}
+          title={tr("We couldn't load this booking")}
+          body={tr(error)}
           action={
             <Link href="/bookings" className="btn-secondary btn-sm">
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Back to bookings
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" /> {tr('Back to bookings')}
             </Link>
           }
         />
@@ -135,7 +135,7 @@ export default function BookingDetailPage() {
             <Wallet className="h-5 w-5" aria-hidden="true" />
           </span>
           <div className="min-w-0">
-            <p className="eyebrow-muted">Agreed price</p>
+            <p className="eyebrow-muted">{tr('Agreed price')}</p>
             <p className="mt-1 font-display text-3xl font-extrabold tabular tracking-tight text-ink-950">
               {Number(booking.agreedPrice).toLocaleString()}
               <span className="ml-1.5 text-sm font-bold text-ink-400">{booking.currency}</span>
@@ -147,7 +147,7 @@ export default function BookingDetailPage() {
           <div className="flex items-start gap-3">
             <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-ink-400" aria-hidden="true" />
             <div className="min-w-0">
-              <p className="text-xs text-ink-500">Agreed date</p>
+              <p className="text-xs text-ink-500">{tr('Agreed date')}</p>
               <p className="mt-0.5 text-sm font-semibold text-ink-900">
                 {scheduled
                   ? scheduled.toLocaleDateString(undefined, {
@@ -156,7 +156,7 @@ export default function BookingDetailPage() {
                       month: 'short',
                       year: 'numeric',
                     })
-                  : 'Not set yet — arrange a time with the other side through messages.'}
+                  : tr('Not set yet — arrange a time with the other side through messages.')}
               </p>
             </div>
           </div>
@@ -208,14 +208,14 @@ export default function BookingDetailPage() {
       )}
 
       {reviewInfo?.review && (
-        <Panel title="Your review" className="mt-6">
+        <Panel title={tr('Your review')} className="mt-6">
           <div className="flex flex-wrap items-center gap-3">
             <span className="flex items-center gap-1 text-sm font-bold text-ink-900">
               <span className="flex items-center gap-0.5" aria-hidden="true">
                 <Star className="h-4 w-4 fill-rating-400 text-rating-400" />
               </span>
               <span className="tabular">{reviewInfo.review.rating}</span>
-              <span className="sr-only">out of 5</span>
+              <span className="sr-only">{tr('out of 5')}</span>
             </span>
             {reviewInfo.review.verifiedBooking && (
               <span className="badge badge-success gap-1">
@@ -231,7 +231,7 @@ export default function BookingDetailPage() {
 
           {reviewInfo.review.providerResponse && (
             <div className="mt-4 rounded-lg bg-ink-50 p-4">
-              <p className="eyebrow-muted mb-1.5">Provider response</p>
+              <p className="eyebrow-muted mb-1.5">{tr('Provider response')}</p>
               <p className="prose-copy">{reviewInfo.review.providerResponse.text}</p>
             </div>
           )}
@@ -239,7 +239,7 @@ export default function BookingDetailPage() {
       )}
 
       {booking.statusHistory?.length > 0 && (
-        <Panel title="Status history" className="mt-6">
+        <Panel title={tr('Status history')} className="mt-6">
           <ol className="space-y-0">
             {booking.statusHistory.map((h: any, i: number) => (
               <li key={h.id} className="flex gap-3">
@@ -252,8 +252,11 @@ export default function BookingDetailPage() {
                 <div className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 pb-4">
                   <p className="min-w-0 text-sm text-ink-700">
                     {h.fromStatus
-                      ? `Moved from “${bookingStatusLabel(h.fromStatus)}” to “${bookingStatusLabel(h.toStatus)}”`
-                      : bookingStatusLabel(h.toStatus)}
+                      ? t('booking.history.transition', {
+                          from: tr(bookingStatusLabel(h.fromStatus)),
+                          to: tr(bookingStatusLabel(h.toStatus)),
+                        })
+                      : tr(bookingStatusLabel(h.toStatus))}
                     {h.note && <span className="text-ink-500"> — {h.note}</span>}
                   </p>
                   <p className="shrink-0 text-xs text-ink-400">
@@ -269,15 +272,14 @@ export default function BookingDetailPage() {
       {!['REQUESTED', 'QUOTED', 'NEGOTIATING'].includes(booking.status) && (
         <div className="mt-8 border-t border-ink-200 pt-6">
           <p className="text-xs leading-relaxed text-ink-500">
-            Something not right about the work, the price or the conduct? A dispute opens a
-            structured conversation that our team can review. The platform never moves money.
+            {tr('Something not right about the work, the price or the conduct? A dispute opens a structured conversation that our team can review. The platform never moves money.')}
           </p>
           <Link
             href={`/disputes/new?bookingId=${id}`}
             className="text-link mt-3 inline-flex items-center gap-1.5 text-xs"
           >
             <Flag className="h-3.5 w-3.5" aria-hidden="true" />
-            Report a problem with this booking
+            {tr('Report a problem with this booking')}
           </Link>
         </div>
       )}

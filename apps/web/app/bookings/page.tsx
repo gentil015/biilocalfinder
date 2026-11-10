@@ -41,24 +41,24 @@ export default function BookingsPage() {
     <main className="page-narrow py-6 md:py-8">
       <PageHeader
         eyebrow={tr("Schedule")}
-        title="Your bookings"
-        description="Every job you've agreed — as a client or a provider. Open one to see its stage and exactly what happens next."
+        title={tr('Your bookings')}
+        description={tr("Every job you've agreed — as a client or a provider. Open one to see its stage and exactly what happens next.")}
       />
 
-      {loading && <LoadingBlock label="Loading your bookings…" />}
+      {loading && <LoadingBlock label={tr('Loading your bookings…')} />}
 
       {error && (
         <div className="alert alert-error">
           <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-          {error}
+          {tr(error)}
         </div>
       )}
 
       {!loading && !error && bookings.length === 0 && (
         <EmptyState
           icon={CalendarClock}
-          title="No bookings yet"
-          body="Once you accept a quote, the booking appears here with its status and agreed price."
+          title={tr('No bookings yet')}
+          body={tr('Once you accept a quote, the booking appears here with its status and agreed price.')}
         />
       )}
 
@@ -73,11 +73,11 @@ export default function BookingsPage() {
                 <h3 className="truncate text-sm font-bold text-ink-950 group-hover:text-brand-700">
                   {b.serviceRequest?.title ?? b.serviceRequest?.service?.name}
                 </h3>
-                <p className="mt-1 truncate text-sm text-ink-500">{counterpart(b)}</p>
+                <p className="mt-1 truncate text-sm text-ink-500">{tr(counterpart(b))}</p>
                 {b.scheduledAt && (
                   <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-ink-500">
                     <CalendarClock className="h-3.5 w-3.5 shrink-0 text-ink-400" aria-hidden="true" />
-                    Scheduled{' '}
+                    {tr('Scheduled')}{' '}
                     {new Date(b.scheduledAt).toLocaleDateString(undefined, {
                       weekday: 'short',
                       day: 'numeric',
@@ -87,7 +87,7 @@ export default function BookingsPage() {
                   </p>
                 )}
                 <p className="mt-1 text-xs leading-relaxed text-ink-400">
-                  {bookingStatusMeta(b.status).summary}
+                  {tr(bookingStatusMeta(b.status).summary)}
                 </p>
               </div>
               <div className="flex shrink-0 flex-col items-end gap-2">

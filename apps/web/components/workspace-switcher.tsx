@@ -45,6 +45,7 @@ export function WorkspaceSwitcher({
   activeWorkspaceId: string;
   inverted?: boolean;
 }) {
+  const { translateMessage: tr, t } = useI18n();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
@@ -98,7 +99,7 @@ export function WorkspaceSwitcher({
           {active.workspace.name}
         </p>
         <p className={`truncate text-2xs font-medium ${inverted ? 'text-white/45' : 'text-ink-500'}`}>
-          {WORKSPACE_TYPE_LABEL[active.workspace.type]}
+          {tr(WORKSPACE_TYPE_LABEL[active.workspace.type])}
         </p>
       </div>
     </>
@@ -123,7 +124,7 @@ export function WorkspaceSwitcher({
         {pending.length > 0 && (
           <span
             className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-warning-100 px-1.5 text-2xs font-bold text-warning-800"
-            aria-label={`${pending.length} pending invitation${pending.length === 1 ? '' : 's'}`}
+            aria-label={t('workspace.pendingInvitations', { count: pending.length })}
           >
             {pending.length}
           </span>
@@ -137,12 +138,12 @@ export function WorkspaceSwitcher({
       {open && (
         <div
           role="listbox"
-          aria-label="Switch workspace"
+          aria-label={tr('Switch workspace')}
           className="animate-scale-in absolute left-0 z-50 mt-1.5 w-72 origin-top-left overflow-hidden rounded-xl border border-ink-200 bg-surface p-1.5 shadow-xl"
         >
           <p className="eyebrow-muted px-2.5 py-2 flex items-center gap-1.5">
-            Switch workspace
-            <HelpCircle className="h-3.5 w-3.5" aria-label="Switch between workspaces you own or belong to" />
+            {tr('Switch workspace')}
+            <HelpCircle className="h-3.5 w-3.5" aria-label={tr('Switch between workspaces you own or belong to')} />
           </p>
           {switchable.map((m) => (
             <button
@@ -163,7 +164,7 @@ export function WorkspaceSwitcher({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold text-ink-900">{m.workspace.name}</p>
                 <p className="text-2xs text-ink-500">
-                  {WORKSPACE_TYPE_LABEL[m.workspace.type]} · {m.role.toLowerCase()}
+                  {tr(WORKSPACE_TYPE_LABEL[m.workspace.type])} · {tr(m.role.toLowerCase())}
                 </p>
               </div>
               {m.workspace.id === activeWorkspaceId && (
@@ -175,11 +176,11 @@ export function WorkspaceSwitcher({
           {pending.length > 0 && (
             <>
               <p className="eyebrow-muted mt-1.5 border-t border-ink-100 px-2.5 pb-1 pt-3">
-                Pending invitations
+                {tr('Pending invitations')}
               </p>
               {inviteError && (
                 <p className="mx-2.5 mb-1 rounded-lg bg-danger-50 px-2 py-1.5 text-2xs font-semibold text-danger-700" role="alert">
-                  {inviteError}
+                  {tr(inviteError)}
                 </p>
               )}
               {pending.map((m) => (
@@ -191,7 +192,8 @@ export function WorkspaceSwitcher({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-ink-900">{m.workspace.name}</p>
                     <p className="text-2xs text-ink-500">
-                      {WORKSPACE_TYPE_LABEL[m.workspace.type]} · invited as {m.role.toLowerCase()}
+                      {tr(WORKSPACE_TYPE_LABEL[m.workspace.type])} ·{' '}
+                      {t('workspace.invitedAs', { role: tr(m.role.toLowerCase()) })}
                     </p>
                   </div>
                   <button
@@ -205,7 +207,7 @@ export function WorkspaceSwitcher({
                     ) : (
                       <Mail className="h-3.5 w-3.5" aria-hidden="true" />
                     )}
-                    {acceptingId === m.membershipId ? 'Joining…' : 'Accept'}
+                    {acceptingId === m.membershipId ? tr('Joining…') : tr('Accept')}
                   </button>
                 </div>
               ))}
@@ -258,7 +260,7 @@ export function WorkspaceShell({
 }) {
   const pathname = usePathname();
   const { logout } = useAuth();
-  const { locale, setLocale, t } = useI18n();
+  const { locale, setLocale, t, translateMessage: tr } = useI18n();
   const [navOpen, setNavOpen] = useState(false);
   const [languageError, setLanguageError] = useState(false);
   const canGoBack = useCanGoBack();
@@ -316,7 +318,7 @@ export function WorkspaceShell({
       {/* Theme sits in the shell footer so a provider working in the workspace
           all day can flip it without going back to the marketplace chrome. */}
       <div className="flex items-center justify-between rounded-xl px-3 py-1.5">
-        <span className="text-sm font-semibold text-ink-600">Theme</span>
+        <span className="text-sm font-semibold text-ink-600">{tr('Theme')}</span>
         <ThemeToggle className="-mr-1.5" />
       </div>
       <label className="flex items-center justify-between gap-3 rounded-xl px-3 py-1.5">
@@ -344,7 +346,7 @@ export function WorkspaceShell({
         className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-ink-600 transition hover:bg-ink-100/70 hover:text-ink-950"
       >
         <ArrowLeft className="h-4 w-4 text-ink-400" aria-hidden="true" />
-        Back to marketplace
+        {tr('Back to marketplace')}
       </Link>
       <button
         type="button"
@@ -352,7 +354,7 @@ export function WorkspaceShell({
         className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold text-ink-600 transition hover:bg-ink-100/70 hover:text-ink-950"
       >
         <LogOut className="h-4 w-4 text-ink-400" aria-hidden="true" />
-        Log out
+        {tr('Log out')}
       </button>
     </div>
   );
@@ -364,13 +366,13 @@ export function WorkspaceShell({
         <button
           type="button"
           onClick={() => setNavOpen(true)}
-          aria-label="Open navigation"
+          aria-label={tr('Open navigation')}
           aria-expanded={navOpen}
           className="-ml-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-ink-600 transition hover:bg-ink-100"
         >
           <Menu className="h-5 w-5" />
         </button>
-        {canGoBack && <BackButton variant="icon" label="Go back" className="-ml-1 hidden sm:inline-flex" />}
+        {canGoBack && <BackButton variant="icon" label={tr('Go back')} className="-ml-1 hidden sm:inline-flex" />}
         <div className="min-w-0 flex-1">{identity}</div>
         <NotificationBell />
         <ThemeToggle className="shrink-0" />
@@ -378,7 +380,7 @@ export function WorkspaceShell({
           href="/account"
           className="btn-secondary btn-sm shrink-0"
         >
-          Account
+          {tr('Account')}
         </Link>
       </header>
 
@@ -387,7 +389,7 @@ export function WorkspaceShell({
         <div className="fixed inset-0 z-50 lg:hidden">
           <button
             type="button"
-            aria-label="Close navigation"
+            aria-label={tr('Close navigation')}
             className="absolute inset-0 bg-home-night/50 backdrop-blur-sm"
             onClick={() => setNavOpen(false)}
           />
@@ -397,7 +399,7 @@ export function WorkspaceShell({
               <button
                 type="button"
                 onClick={() => setNavOpen(false)}
-                aria-label="Close navigation"
+                aria-label={tr('Close navigation')}
                 className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-ink-500 transition hover:bg-ink-100 hover:text-ink-900"
               >
                 <X className="h-5 w-5" />
@@ -422,7 +424,7 @@ export function WorkspaceShell({
 
           {canGoBack && (
             <div className="mb-3">
-              <BackButton variant="pill" label="Back" className="w-full justify-start" />
+              <BackButton variant="pill" label={tr('Back')} className="w-full justify-start" />
             </div>
           )}
 

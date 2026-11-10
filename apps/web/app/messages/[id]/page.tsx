@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useI18n } from '@/components/locale-provider';
 import { Mic, Paperclip, Send, Square, X } from 'lucide-react';
 import { BackButton } from '@/components/back-button';
 import { ReportButton } from '@/components/report-button';
@@ -16,21 +17,21 @@ function sameDay(a: Date, b: Date) {
   );
 }
 
-function dayLabel(date: Date) {
+function dayLabel(date: Date, tr: (message: string) => string) {
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
-  if (sameDay(date, today)) return 'Today';
-  if (sameDay(date, yesterday)) return 'Yesterday';
+  if (sameDay(date, today)) return tr('Today');
+  if (sameDay(date, yesterday)) return tr('Yesterday');
   return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
-function senderName(m: any, mine: boolean) {
-  if (mine) return 'You';
+function senderName(m: any, mine: boolean, tr: (message: string) => string) {
+  if (mine) return tr('You');
   const s = m?.sender;
-  if (!s) return 'Them';
+  if (!s) return tr('Them');
   const name = `${s.firstName ?? ''} ${s.lastName ?? ''}`.trim();
-  return name || 'Them';
+  return name || tr('Them');
 }
 
 function formatDuration(seconds: number) {
@@ -74,6 +75,7 @@ function AttachmentMedia({ attachment }: { attachment: any }) {
 }
 
 export default function ConversationThreadPage() {
+  const { translateMessage: tr } = useI18n();
   const { id } = useParams<{ id: string }>();
   const { user } = useSession();
   const [messages, setMessages] = useState<any[]>([]);
@@ -329,10 +331,10 @@ export default function ConversationThreadPage() {
       const d = new Date(m.createdAt);
       const last = out[out.length - 1];
       if (last && sameDay(new Date(last.items[0].createdAt), d)) last.items.push(m);
-      else out.push({ label: dayLabel(d), items: [m] });
+      else out.push({ label: dayLabel(d, tr), items: [m] });
     }
     return out;
-  }, [messages]);
+  }, [messages, tr]);
 
   const counterpart = useMemo(() => {
     // Prefer the participant record: it is correct even before the other side
@@ -347,19 +349,19 @@ export default function ConversationThreadPage() {
       const name =
         otherParticipant.businessName ??
         `${profile.firstName ?? ''} ${profile.lastName ?? ''}`.trim();
-      return { name: name || 'Conversation', avatarUrl: profile.avatarUrl };
+      return { name: name || tr('Conversation'), avatarUrl: profile.avatarUrl };
     }
 
     const other = messages.find((m) => m?.sender?.id && m.sender.id !== user?.id)?.sender;
     if (!other) return null;
     const name = `${other.firstName ?? ''} ${other.lastName ?? ''}`.trim();
-    return { name: name || 'Conversation', avatarUrl: other.avatarUrl };
-  }, [conversation, messages, user?.id]);
+    return { name: name || tr('Conversation'), avatarUrl: other.avatarUrl };
+  }, [conversation, messages, user?.id, tr]);
 
   return (
     <div className="mx-auto flex h-[calc(100dvh-8.5rem)] w-full max-w-3xl flex-col px-4 py-4 md:h-[calc(100dvh-4rem)]">
       <header className="mb-3 flex shrink-0 items-center gap-3">
-        <BackButton variant="icon" label="Back to conversations" fallbackHref="/messages" />
+        <BackButton variant="icon" label={tr('Back to conversations')} fallbackHref="/messages" />
         {counterpart && (
           <>
             <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-ink-200">
@@ -387,11 +389,11 @@ export default function ConversationThreadPage() {
         className="min-h-0 flex-1 space-y-5 overflow-y-auto pb-2"
         role="log"
         aria-live="polite"
-        aria-label="Messages"
+        aria-label={tr('Messages')}
       >
         {messages.length === 0 ? (
           <p className="py-10 text-center text-sm text-ink-400">
-            No messages yet. Say hello to get started.
+            {tr('No messages yet. Say hello to get started.')}
           </p>
         ) : (
           days.map((day) => (
@@ -426,7 +428,7 @@ export default function ConversationThreadPage() {
                       <div className={`max-w-[78%] ${mine ? 'items-end' : 'items-start'} flex flex-col`}>
                         {!mine && (
                           <span className="mb-1 px-1 text-2xs font-semibold text-ink-400">
-                            {senderName(m, mine)}
+                            {senderName(m, mine, tr)}
                           </span>
                         )}
                         <div
@@ -489,7 +491,7 @@ export default function ConversationThreadPage() {
                 ))}
               </span>
             </span>
-            <span className="sr-only">Contact is typing</span>
+            <span className="sr-only">{tr('Contact is typing')}</span>
           </div>
         )}
 
@@ -509,14 +511,14 @@ export default function ConversationThreadPage() {
               <div className="mb-2 flex items-center gap-2 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-danger-600" aria-hidden="true" />
                 <span className="font-medium">
-                  Recording voice note… <span className="tabular">{formatDuration(recordSeconds)}</span>
+                  {tr('Recording voice note…')} <span className="tabular">{formatDuration(recordSeconds)}</span>
                 </span>
                 <button
                   type="button"
                   onClick={() => stopRecording(true)}
                   className="ml-auto text-xs font-semibold underline"
                 >
-                  Cancel
+                  {tr('Cancel')}
                 </button>
               </div>
             )}
@@ -530,7 +532,7 @@ export default function ConversationThreadPage() {
                     {a.mimeType.startsWith('audio/') ? (
                       <span className="flex h-full w-full flex-col items-center justify-center gap-0.5 text-ink-500">
                         <Mic className="h-4 w-4" aria-hidden="true" />
-                        <span className="text-2xs font-semibold">Voice</span>
+                        <span className="text-2xs font-semibold">{tr('Voice')}</span>
                       </span>
                     ) : a.mimeType.startsWith('video/') ? (
                       <video src={a.url} className="h-full w-full object-cover" muted preload="metadata" />
@@ -541,7 +543,7 @@ export default function ConversationThreadPage() {
                     <button
                       type="button"
                       onClick={() => removePending(a.storageKey)}
-                      aria-label="Remove attachment"
+                      aria-label={tr('Remove attachment')}
                       className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-home-night/70 text-white"
                     >
                       <X className="h-3 w-3" aria-hidden="true" />
@@ -552,7 +554,7 @@ export default function ConversationThreadPage() {
             )}
             {uploadError && (
               <p className="error-text mt-1.5" role="alert">
-                {uploadError}
+                {tr(uploadError)}
               </p>
             )}
           </div>
@@ -572,8 +574,8 @@ export default function ConversationThreadPage() {
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading || recording || pendingAttachments.length >= 5}
             className="btn-secondary h-11 w-11 shrink-0 !px-0"
-            aria-label="Attach an image or video"
-            title="Attach an image or video"
+            aria-label={tr('Attach an image or video')}
+            title={tr('Attach an image or video')}
           >
             <Paperclip className="h-4 w-4" aria-hidden="true" />
           </button>
@@ -582,8 +584,8 @@ export default function ConversationThreadPage() {
             onClick={() => (recording ? stopRecording() : void startRecording())}
             disabled={uploading || (!recording && pendingAttachments.length >= 5)}
             className={`${recording ? 'btn-danger' : 'btn-secondary'} h-11 w-11 shrink-0 !px-0`}
-            aria-label={recording ? 'Stop recording voice note' : 'Record a voice note'}
-            title={recording ? 'Stop recording voice note' : 'Record a voice note'}
+            aria-label={tr(recording ? 'Stop recording voice note' : 'Record a voice note')}
+            title={tr(recording ? 'Stop recording voice note' : 'Record a voice note')}
           >
             {recording ? (
               <Square className="h-4 w-4" aria-hidden="true" />
@@ -592,12 +594,12 @@ export default function ConversationThreadPage() {
             )}
           </button>
           <label htmlFor="message-body" className="sr-only">
-            Message
+            {tr('Message')}
           </label>
           <textarea
             id="message-body"
             rows={1}
-            placeholder={recording ? 'Recording voice note…' : uploading ? 'Uploading…' : 'Type a message…'}
+            placeholder={tr(recording ? 'Recording voice note…' : uploading ? 'Uploading…' : 'Type a message…')}
             className="max-h-32 min-h-[2.75rem] flex-1 resize-none py-2.5"
             value={body}
             onChange={(e) => onTypingChange(e.target.value)}
@@ -612,7 +614,7 @@ export default function ConversationThreadPage() {
             type="submit"
             disabled={(!body.trim() && pendingAttachments.length === 0) || uploading || recording}
             className="btn-primary h-11 w-11 shrink-0 !px-0"
-            aria-label="Send message"
+            aria-label={tr('Send message')}
           >
             <Send className="h-4 w-4" aria-hidden="true" />
           </button>

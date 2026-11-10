@@ -8,7 +8,8 @@ Kubernetes is explicitly not required for this MVP (spec §Deployment).
 - Ubuntu 22.04+ (or similar), Docker + Docker Compose plugin installed.
 - Point DNS at the VPS for both hosts used by this project:
   `biilocalfinder.com` (web) and `api.biilocalfinder.com` (API). Add a `www`
-  CNAME/A record too — the web app permanently redirects it to the apex.
+  CNAME/A record too and redirect `www` to the apex at the proxy/platform
+  layer (not in `next.config.mjs`, to avoid redirect loops).
 - Open ports 80 and 443.
 
 ## 2. Get the code onto the server
@@ -46,6 +47,15 @@ Edit `.env.production` and set real values for at minimum:
   `PaymentProvider` interface
 
 Never commit `.env.production`.
+
+### Custom domains and canonical host
+
+Choose one host as canonical (`https://biilocalfinder.com` in this project)
+and configure the other hosts to redirect to it in the hosting provider
+(Vercel → Project → Settings → Domains, or the Nginx config below). Do not
+add host redirects to `next.config.mjs` as well: if the platform redirects in
+the opposite direction you get an infinite redirect loop, which also prevents
+Google from fetching the page and its favicon.
 
 ### Using Supabase Postgres
 

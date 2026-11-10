@@ -34,12 +34,9 @@ const securityHeaders = [
     : []),
 ];
 
-const CANONICAL_ORIGIN = 'https://biilocalfinder.com';
-const WWW_HOST = 'www.biilocalfinder.com';
-
-// Older deployment hosts still exist in links and bookmarks. Send every path
-// to the canonical custom domain so only one host is ever indexed.
-const LEGACY_HOSTS = ['biilocalfinder.vercel.app', 'biilocalfinder-m.vercel.app'];
+// Host canonicalization (apex vs www vs old deployment hosts) is handled at
+// the hosting layer. Redirecting hosts here as well can create an infinite
+// redirect loop when the platform redirects in the opposite direction.
 
 // Authenticated and account-specific surfaces should never be indexed, even
 // if a crawler ignores robots.txt. The public marketplace routes are excluded.
@@ -76,22 +73,6 @@ const nextConfig = {
   poweredByHeader: false,
   images: {
     remotePatterns: [{ protocol: 'http', hostname: 'localhost' }],
-  },
-  async redirects() {
-    return [
-      {
-        source: '/:path*',
-        has: [{ type: 'host', value: WWW_HOST }],
-        destination: `${CANONICAL_ORIGIN}/:path*`,
-        permanent: true,
-      },
-      ...LEGACY_HOSTS.map((host) => ({
-        source: '/:path*',
-        has: [{ type: 'host', value: host }],
-        destination: `${CANONICAL_ORIGIN}/:path*`,
-        permanent: true,
-      })),
-    ];
   },
   async headers() {
     return [

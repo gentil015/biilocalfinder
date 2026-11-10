@@ -105,7 +105,7 @@ function RegisterForm() {
       <div
         role="radiogroup"
         aria-label={t('register.accountType')}
-        className="mt-6 grid grid-cols-2 gap-2 rounded-xl border border-ink-200 bg-ink-50 p-1.5"
+        className="mt-6 grid grid-cols-1 gap-2 rounded-xl border border-ink-200 bg-ink-50 p-1.5 min-[380px]:grid-cols-2"
       >
         {ROLES.map(({ value, labelKey, icon: Icon }) => {
           const active = role === value;
@@ -116,7 +116,7 @@ function RegisterForm() {
               role="radio"
               aria-checked={active}
               onClick={() => setRole(value)}
-              className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+              className={`flex min-h-10 items-center justify-center gap-2 rounded-lg px-2 py-2.5 text-[13px] font-semibold transition min-[380px]:px-3 min-[380px]:text-sm ${
                 active
                   ? 'bg-surface text-ink-950 shadow-sm ring-1 ring-ink-200'
                   : 'text-ink-500 hover:text-ink-800'
@@ -130,7 +130,7 @@ function RegisterForm() {
       </div>
 
       <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
           <div className="field">
             <label htmlFor="firstName" className="label">
               {t('register.firstName')}
@@ -167,7 +167,11 @@ function RegisterForm() {
             id="email"
             required
             type="email"
+            inputMode="email"
             autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             placeholder={t('auth.emailPlaceholder')}
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -188,12 +192,12 @@ function RegisterForm() {
               placeholder={t('register.passwordHint')}
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="pr-10"
+              className="pr-12"
             />
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute inset-y-0 right-0 flex items-center px-3 text-ink-400 transition hover:text-ink-700"
+              className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-ink-400 transition hover:text-ink-700"
               aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

@@ -34,7 +34,7 @@ export function AuthShell({
   const canGoBack = useCanGoBack();
 
   return (
-    <main className="grid min-h-screen lg:grid-cols-2">
+    <main className="min-h-dvh lg:grid lg:grid-cols-2">
       <aside className="relative hidden overflow-hidden bg-home-night text-white lg:flex">
         <div className="hero-grid pointer-events-none absolute inset-0" aria-hidden="true" />
         <div className="bg-mesh pointer-events-none absolute inset-0 opacity-90" aria-hidden="true" />
@@ -69,18 +69,31 @@ export function AuthShell({
 
       {/* AppChrome hides the site header on auth routes, so the theme switch
           lives in the corner of the form column — a signed-out visitor has no
-          other chrome to reach it from. */}
-      <section className="relative flex flex-col justify-center px-5 py-12 sm:px-8">
-        <ThemeToggle className="absolute right-4 top-4 sm:right-7 sm:top-7" />
+          other chrome to reach it from.
+
+          On phones the form no longer centres vertically: back, brand and
+          theme share one top bar, and the form flows down from it. Centring
+          the whole column is what used to drop the back button into the
+          middle of the screen. */}
+      <section className="relative flex min-h-dvh flex-col px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:px-8 lg:justify-center lg:px-8 lg:py-12">
+        <div className="mb-8 flex items-center justify-between gap-2 lg:hidden">
+          {canGoBack ? (
+            <BackButton variant="icon" label="Back" fallbackHref="/" />
+          ) : (
+            <span className="h-10 w-10" aria-hidden="true" />
+          )}
+          <BrandMark responsive />
+          <ThemeToggle />
+        </div>
+
+        <ThemeToggle className="absolute right-4 top-4 hidden sm:right-7 sm:top-7 lg:block" />
+
         <div className="mx-auto w-full max-w-sm">
           {canGoBack && (
-            <div className="mb-6">
+            <div className="mb-6 hidden lg:block">
               <BackButton variant="link" label="Back" fallbackHref="/" />
             </div>
           )}
-          <div className="mb-8 lg:hidden">
-            <BrandMark />
-          </div>
           {children}
           <p className="mt-6 text-center text-sm text-ink-500">{footer}</p>
         </div>

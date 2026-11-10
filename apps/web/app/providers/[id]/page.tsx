@@ -31,7 +31,9 @@ import {
   providerDescription,
   providerTitle,
 } from '@/lib/seo';
+import { AtAGlanceRow } from '@/components/at-a-glance-row';
 import { FavoriteButton } from '@/components/favorite-button';
+import { ProviderContactDetails } from '@/components/provider-contact';
 import { VerificationBadge, VerificationLabel } from '@/components/verification-badge';
 import { ReportButton } from '@/components/report-button';
 import { PortfolioGallery } from '@/components/portfolio-gallery';
@@ -180,20 +182,6 @@ function HeroMetric({
         <p className="mt-1 truncate text-2xs font-bold uppercase tracking-wider text-white/45">{label}</p>
       </div>
     </div>
-  );
-}
-
-function AtAGlanceRow({ icon: Icon, label, children }: { icon: LucideIcon; label: string; children: React.ReactNode }) {
-  return (
-    <li className="flex items-start gap-3">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-ink-50 text-ink-500 ring-1 ring-inset ring-ink-100">
-        <Icon className="h-4 w-4" aria-hidden="true" />
-      </span>
-      <div className="min-w-0">
-        <p className="text-2xs font-bold uppercase tracking-wider text-ink-400">{label}</p>
-        <div className="mt-0.5 text-sm font-semibold text-ink-800">{children}</div>
-      </div>
-    </li>
   );
 }
 
@@ -903,16 +891,7 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
                     {[provider.location?.city, provider.location?.country].filter(Boolean).join(', ') ||
                       'Location not set'}
                   </AtAGlanceRow>
-                  {provider.phone && (
-                    <AtAGlanceRow icon={Phone} label="Contact">
-                      <a
-                        href={`tel:${provider.phone}`}
-                        className="break-all text-brand-700 underline decoration-brand-200 underline-offset-2 hover:text-brand-900"
-                      >
-                        {provider.phone}
-                      </a>
-                    </AtAGlanceRow>
-                  )}
+                  <ProviderContactDetails providerId={provider.id} />
                   <AtAGlanceRow icon={CalendarClock} label="Availability">
                     {availability ? availability.text : 'Not set'}
                   </AtAGlanceRow>

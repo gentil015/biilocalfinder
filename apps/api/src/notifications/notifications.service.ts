@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { NotificationCategory, NotificationType } from '@prisma/client';
+import { NotificationCategory, NotificationType, UserRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CATEGORY_LABELS, DEFAULT_PREFERENCE, NOTIFICATION_TYPE_CATEGORY } from './notification-categories';
 import { UpdatePreferenceDto } from './dto/update-preference.dto';
@@ -15,6 +15,13 @@ export interface NotificationJobData {
   title: string;
   body?: string;
   data?: Record<string, unknown>;
+}
+
+// Providers run their business off the platform, so email is on by default
+// for them — their account email is the address they registered with. Clients
+// keep email off by default and can opt in from notification settings.
+function defaultEmailForRole(role: UserRole | null | undefined): boolean {
+  return role === UserRole.PROVIDER;
 }
 
 @Injectable()
@@ -89,8 +96,12 @@ export class NotificationsService {
   // state on first visit, without a signup-time job populating every row
   // for every user.
   async getPreferences(userId: string) {
-    const rows = await this.prisma.notificationPreference.findMany({ where: { userId } });
+    const [rows, user] = await Promise.all([
+      this.prisma.notificationPreference.findMany({ where: { userId } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+    ]);
     const byCategory = new Map(rows.map((r: any) => [r.category, r]));
+    const defaultEmail = defaultEmailForRole(user?.role);
     return (Object.keys(CATEGORY_LABELS) as NotificationCategory[]).map((category) => {
       const row = byCategory.get(category) as any;
       return {
@@ -98,7 +109,7 @@ export class NotificationsService {
         ...CATEGORY_LABELS[category],
         inApp: row?.inApp ?? DEFAULT_PREFERENCE.inApp,
         push: row?.push ?? DEFAULT_PREFERENCE.push,
-        email: row?.email ?? DEFAULT_PREFERENCE.email,
+        email: row?.email ?? defaultEmail,
       };
     });
   }
@@ -117,14 +128,17 @@ export class NotificationsService {
   // NOTIFICATION_TYPE_CATEGORY themselves.
   async getEffectivePreferenceForType(userId: string, type: NotificationType) {
     const category = NOTIFICATION_TYPE_CATEGORY[type];
-    const row = await this.prisma.notificationPreference.findUnique({
-      where: { userId_category: { userId, category } },
-    }) as any;
+    const [row, user] = await Promise.all([
+      this.prisma.notificationPreference.findUnique({
+        where: { userId_category: { userId, category } },
+      }) as any,
+      this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } }),
+    ]);
     return {
       category,
       inApp: row?.inApp ?? DEFAULT_PREFERENCE.inApp,
       push: row?.push ?? DEFAULT_PREFERENCE.push,
-      email: row?.email ?? DEFAULT_PREFERENCE.email,
+      email: row?.email ?? defaultEmailForRole(user?.role),
     };
   }
 

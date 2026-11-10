@@ -48,5 +48,7 @@ export const CATEGORY_LABELS: Record<NotificationCategory, { label: string; desc
 
 // Applied when a user has no NotificationPreference row for a category yet
 // — mirrors the schema's own column defaults so behavior is identical
-// whether or not the row has been materialized.
+// whether or not the row has been materialized. `email` is the baseline: the
+// notifications service flips it on by default for PROVIDER accounts, whose
+// account email is the address they registered with.
 export const DEFAULT_PREFERENCE = { inApp: true, push: true, email: false } as const;

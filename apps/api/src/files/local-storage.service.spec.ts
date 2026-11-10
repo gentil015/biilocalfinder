@@ -35,6 +35,7 @@ describe('LocalStorageService', () => {
     expect(storage.resolvePublic(key)).toBeNull();
     expect(storage.resolvePrivate(key)).toBeTruthy();
     expect((await storage.statObject(key))?.mimeType).toBe('application/pdf');
+    expect(await storage.readPrivate(key)).toEqual(Buffer.from('secret'));
   });
 
   it('signs private URLs and rejects expired or tampered links', async () => {

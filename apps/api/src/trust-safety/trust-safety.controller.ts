@@ -31,6 +31,7 @@ import {
   UpdateFraudRuleDto,
 } from './dto/trust-safety.dto';
 import { TrustSafetyService } from './trust-safety.service';
+import { ProviderFraudDetectionService } from './provider-fraud-detection.service';
 
 @ApiTags('trust')
 @ApiBearerAuth()
@@ -88,7 +89,10 @@ export class TrustController {
 @Roles('ADMIN')
 @Controller('trust/admin')
 export class AdminTrustController {
-  constructor(private readonly trustSafety: TrustSafetyService) {}
+  constructor(
+    private readonly trustSafety: TrustSafetyService,
+    private readonly providerFraudDetection: ProviderFraudDetectionService,
+  ) {}
 
   @Get('overview')
   overview() {
@@ -122,6 +126,14 @@ export class AdminTrustController {
     @Body() dto: CreateProviderVerificationCheckDto,
   ) {
     return this.trustSafety.recordProviderCheck(admin.id, userId, dto);
+  }
+
+  @Post('accounts/:userId/provider-screening')
+  screenProvider(
+    @CurrentUser() admin: { id: string },
+    @Param('userId') userId: string,
+  ) {
+    return this.providerFraudDetection.screenUser(userId, 'admin_manual', admin.id);
   }
 
   @Post('assessments/:id/review')

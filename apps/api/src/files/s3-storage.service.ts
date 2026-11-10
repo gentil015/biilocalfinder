@@ -116,6 +116,17 @@ export class S3StorageService implements StorageService {
     });
   }
 
+  async readPrivate(key: string): Promise<Buffer | null> {
+    const found = await this.headIn(key);
+    if (!found) return null;
+    const response = await this.s3.send(
+      new GetObjectCommand({ Bucket: found.bucket, Key: key }),
+    );
+    if (!response.Body) return null;
+    const bytes = await response.Body.transformToByteArray();
+    return Buffer.from(bytes);
+  }
+
   async delete(key: string): Promise<void> {
     const found = await this.headIn(key);
     await this.s3.send(new DeleteObjectCommand({ Bucket: found ? found.bucket : this.bucket, Key: key }));

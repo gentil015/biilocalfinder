@@ -37,6 +37,16 @@ export class ProvidersController {
     return this.providersService.compare(list);
   }
 
+  // Contact details unlock only after a client has an accepted booking with
+  // this provider. Kept separate from the public profile so the public payload
+  // can never accidentally include a phone number or email.
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/contact')
+  getContact(@CurrentUser() user: { id: string }, @Param('id') id: string) {
+    return this.providersService.getContactForViewer(id, user.id);
+  }
+
   // Public provider profile (spec §11) — stays public via
   // OptionalJwtAuthGuard, but records a VIEW_PROVIDER interaction when the
   // viewer happens to be logged in. Richer discovery/search lands in the

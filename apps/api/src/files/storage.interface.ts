@@ -19,6 +19,9 @@ export interface StorageService {
   statObject(key: string): Promise<{ sizeBytes: number; mimeType: string } | null>;
   // Short-lived URL for a private object.
   getSignedUrl(key: string, expiresInSeconds?: number): Promise<string>;
+  // Raw bytes of a private object. Used server-side for content hashing, never
+  // for handing the file back to a client.
+  readPrivate(key: string): Promise<Buffer | null>;
   delete(key: string): Promise<void>;
   getUrl(key: string): string;
 }

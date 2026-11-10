@@ -13,7 +13,6 @@ import {
   Images,
   MapPin,
   MessageSquareQuote,
-  Phone,
   ShieldCheck,
   Sparkles,
   Star,

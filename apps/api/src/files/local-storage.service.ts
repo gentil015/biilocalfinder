@@ -102,6 +102,11 @@ export class LocalStorageService implements StorageService {
     return `${this.baseUrl}/api/files/local?key=${encodeURIComponent(key)}&expires=${expires}&sig=${sig}`;
   }
 
+  async readPrivate(key: string): Promise<Buffer | null> {
+    const full = this.resolvePrivate(key);
+    return full ? fsp.readFile(full) : null;
+  }
+
   async delete(key: string): Promise<void> {
     for (const full of [this.safeJoin(this.privateDir, key), this.safeJoin(this.publicDir, key)]) {
       if (!full) continue;

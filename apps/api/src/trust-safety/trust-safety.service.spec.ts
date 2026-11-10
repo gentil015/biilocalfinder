@@ -62,4 +62,47 @@ describe('TrustSafetyService', () => {
     });
     expect(tx.riskAssessment.create).toHaveBeenCalled();
   });
+
+  it('turns automated provider screening evidence into risk indicators', async () => {
+    const tx = {
+      securityEvent: { create: jest.fn().mockResolvedValue({ id: 'event-1' }) },
+      fraudRule: { findMany: jest.fn().mockResolvedValue([]) },
+      providerVerificationCheck: {
+        findMany: jest
+          .fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([
+            {
+              id: 'check-auto-1',
+              providerId: 'provider-1',
+              status: 'FAIL',
+              createdAt: new Date(),
+              evidence: {
+                signals: [
+                  {
+                    code: 'shared_verification_document',
+                    reason: 'The same verification document was found on another provider account.',
+                  },
+                ],
+              },
+            },
+          ]),
+      },
+      fraudReport: { count: jest.fn().mockResolvedValue(0) },
+      riskAssessment: { create: jest.fn().mockResolvedValue({ id: 'assessment-1', riskScore: 40 }) },
+    };
+    prisma.$transaction.mockImplementation((callback: (transaction: any) => unknown) => callback(tx));
+
+    await service.recordEvent('user-1', 'PROFILE_UPDATED');
+
+    const data = tx.riskAssessment.create.mock.calls[0][0].data;
+    expect(data.indicators.create).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          indicatorType: 'shared_verification_document',
+          points: 40,
+        }),
+      ]),
+    );
+  });
 });

@@ -12,6 +12,7 @@ import {
   RestrictionType,
   RiskAssessmentStatus,
   SecurityEventType,
+  VerificationCheckType,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../common/services/audit-log.service';
@@ -33,7 +34,16 @@ const DEFAULT_RULES = [
   { code: 'document_inconsistency', name: 'Document information inconsistency', description: 'A provider verification check recorded inconsistent document details.', points: 15, enabled: true, windowHours: 720 },
   { code: 'suspicious_review_manipulation', name: 'Suspicious review manipulation', description: 'An administrator recorded suspicious review activity.', points: 15, enabled: true, windowHours: 720 },
   { code: 'confirmed_forged_document', name: 'Confirmed forged document evidence', description: 'An authorized administrator confirmed forged document evidence.', points: 50, enabled: true, windowHours: 720 },
+  { code: 'shared_verification_document', name: 'Verification document reused by another account', description: 'The same verification document was found on more than one provider account.', points: 40, enabled: true, windowHours: 720 },
+  { code: 'duplicate_provider_identity', name: 'Duplicate provider identity', description: 'Registration or legal identity details match another provider account.', points: 30, enabled: true, windowHours: 720 },
+  { code: 'duplicate_business_name', name: 'Duplicate provider business name', description: 'A provider business name matches another provider account.', points: 15, enabled: true, windowHours: 720 },
+  { code: 'public_contact_details', name: 'Direct contact details in public profile', description: 'Public provider text exposes an email address, phone number, or external URL.', points: 15, enabled: true, windowHours: 720 },
+  { code: 'unverified_contact_activity', name: 'Unverified account quoting clients', description: 'A provider with unverified email or phone ownership is already quoting clients.', points: 20, enabled: true, windowHours: 720 },
 ] as const;
+
+type AutomatedScreeningEvidence = {
+  signals?: Array<{ code?: unknown; reason?: unknown }>;
+};
 
 const OPEN_REPORT_STATUSES: FraudReportStatus[] = [
   FraudReportStatus.PENDING,
@@ -637,7 +647,10 @@ export class TrustSafetyService {
 
   async rules() {
     const stored = await this.prisma.fraudRule.findMany({ orderBy: { code: 'asc' } });
-    return stored.length ? stored : DEFAULT_RULES;
+    const byCode = new Map<string, (typeof DEFAULT_RULES)[number] | (typeof stored)[number]>();
+    for (const rule of DEFAULT_RULES) byCode.set(rule.code, rule);
+    for (const rule of stored) byCode.set(rule.code, rule);
+    return [...byCode.values()].sort((left, right) => left.code.localeCompare(right.code));
   }
 
   async updateRule(adminId: string, code: string, changes: { points?: number; enabled?: boolean; windowHours?: number }) {
@@ -678,15 +691,33 @@ export class TrustSafetyService {
     for (const rule of DEFAULT_RULES) ruleByCode.set(rule.code, rule);
     for (const rule of rules) ruleByCode.set(rule.code, rule);
     const now = new Date();
-    const providerChecks = await tx.providerVerificationCheck.findMany({
-      where: {
-        provider: { userId },
-        status: { in: ['WARNING', 'FAIL'] },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-      select: { id: true, checkType: true, status: true, createdAt: true },
-    });
+    const [providerChecks, automatedChecks] = await Promise.all([
+      tx.providerVerificationCheck.findMany({
+        where: {
+          provider: { userId },
+          status: { in: ['WARNING', 'FAIL'] },
+          checkType: { not: VerificationCheckType.AUTOMATED_FRAUD_SCREENING },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+        select: { id: true, checkType: true, status: true, createdAt: true },
+      }),
+      tx.providerVerificationCheck.findMany({
+        where: {
+          provider: { userId },
+          checkType: VerificationCheckType.AUTOMATED_FRAUD_SCREENING,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+        select: {
+          id: true,
+          providerId: true,
+          status: true,
+          createdAt: true,
+          evidence: true,
+        },
+      }),
+    ]);
     const contributions: RiskContribution[] = [];
     const addRule = (code: string, reason: string, reference?: string, observedAt?: Date) => {
       const rule = ruleByCode.get(code);
@@ -710,6 +741,21 @@ export class TrustSafetyService {
       ['IDENTITY_CONSISTENCY', 'BUSINESS_CONSISTENCY', 'DOCUMENT_AUTHENTICITY'].includes(check.checkType),
     );
     if (inconsistencyCheck) addRule('document_inconsistency', 'A provider verification check recorded information inconsistency.', inconsistencyCheck.id, inconsistencyCheck.createdAt);
+
+    const latestAutomatedChecks = new Map<string, (typeof automatedChecks)[number]>();
+    for (const check of automatedChecks) {
+      if (!latestAutomatedChecks.has(check.providerId)) {
+        latestAutomatedChecks.set(check.providerId, check);
+      }
+    }
+    for (const check of latestAutomatedChecks.values()) {
+      if (check.status !== 'WARNING' && check.status !== 'FAIL') continue;
+      const evidence = check.evidence as unknown as AutomatedScreeningEvidence | null;
+      for (const signal of evidence?.signals ?? []) {
+        if (typeof signal.code !== 'string' || typeof signal.reason !== 'string') continue;
+        addRule(signal.code, signal.reason, check.id, check.createdAt);
+      }
+    }
 
     const reportRule = ruleByCode.get('multiple_credible_reports');
     const reportCutoff = reportRule?.windowHours ? new Date(now.getTime() - reportRule.windowHours * 60 * 60 * 1000) : new Date(0);

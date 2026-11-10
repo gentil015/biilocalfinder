@@ -7,12 +7,14 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { Prisma, VerificationStatus, VerificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditLogService } from '../common/services/audit-log.service';
 import { STORAGE_SERVICE, StorageService } from '../files/storage.interface';
 import { ProviderContextService } from '../providers/provider-context.service';
+import { ProviderFraudDetectionService } from '../trust-safety/provider-fraud-detection.service';
 import { SubmitVerificationDto } from './dto/submit-verification.dto';
 import {
   ApproveVerificationDto,
@@ -63,6 +65,7 @@ export class VerificationService {
     private auditLog: AuditLogService,
     @Inject(STORAGE_SERVICE) private storage: StorageService,
     private providerContext: ProviderContextService,
+    private providerFraudDetection: ProviderFraudDetectionService,
   ) {}
 
   // ---------------------------------------------------------------------
@@ -182,8 +185,13 @@ export class VerificationService {
 
     // Trust the storage layer, not the client, for file metadata — and make
     // sure every referenced file was really uploaded.
-    const stats = await Promise.all(dto.documents.map((d) => this.storage.statObject(d.storageKey)));
-    if (stats.some((s) => !s)) throw new BadRequestException('One or more documents were not found. Upload them again.');
+    const [stats, contents] = await Promise.all([
+      Promise.all(dto.documents.map((d) => this.storage.statObject(d.storageKey))),
+      Promise.all(dto.documents.map((d) => this.storage.readPrivate(d.storageKey))),
+    ]);
+    if (stats.some((s) => !s) || contents.some((content) => !content)) {
+      throw new BadRequestException('One or more documents were not found. Upload them again.');
+    }
 
     // Rules about what's already on file
     const existing = await this.prisma.verificationRecord.findMany({
@@ -218,6 +226,7 @@ export class VerificationService {
                 storageKey: d.storageKey,
                 mimeType: stats[i]!.mimeType,
                 sizeBytes: stats[i]!.sizeBytes,
+                contentHash: crypto.createHash('sha256').update(contents[i]!).digest('hex'),
               })),
             },
           },
@@ -233,6 +242,13 @@ export class VerificationService {
       }
       throw err;
     }
+
+    await this.providerFraudDetection
+      .screenUser(userId, 'verification_submitted')
+      .catch((error: Error) => {
+        this.logger.warn(`Automated provider screening failed after verification submission: ${error.message}`);
+      });
+
     return created;
   }
 

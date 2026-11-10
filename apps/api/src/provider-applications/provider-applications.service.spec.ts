@@ -7,6 +7,7 @@ describe('ProviderApplicationsService', () => {
   let prisma: any;
   let notifications: any;
   let auditLog: any;
+  let providerFraudDetection: any;
   let tx: any;
 
   const userId = 'client-user-1';
@@ -42,7 +43,8 @@ describe('ProviderApplicationsService', () => {
     };
     notifications = { notify: jest.fn() };
     auditLog = { log: jest.fn() };
-    service = new ProviderApplicationsService(prisma, notifications, auditLog);
+    providerFraudDetection = { screenUser: jest.fn().mockResolvedValue({}) };
+    service = new ProviderApplicationsService(prisma, notifications, auditLog, providerFraudDetection);
 
     prisma.user.findUnique.mockResolvedValue({ id: userId, role: 'CLIENT', status: 'ACTIVE' });
     prisma.providerApplication.findFirst.mockResolvedValue(null);

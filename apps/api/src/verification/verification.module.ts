@@ -3,6 +3,7 @@ import { BullModule, InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { FilesModule } from '../files/files.module';
+import { TrustSafetyModule } from '../trust-safety/trust-safety.module';
 import { VERIFICATION_QUEUE } from './verification.constants';
 import { VerificationService } from './verification.service';
 import { ContactVerificationService } from './contact-verification.service';
@@ -23,7 +24,12 @@ function getOtpSender() {
 }
 
 @Module({
-  imports: [NotificationsModule, FilesModule, BullModule.registerQueue({ name: VERIFICATION_QUEUE })],
+  imports: [
+    NotificationsModule,
+    FilesModule,
+    TrustSafetyModule,
+    BullModule.registerQueue({ name: VERIFICATION_QUEUE }),
+  ],
   controllers: [ProviderVerificationController, ContactVerificationController, AdminVerificationController],
   providers: [
     VerificationService,

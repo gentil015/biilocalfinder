@@ -72,6 +72,20 @@ export default function TrustSafetyPage() {
     }
   }
 
+  async function runProviderScreening(userId: string) {
+    setBusy(true);
+    setError(null);
+    try {
+      await trustSafetyAdminApi.screenProvider(userId);
+      await load();
+      setSelected(await trustSafetyAdminApi.account(userId));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not run provider fraud screening');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function reviewAssessment(id: string, status: 'REVIEWED' | 'DISMISSED' | 'CONFIRMED') {
     const note = window.prompt('Add an investigation note (required):');
     if (!note?.trim()) return;
@@ -252,6 +266,7 @@ export default function TrustSafetyPage() {
               <p className="text-sm text-ink-600">Email verified: {selected.emailVerified ? 'Yes' : 'No'} · Phone verified: {selected.phoneVerified ? 'Yes' : 'No'}</p>
               <p className="text-sm text-ink-600">Account ID: {selected.id}</p>
               <button type="button" className="btn-secondary btn-sm mt-3" disabled={busy} onClick={() => void reassess(selected.id)}>Reassess signals</button>
+              <button type="button" className="btn-secondary btn-sm ml-2 mt-3" disabled={busy} onClick={() => void runProviderScreening(selected.id)}>Run fraud screening</button>
               <button type="button" className="btn-secondary btn-sm ml-2 mt-3" disabled={busy} onClick={() => void restrictBookings(selected.id)}>Restrict booking activity</button>
             </div>
             <div>
@@ -259,7 +274,10 @@ export default function TrustSafetyPage() {
               {selected.providers.flatMap((provider: any) => provider.verificationChecks).length ? (
                 <ul className="mt-2 space-y-2 text-sm">
                   {selected.providers.flatMap((provider: any) => provider.verificationChecks).map((check: any) => (
-                    <li key={check.id}>{check.checkType.replaceAll('_', ' ')} · {check.status}</li>
+                    <li key={check.id}>
+                      <span>{check.checkType.replaceAll('_', ' ')} · {check.status}</span>
+                      {check.details && <span className="mt-1 block text-xs text-ink-500">{check.details}</span>}
+                    </li>
                   ))}
                 </ul>
               ) : <p className="mt-2 text-sm text-ink-500">No provider checks recorded.</p>}

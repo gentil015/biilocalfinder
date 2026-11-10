@@ -431,6 +431,10 @@ export const trustSafetyAdminApi = {
     ),
   reassess: (userId: string) =>
     authRequest<any>(`/trust/admin/reassess/${encodeURIComponent(userId)}`, { method: 'POST' }),
+  screenProvider: (userId: string) =>
+    authRequest<any>(`/trust/admin/accounts/${encodeURIComponent(userId)}/provider-screening`, {
+      method: 'POST',
+    }),
   reviewAssessment: (id: string, status: 'REVIEWED' | 'DISMISSED' | 'CONFIRMED', note: string) =>
     authRequest<any>(`/trust/admin/assessments/${encodeURIComponent(id)}/review`, {
       method: 'POST',
@@ -842,6 +846,8 @@ export const providersApi = {
   // (spec §12 "Serves your area").
   getPublic: (id: string, coords?: { lat: number; lng: number }) =>
     request<any>(`/providers/${id}${coords ? `?lat=${coords.lat}&lng=${coords.lng}` : ''}`, undefined, true),
+  getContact: (id: string) =>
+    authRequest<{ phone: string | null; email: string | null }>(`/providers/${id}/contact`),
   compare: (ids: string[]) => request<any[]>(`/providers/compare?ids=${ids.join(',')}`),
   getMe: () => authRequest<any>('/providers/me/profile'),
   updateMe: (data: {

@@ -2,12 +2,14 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditLogService } from '../common/services/audit-log.service';
+import { ProviderFraudDetectionService } from '../trust-safety/provider-fraud-detection.service';
 import { slugify } from '../common/utils/slugify';
 import { SubmitProviderApplicationDto } from './dto/submit-application.dto';
 import { ReviewProviderApplicationDto, RejectProviderApplicationDto } from './dto/review-application.dto';
@@ -34,10 +36,13 @@ const APPLICATION_INCLUDE = {
 
 @Injectable()
 export class ProviderApplicationsService {
+  private readonly logger = new Logger(ProviderApplicationsService.name);
+
   constructor(
     private prisma: PrismaService,
     private notifications: NotificationsService,
     private auditLog: AuditLogService,
+    private providerFraudDetection: ProviderFraudDetectionService,
   ) {}
 
   // ---------- Client side ----------
@@ -263,6 +268,12 @@ export class ProviderApplicationsService {
       body: `${application.businessName} is live. Finish setting up your services to start receiving requests.`,
       data: { providerId: provider.id },
     });
+
+    await this.providerFraudDetection
+      .screenUser(user.id, 'provider_application_approved')
+      .catch((error: Error) => {
+        this.logger.warn(`Automated provider screening failed after application approval: ${error.message}`);
+      });
 
     return provider;
   }

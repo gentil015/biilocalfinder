@@ -5,6 +5,7 @@ import { InteractionService } from '../personalization/interactions/interaction.
 import { ProviderContextService } from '../providers/provider-context.service';
 import { WorkspaceContextService } from '../common/workspace/workspace-context.service';
 import { BookingStateMachine } from './booking-state-machine';
+import { bookingAllowsContact } from './booking-contact';
 import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
 
 const BOOKING_INCLUDE = {
@@ -63,7 +64,10 @@ export class BookingsService {
     const booking = await this.prisma.booking.findUnique({ where: { id }, include: BOOKING_INCLUDE });
     if (!booking) throw new NotFoundException('Booking not found');
     const { role } = await this.assertParticipant(booking, userId);
-    return { ...booking, viewerRole: role };
+    const contact = bookingAllowsContact(booking.status)
+      ? await this.contactForBooking(booking, role)
+      : null;
+    return { ...booking, viewerRole: role, contact };
   }
 
   async updateStatus(id: string, userId: string, dto: UpdateBookingStatusDto) {
@@ -117,6 +121,36 @@ export class BookingsService {
     }
 
     return updated;
+  }
+
+  private async contactForBooking(
+    booking: { providerId: string; clientId: string },
+    viewerRole: 'CLIENT' | 'PROVIDER',
+  ) {
+    if (viewerRole === 'CLIENT') {
+      const provider = await this.prisma.provider.findUnique({
+        where: { id: booking.providerId },
+        select: {
+          phone: true,
+          user: { select: { email: true, phone: true } },
+        },
+      });
+      if (!provider) return null;
+      return {
+        phone: provider.phone ?? provider.user.phone ?? null,
+        email: provider.user.email ?? null,
+      };
+    }
+
+    const client = await this.prisma.clientProfile.findUnique({
+      where: { id: booking.clientId },
+      select: { user: { select: { email: true, phone: true } } },
+    });
+    if (!client) return null;
+    return {
+      phone: client.user.phone ?? null,
+      email: client.user.email ?? null,
+    };
   }
 
   private async assertParticipant(

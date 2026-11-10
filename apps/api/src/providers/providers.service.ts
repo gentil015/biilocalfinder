@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AvailabilityService } from '../availability/availability.service';
@@ -14,6 +14,7 @@ import { InteractionService } from '../personalization/interactions/interaction.
 import { coversPoint, haversineKm } from '../common/utils/geo';
 import { Prisma, ProviderOnboardingStep, ProviderType } from '@prisma/client';
 import { VerificationService } from '../verification/verification.service';
+import { BOOKING_CONTACT_VISIBLE_STATUSES } from '../bookings/booking-contact';
 
 // Only TEAM and AGENCY profiles keep a roster (spec: TEAM "allow team
 // members to be added later", AGENCY "manage or invite multiple providers
@@ -135,12 +136,14 @@ export class ProvidersService {
     const {
       registrationNumber,
       representativeName,
+      phone: _phone,
       responseRate: _storedResponseRate,
       responseTimeMinutes: _storedResponseTimeMinutes,
       ...publicFields
     } = provider;
     void registrationNumber;
     void representativeName;
+    void _phone;
     void _storedResponseRate;
     void _storedResponseTimeMinutes;
     return {
@@ -166,6 +169,47 @@ export class ProvidersService {
       })),
       availability,
       ...location,
+    };
+  }
+
+  // Contact details are deliberately absent from the public profile. A client
+  // receives them only after the provider has accepted a quote and a booking
+  // exists; provider-side team members can always read their own contact card.
+  async getContactForViewer(id: string, viewerUserId: string) {
+    const provider = await this.prisma.provider.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        phone: true,
+        user: { select: { email: true, phone: true } },
+      },
+    });
+    if (!provider) throw new NotFoundException('Provider not found');
+
+    const isProviderSide = await this.providerContext.userHasAccessToProvider(viewerUserId, id);
+    if (!isProviderSide) {
+      const clientProfile = await this.prisma.clientProfile.findUnique({
+        where: { userId: viewerUserId },
+        select: { id: true },
+      });
+      if (!clientProfile) throw new ForbiddenException('Only clients with an accepted booking can view contact details');
+
+      const booking = await this.prisma.booking.findFirst({
+        where: {
+          providerId: id,
+          clientId: clientProfile.id,
+          status: { in: [...BOOKING_CONTACT_VISIBLE_STATUSES] },
+        },
+        select: { id: true },
+      });
+      if (!booking) {
+        throw new ForbiddenException('Contact details unlock after a booking is accepted');
+      }
+    }
+
+    return {
+      phone: provider.phone ?? provider.user.phone ?? null,
+      email: provider.user.email ?? null,
     };
   }
 

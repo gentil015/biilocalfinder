@@ -7,6 +7,7 @@ import { SiteFooter } from '@/components/site-footer';
 import { MobileTabBar } from '@/components/mobile-tab-bar';
 import { NavigationHistoryTracker } from '@/components/back-button';
 import { CustomerAssistWidget } from '@/components/customer-assist/customer-assist-widget';
+import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 
 function isAuthPath(pathname: string) {
   return pathname === '/login' || pathname === '/register';
@@ -65,6 +66,7 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
           widget can answer account/provider questions and offer confirmed
           write actions. */}
       <CustomerAssistWidget />
+      <PwaInstallPrompt />
     </div>
   );
 }

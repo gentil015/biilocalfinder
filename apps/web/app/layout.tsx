@@ -65,6 +65,11 @@ export const metadata: Metadata = {
   },
   description: DEFAULT_DESCRIPTION,
   applicationName: SITE_NAME,
+  appleWebApp: {
+    capable: true,
+    title: 'BII Localfinder',
+    statusBarStyle: 'default',
+  },
   keywords: DEFAULT_KEYWORDS,
   authors: [{ name: SITE_NAME, url: SITE_URL }],
   creator: SITE_NAME,

@@ -24,3 +24,9 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   event.waitUntil(self.clients.openWindow('/'));
 });
+
+// Some browsers require a registered service worker with a fetch handler before
+// they will offer "Install app". This handler does not call respondWith(), so
+// every request still goes straight to the network.
+self.addEventListener('fetch', () => {});
+

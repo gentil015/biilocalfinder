@@ -6,6 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: SITE_NAME,
     short_name: 'BII',
     description: DEFAULT_DESCRIPTION,
+    id: '/',
     start_url: '/',
     scope: '/',
     display: 'standalone',
@@ -18,6 +19,12 @@ export default function manifest(): MetadataRoute.Manifest {
       {
         src: '/icon1.png',
         sizes: '192x192',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: '/icon2.png',
+        sizes: '512x512',
         type: 'image/png',
         purpose: 'any',
       },

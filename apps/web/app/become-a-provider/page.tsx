@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle2, Clock, ShieldCheck, XCircle } from 'lucide-react';
+import { CheckCircle2, Clock, Search, ShieldCheck, XCircle } from 'lucide-react';
 import { ApiError, categoriesApi, providerApplicationsApi } from '@/lib/api';
 import { useSession } from '@/components/auth-provider';
 import { PageHeader, Panel, LoadingBlock } from '@/components/ui/page';
@@ -67,6 +67,7 @@ export default function ApplyToBecomeProviderPage() {
     websiteUrl: '',
   });
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [categoryQuery, setCategoryQuery] = useState('');
 
   useEffect(() => {
     if (sessionLoading) return;
@@ -104,14 +105,16 @@ export default function ApplyToBecomeProviderPage() {
   const needsLegal = form.providerType === 'BUSINESS' || form.providerType === 'AGENCY';
 
   const grouped = useMemo(() => {
+    const needle = categoryQuery.trim().toLowerCase();
     const map = new Map<string, { slug: string; name: string }[]>();
     for (const c of categories) {
+      if (needle && !`${c.name} ${c.group}`.toLowerCase().includes(needle)) continue;
       const list = map.get(c.group) ?? [];
       list.push({ slug: c.slug, name: c.name });
       map.set(c.group, list);
     }
     return [...map.entries()];
-  }, [categories]);
+  }, [categories, categoryQuery]);
 
   function toggleCategory(slug: string) {
     setSelectedCategories((prev) =>
@@ -351,37 +354,57 @@ export default function ApplyToBecomeProviderPage() {
               title="What do you want to offer?"
               description="Pick the services you want to appear for. You can change these later."
             >
-              {grouped.length === 0 ? (
+              {categories.length === 0 ? (
                 <p className="text-sm text-ink-400">No service categories are available right now.</p>
               ) : (
                 <div className="space-y-4">
-                  {grouped.map(([group, items]) => (
-                    <div key={group}>
-                      <p className="mb-2 text-2xs font-bold uppercase tracking-wider text-ink-400">
-                        {group}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {items.map((c) => {
-                          const active = selectedCategories.includes(c.slug);
-                          return (
-                            <button
-                              key={c.slug}
-                              type="button"
-                              onClick={() => toggleCategory(c.slug)}
-                              aria-pressed={active}
-                              className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
-                                active
-                                  ? 'border-brand-500 bg-brand-600 text-white dark:text-home-night'
-                                  : 'border-ink-200 text-ink-700 hover:bg-ink-50'
-                              }`}
-                            >
-                              {c.name}
-                            </button>
-                          );
-                        })}
+                  <div className="relative">
+                    <Search
+                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400"
+                      aria-hidden="true"
+                    />
+                    <input
+                      type="search"
+                      value={categoryQuery}
+                      onChange={(e) => setCategoryQuery(e.target.value)}
+                      placeholder="Search services…"
+                      aria-label="Search services"
+                      className="!pl-9"
+                    />
+                  </div>
+                  {grouped.length === 0 ? (
+                    <p className="py-4 text-center text-sm text-ink-500">
+                      No services match “{categoryQuery.trim()}”.
+                    </p>
+                  ) : (
+                    grouped.map(([group, items]) => (
+                      <div key={group}>
+                        <p className="mb-2 text-2xs font-bold uppercase tracking-wider text-ink-400">
+                          {group}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {items.map((c) => {
+                            const active = selectedCategories.includes(c.slug);
+                            return (
+                              <button
+                                key={c.slug}
+                                type="button"
+                                onClick={() => toggleCategory(c.slug)}
+                                aria-pressed={active}
+                                className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+                                  active
+                                    ? 'border-brand-500 bg-brand-600 text-white dark:text-home-night'
+                                    : 'border-ink-200 text-ink-700 hover:bg-ink-50'
+                                }`}
+                              >
+                                {c.name}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                   <p className="hint">
                     {selectedCategories.length} of 12 selected
                     {selectedCategories.length > 0 && (

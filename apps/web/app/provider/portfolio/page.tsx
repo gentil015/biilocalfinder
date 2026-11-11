@@ -1,9 +1,10 @@
 'use client';
 
 import { useI18n } from '@/components/locale-provider';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Film, ImagePlus, Images, Plus, Trash2, Wand2 } from 'lucide-react';
 import { ApiError, offeringsApi, portfolioApi } from '@/lib/api';
+import { SearchablePicker, type SearchableOption } from '@/components/ui/searchable-picker';
 import { PageHeader, Panel, EmptyState, LoadingBlock } from '@/components/ui/page';
 
 interface PortfolioImageItem {
@@ -33,6 +34,18 @@ export default function ProviderPortfolioPage() {
   const [form, setForm] = useState({ title: '', description: '', serviceId: '', projectDate: '' });
 
   const load = () => portfolioApi.mine().then(setProjects).catch(() => setProjects([]));
+
+  const serviceOptions = useMemo<SearchableOption[]>(
+    () => [
+      { value: '', label: tr('No category') },
+      ...offerings.map((offering) => ({
+        value: offering.service.id,
+        label: offering.title || offering.service.name,
+        keywords: offering.service.name,
+      })),
+    ],
+    [offerings, tr],
+  );
 
   useEffect(() => {
     Promise.all([portfolioApi.mine(), offeringsApi.mine()])
@@ -118,18 +131,15 @@ export default function ProviderPortfolioPage() {
               <label htmlFor="project-service" className="label">
                 {tr("Service")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
               </label>
-              <select
+              <SearchablePicker
                 id="project-service"
+                options={serviceOptions}
                 value={form.serviceId}
-                onChange={(e) => setForm({ ...form, serviceId: e.target.value })}
-              >
-                <option value="">{tr("No category")}</option>
-                {offerings.map((o) => (
-                  <option key={o.service.id} value={o.service.id}>
-                    {o.title || o.service.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(next) => setForm({ ...form, serviceId: next })}
+                placeholder={tr('No category')}
+                searchPlaceholder={tr('Search services…')}
+                emptyLabel={tr('No matching service')}
+              />
             </div>
             <div className="field">
               <label htmlFor="project-date" className="label">

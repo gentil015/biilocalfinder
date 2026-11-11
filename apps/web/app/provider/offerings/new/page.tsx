@@ -1,7 +1,7 @@
 'use client';
 
 import { useI18n } from '@/components/locale-provider';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   ApiError,
@@ -14,6 +14,7 @@ import {
 } from '@/lib/api';
 import { categoryGroups, type CategoryNode } from '@/lib/categories';
 import { DynamicAttributeForm } from '@/components/attributes/dynamic-attribute-form';
+import { SearchablePicker, type SearchableOption } from '@/components/ui/searchable-picker';
 import { LocationPickerMap } from '@/components/location-picker-map';
 import { OnboardingProgress } from '@/components/onboarding-progress';
 import { PageHeader, Panel } from '@/components/ui/page';
@@ -29,6 +30,7 @@ function NewServiceOfferingForm() {
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [categoryId, setCategoryId] = useState('');
   const [serviceId, setServiceId] = useState('');
+  const [services, setServices] = useState<any[]>([]);
   const [attributes, setAttributes] = useState<any[]>([]);
   const [attributeValues, setAttributeValues] = useState<Record<string, unknown>>({});
   const [form, setForm] = useState({
@@ -68,23 +70,19 @@ function NewServiceOfferingForm() {
   }, []);
 
   useEffect(() => {
-    if (!categoryId) {
-      setServiceId('');
-      setAttributes([]);
-      return;
-    }
-    // Try to find or create a service for this sub-category
+    setServiceId('');
+    setServices([]);
+    if (!categoryId) return;
     servicesApi
       .list(categoryId)
-      .then(async (list) => {
-        if (list && list.length > 0) {
-          setServiceId(list[0].id);
-        } else {
-          // Cannot create service from client; just keep empty
-        }
+      .then((list) => {
+        const rows = list ?? [];
+        setServices(rows);
+        // A sub-category with exactly one service needs no extra choice.
+        if (rows.length === 1) setServiceId(rows[0].id);
       })
-      .catch(() => {});
-  }, [categoryId, categories]);
+      .catch(() => setServices([]));
+  }, [categoryId]);
 
   useEffect(() => {
     setAttributeValues({});
@@ -95,6 +93,19 @@ function NewServiceOfferingForm() {
     categoriesApi.attributes(categoryId).then(setAttributes).catch(() => setAttributes([]));
   }, [categoryId]);
 
+  const categoryOptions = useMemo<SearchableOption[]>(
+    () =>
+      categoryGroups(categories).flatMap((group) =>
+        group.options.map((option) => ({ value: option.id, label: option.name, group: group.group })),
+      ),
+    [categories],
+  );
+
+  const serviceOptions = useMemo<SearchableOption[]>(
+    () => services.map((service) => ({ value: service.id, label: service.name })),
+    [services],
+  );
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -103,7 +114,11 @@ function NewServiceOfferingForm() {
       return;
     }
     if (!skipOffering && !serviceId) {
-      setError('No service available for this sub-category. Please contact admin to add one.');
+      setError(
+        services.length === 0
+          ? 'No service available for this sub-category. Please contact admin to add one.'
+          : 'Please choose a service.',
+      );
       return;
     }
     setLoading(true);
@@ -168,31 +183,45 @@ function NewServiceOfferingForm() {
         {!skipOffering && (
           <>
         <Panel title={tr("Choose your service")} className="mb-4">
-          <div className="field mb-0">
+          <div className="field">
             <label htmlFor="offering-category" className="label">
               {tr("Sub-category")}
             </label>
-            <select
+            <SearchablePicker
               id="offering-category"
-              required
+              options={categoryOptions}
               value={categoryId}
-              onChange={(e) => {
-                setCategoryId(e.target.value);
+              onChange={(next) => {
+                setCategoryId(next);
                 setServiceId('');
               }}
-            >
-              <option value="">{tr("Select sub-category…")}</option>
-              {categoryGroups(categories).map((group) => (
-                <optgroup key={group.group} label={group.group}>
-                  {group.options.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+              placeholder={tr("Select sub-category…")}
+              searchPlaceholder={tr("Search categories…")}
+              emptyLabel={tr("No matching sub-category")}
+            />
           </div>
+          {categoryId && (
+            <div className="field mb-0 mt-4">
+              <label htmlFor="offering-service" className="label">
+                {tr("Service")}
+              </label>
+              {services.length === 0 ? (
+                <p className="text-sm text-ink-500">
+                  {tr("No services available for this sub-category yet.")}
+                </p>
+              ) : (
+                <SearchablePicker
+                  id="offering-service"
+                  options={serviceOptions}
+                  value={serviceId}
+                  onChange={setServiceId}
+                  placeholder={tr("Select service…")}
+                  searchPlaceholder={tr("Search services…")}
+                  emptyLabel={tr("No matching service")}
+                />
+              )}
+            </div>
+          )}
         </Panel>
 
         <Panel title={tr("Describe it")} className="mb-4">

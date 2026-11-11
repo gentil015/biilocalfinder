@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookmarkPlus, CheckCircle2, X } from 'lucide-react';
 import { categoriesApi, servicesApi, savedSearchesApi, ApiError } from '@/lib/api';
 import { categoryGroups, type CategoryNode } from '@/lib/categories';
+import { SearchablePicker, type SearchableOption } from '@/components/ui/searchable-picker';
 import { useAuth } from '@/components/auth-provider';
 
 export function SaveSearchButton() {
@@ -39,7 +40,7 @@ export function SaveSearchButton() {
     if (open && categories.length === 0) {
       categoriesApi.tree().then(setCategories).catch(() => setCategories([]));
     }
-  }, [open]);
+  }, [open, categories.length]);
 
   useEffect(() => {
     if (categoryId) {
@@ -49,6 +50,28 @@ export function SaveSearchButton() {
     }
     setServiceId('');
   }, [categoryId]);
+
+  const categoryOptions = useMemo<SearchableOption[]>(
+    () => [
+      { value: '', label: 'Any category' },
+      ...categoryGroups(categories).flatMap((group) =>
+        group.options.map((option) => ({
+          value: option.id,
+          label: option.name,
+          group: group.group,
+        })),
+      ),
+    ],
+    [categories],
+  );
+
+  const serviceOptions = useMemo<SearchableOption[]>(
+    () => [
+      { value: '', label: 'Any service in this category' },
+      ...services.map((service) => ({ value: service.id, label: service.name })),
+    ],
+    [services],
+  );
 
   if (loading) return null;
   if (!user) {
@@ -156,22 +179,15 @@ export function SaveSearchButton() {
                     <label htmlFor={categoryIdField} className="label">
                       Category
                     </label>
-                    <select
+                    <SearchablePicker
                       id={categoryIdField}
+                      options={categoryOptions}
                       value={categoryId}
-                      onChange={(e) => setCategoryId(e.target.value)}
-                    >
-                      <option value="">Any category</option>
-                      {categoryGroups(categories).map((group) => (
-                        <optgroup key={group.group} label={group.group}>
-                          {group.options.map((c) => (
-                            <option key={c.id} value={c.id}>
-                              {c.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))}
-                    </select>
+                      onChange={setCategoryId}
+                      placeholder="Any category"
+                      searchPlaceholder="Search categories…"
+                      emptyLabel="No matching category"
+                    />
                   </div>
 
                   {services.length > 0 && (
@@ -179,14 +195,15 @@ export function SaveSearchButton() {
                       <label htmlFor={serviceIdField} className="label">
                         Service
                       </label>
-                      <select id={serviceIdField} value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
-                        <option value="">Any service in this category</option>
-                        {services.map((s: any) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                          </option>
-                        ))}
-                      </select>
+                      <SearchablePicker
+                        id={serviceIdField}
+                        options={serviceOptions}
+                        value={serviceId}
+                        onChange={setServiceId}
+                        placeholder="Any service in this category"
+                        searchPlaceholder="Search services…"
+                        emptyLabel="No matching service"
+                      />
                     </div>
                   )}
 

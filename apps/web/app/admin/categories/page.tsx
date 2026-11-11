@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { FolderTree, Layers, CornerDownRight, CircleSlash, ArrowRight } from 'lucide-react';
+import { FolderTree, Layers, CornerDownRight, CircleSlash, ArrowRight, Search } from 'lucide-react';
 import { adminCategoriesApi } from '@/lib/api';
 import { PageHeader, Panel, StatCard, EmptyState, LoadingBlock } from '@/components/ui/page';
 
 export default function AdminCategoriesPage() {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     adminCategoriesApi
@@ -16,6 +17,18 @@ export default function AdminCategoriesPage() {
       .then(setCategories)
       .finally(() => setLoading(false));
   }, []);
+
+  const filtered = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return categories;
+    const nameById = new Map<string, string>(
+      categories.map((category) => [category.id, category.name] as [string, string]),
+    );
+    return categories.filter((category) => {
+      const parentName = category.parentId ? nameById.get(category.parentId) ?? '' : '';
+      return `${category.name} ${parentName}`.toLowerCase().includes(needle);
+    });
+  }, [categories, query]);
 
   if (loading) {
     return (
@@ -64,6 +77,25 @@ export default function AdminCategoriesPage() {
           description="Indented rows are subcategories — they inherit nothing, but they read as nested in search."
           bodyClassName="p-0"
         >
+          <div className="flex flex-col gap-3 border-b border-ink-100 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative w-full sm:max-w-xs">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400"
+                aria-hidden="true"
+              />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search categories…"
+                aria-label="Search categories"
+                className="!pl-9"
+              />
+            </div>
+            <p className="text-xs font-medium text-ink-500">
+              {filtered.length} of {categories.length} categories
+            </p>
+          </div>
           <div className="table-wrap">
             <table className="table table-fixed">
               <thead>
@@ -78,47 +110,55 @@ export default function AdminCategoriesPage() {
                 </tr>
               </thead>
               <tbody>
-                {categories.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <Link
-                        href={`/admin/categories/${c.id}`}
-                        className="group inline-flex max-w-full items-center gap-2"
-                      >
-                        {c.parentId && (
-                          <CornerDownRight
-                            className="h-3.5 w-3.5 shrink-0 text-ink-300"
-                            aria-hidden="true"
-                          />
-                        )}
-                        <span
-                          className={`truncate text-sm font-semibold group-hover:text-brand-700 ${
-                            c.parentId ? 'text-ink-600' : 'text-ink-950'
-                          }`}
-                        >
-                          {c.name}
-                        </span>
-                      </Link>
-                    </td>
-                    <td>
-                      {c.isActive ? (
-                        <span className="badge badge-success">Active</span>
-                      ) : (
-                        <span className="badge badge-neutral">Disabled</span>
-                      )}
-                    </td>
-                    <td className="text-right">
-                      <Link
-                        href={`/admin/categories/${c.id}`}
-                        className="btn-secondary btn-sm h-10 px-2 sm:h-8 sm:px-3"
-                        aria-label={`Manage attributes for ${c.name}`}
-                      >
-                        <span className="hidden sm:inline">Attributes</span>
-                        <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                      </Link>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-8 text-center text-sm text-ink-500">
+                      No categories match “{query.trim()}”.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filtered.map((c) => (
+                    <tr key={c.id}>
+                      <td>
+                        <Link
+                          href={`/admin/categories/${c.id}`}
+                          className="group inline-flex max-w-full items-center gap-2"
+                        >
+                          {c.parentId && (
+                            <CornerDownRight
+                              className="h-3.5 w-3.5 shrink-0 text-ink-300"
+                              aria-hidden="true"
+                            />
+                          )}
+                          <span
+                            className={`truncate text-sm font-semibold group-hover:text-brand-700 ${
+                              c.parentId ? 'text-ink-600' : 'text-ink-950'
+                            }`}
+                          >
+                            {c.name}
+                          </span>
+                        </Link>
+                      </td>
+                      <td>
+                        {c.isActive ? (
+                          <span className="badge badge-success">Active</span>
+                        ) : (
+                          <span className="badge badge-neutral">Disabled</span>
+                        )}
+                      </td>
+                      <td className="text-right">
+                        <Link
+                          href={`/admin/categories/${c.id}`}
+                          className="btn-secondary btn-sm h-10 px-2 sm:h-8 sm:px-3"
+                          aria-label={`Manage attributes for ${c.name}`}
+                        >
+                          <span className="hidden sm:inline">Attributes</span>
+                          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

@@ -29,6 +29,7 @@ import {
   servicesApi,
 } from '@/lib/api';
 import { DynamicAttributeForm } from '@/components/attributes/dynamic-attribute-form';
+import { SearchablePicker, type SearchableOption } from '@/components/ui/searchable-picker';
 import { BookingPath } from '@/components/booking-path';
 import { AiRequestAssist, AssistSuggestion } from '@/components/requests/ai-request-assist';
 import { BookingAssistant } from '@/components/requests/booking-assistant';
@@ -119,7 +120,7 @@ function StepRail({ steps, currentIndex }: { steps: RequestStep[]; currentIndex:
 }
 
 function NewServiceRequestForm() {
-  const { t } = useI18n();
+  const { t, translateMessage } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
@@ -250,6 +251,20 @@ function NewServiceRequestForm() {
   const availableServices = useMemo(
     () => (providerServiceIds ? services.filter((s) => providerServiceIds.has(s.id)) : services),
     [services, providerServiceIds],
+  );
+
+  // The catalog has hundreds of services, so the client picks from a grouped,
+  // searchable list rather than a native select that would be unusable on
+  // mobile. Offering titles stay the preferred label.
+  const servicePickerOptions = useMemo<SearchableOption[]>(
+    () =>
+      availableServices.map((service) => ({
+        value: service.id,
+        label: offeringTitleByService.get(service.id) ?? service.name,
+        group: service.category?.name ?? undefined,
+        keywords: service.name,
+      })),
+    [availableServices, offeringTitleByService],
   );
 
   // A provider that serves exactly one service pins it for the client —
@@ -640,26 +655,20 @@ function NewServiceRequestForm() {
                   <label htmlFor="service" className="label">
                     {t('requests.new.service')}
                   </label>
-                  <select
+                  <SearchablePicker
                     id="service"
-                    required
-                    disabled={!!serviceOfferingId || (providerServiceIds?.size === 0)}
-                    className="select-lg"
+                    options={servicePickerOptions}
                     value={form.serviceId}
-                    onChange={(e) => {
+                    disabled={!!serviceOfferingId || providerServiceIds?.size === 0}
+                    onChange={(next) => {
                       markEdited('serviceId');
                       setStepError(null);
-                      setForm({ ...form, serviceId: e.target.value });
+                      setForm({ ...form, serviceId: next });
                     }}
-                  >
-                    <option value="">{t('requests.new.selectService')}</option>
-                    {availableServices.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {offeringTitleByService.get(s.id) ??
-                          (s.category?.name ? `${s.category.name} — ${s.name}` : s.name)}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder={t('requests.new.selectService')}
+                    searchPlaceholder={translateMessage('Search services…')}
+                    emptyLabel={translateMessage('No matching service')}
+                  />
                   {serviceOfferingId && (
                     <p className="mt-1.5 text-xs text-ink-500">
                       {t('requests.new.fixedByOffering')}{' '}

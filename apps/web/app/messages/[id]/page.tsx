@@ -39,6 +39,61 @@ function formatDuration(seconds: number) {
   return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
+/**
+ * Voice notes recorded with MediaRecorder are WebM files without a Duration
+ * element, so browsers report them as `0:00` (duration `Infinity`). Seeking
+ * past the end forces the browser to scan the file and discover the real
+ * duration; once it does, jump back to the start. Clips recorded after the
+ * upload-time fix in `startRecording` already carry a duration and skip this.
+ */
+function VoiceNote({ src }: { src: string }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    let fixing = false;
+
+    const onDurationChange = () => {
+      if (!fixing) return;
+      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+        fixing = false;
+        audio.currentTime = 0;
+        audio.removeEventListener('durationchange', onDurationChange);
+      }
+    };
+
+    const onLoadedMetadata = () => {
+      if (Number.isFinite(audio.duration) && audio.duration > 0) return;
+      fixing = true;
+      audio.addEventListener('durationchange', onDurationChange);
+      try {
+        audio.currentTime = Number.MAX_SAFE_INTEGER;
+      } catch {
+        fixing = false;
+      }
+    };
+
+    audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    if (audio.readyState >= 1) onLoadedMetadata();
+
+    return () => {
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('durationchange', onDurationChange);
+    };
+  }, [src]);
+
+  return (
+    <audio
+      ref={audioRef}
+      src={src}
+      controls
+      preload="metadata"
+      className="w-64 max-w-full rounded-xl bg-home-night/5"
+    />
+  );
+}
+
 function AttachmentMedia({ attachment }: { attachment: any }) {
   if (attachment.mimeType?.startsWith('video/')) {
     return (
@@ -51,14 +106,7 @@ function AttachmentMedia({ attachment }: { attachment: any }) {
     );
   }
   if (attachment.mimeType?.startsWith('audio/')) {
-    return (
-      <audio
-        src={attachment.url}
-        controls
-        preload="metadata"
-        className="w-64 max-w-full rounded-xl bg-home-night/5"
-      />
-    );
+    return <VoiceNote src={attachment.url} />;
   }
   return (
     <a href={attachment.url} target="_blank" rel="noreferrer" className="block">
@@ -94,6 +142,7 @@ export default function ConversationThreadPage() {
   const recordingChunksRef = useRef<Blob[]>([]);
   const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordLimitRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordStartedAtRef = useRef(0);
   const cancelRecordingRef = useRef(false);
 
   useEffect(() => {
@@ -237,6 +286,7 @@ export default function ConversationThreadPage() {
         recordingChunksRef.current = [];
         const cancelled = cancelRecordingRef.current;
         cancelRecordingRef.current = false;
+        const durationMs = Date.now() - recordStartedAtRef.current;
         if (cancelled || chunks.length === 0) return;
 
         const type = recorder.mimeType || mimeType || 'audio/webm';
@@ -249,13 +299,28 @@ export default function ConversationThreadPage() {
               : type.includes('wav')
                 ? 'wav'
                 : 'webm';
-        const blob = new Blob(chunks, { type });
-        void uploadVoiceNote(
-          new File([blob], `voice-note-${Date.now()}.${extension}`, { type }),
-        );
+        const rawBlob = new Blob(chunks, { type });
+        void (async () => {
+          let blob = rawBlob;
+          if (type.includes('webm') && durationMs > 0) {
+            try {
+              // Chrome/Firefox MediaRecorder output has no Duration element,
+              // so players show 0:00. Patch the real duration into the WebM
+              // before uploading.
+              const { default: fixWebmDuration } = await import('fix-webm-duration');
+              blob = await fixWebmDuration(rawBlob, durationMs, { logger: false });
+            } catch {
+              blob = rawBlob;
+            }
+          }
+          await uploadVoiceNote(
+            new File([blob], `voice-note-${Date.now()}.${extension}`, { type }),
+          );
+        })();
       };
 
       recorderRef.current = recorder;
+      recordStartedAtRef.current = Date.now();
       recorder.start(250);
       setRecording(true);
       setRecordSeconds(0);

@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Eye, EyeOff, UserRound, Wrench } from 'lucide-react';
+import { Check, Eye, EyeOff, UserRound, Wrench } from 'lucide-react';
 import { authApi, ApiError } from '@/lib/api';
 import { AuthShell, AUTH_POINTS_CLIENT, AUTH_POINTS_PROVIDER } from '@/components/auth-shell';
 import { useAuth, homeForRole } from '@/components/auth-provider';
@@ -12,8 +12,18 @@ import type { MessageKey } from '@/lib/locales';
 import { CURRENT_TERMS_VERSION } from '@/lib/legal';
 
 const ROLES = [
-  { value: 'CLIENT' as const, labelKey: 'register.roleClient' as MessageKey, icon: UserRound },
-  { value: 'PROVIDER' as const, labelKey: 'register.roleProvider' as MessageKey, icon: Wrench },
+  {
+    value: 'CLIENT' as const,
+    labelKey: 'register.roleClient' as MessageKey,
+    hintKey: 'register.roleClientHint' as MessageKey,
+    icon: UserRound,
+  },
+  {
+    value: 'PROVIDER' as const,
+    labelKey: 'register.roleProvider' as MessageKey,
+    hintKey: 'register.roleProviderHint' as MessageKey,
+    icon: Wrench,
+  },
 ];
 
 function RegisterForm() {
@@ -100,33 +110,54 @@ function RegisterForm() {
       </h1>
       <p className="mt-2 text-sm text-ink-500">{t('register.subtitle')}</p>
 
-      {/* Role switch. Two explicit options rather than a free-text choice —
-          this is the single decision that shapes the whole onboarding. */}
-      <div
-        role="radiogroup"
-        aria-label={t('register.accountType')}
-        className="mt-6 grid grid-cols-1 gap-2 rounded-xl border border-ink-200 bg-ink-50 p-1.5 min-[380px]:grid-cols-2"
-      >
-        {ROLES.map(({ value, labelKey, icon: Icon }) => {
-          const active = role === value;
-          return (
-            <button
-              key={value}
-              type="button"
-              role="radio"
-              aria-checked={active}
-              onClick={() => setRole(value)}
-              className={`flex min-h-10 items-center justify-center gap-2 rounded-lg px-2 py-2.5 text-[13px] font-semibold transition min-[380px]:px-3 min-[380px]:text-sm ${
-                active
-                  ? 'bg-surface text-ink-950 shadow-sm ring-1 ring-ink-200'
-                  : 'text-ink-500 hover:text-ink-800'
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-              {t(labelKey)}
-            </button>
-          );
-        })}
+      {/* Role switch. Two explicit cards rather than a free-text choice —
+          this is the single decision that shapes the whole onboarding, so the
+          title, icon and one-line hint all restate who each option is for. */}
+      <div className="mt-6">
+        <p className="text-sm font-semibold text-ink-800">{t('register.roleQuestion')}</p>
+        <div
+          role="radiogroup"
+          aria-label={t('register.accountType')}
+          className="mt-2.5 grid grid-cols-1 gap-2.5"
+        >
+          {ROLES.map(({ value, labelKey, hintKey, icon: Icon }) => {
+            const active = role === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setRole(value)}
+                className={`group flex w-full items-start gap-3 rounded-xl border p-3.5 text-left transition ${
+                  active
+                    ? 'border-brand-600 bg-brand-50/70 ring-1 ring-brand-600'
+                    : 'border-ink-200 bg-surface hover:border-ink-300 hover:bg-ink-25'
+                }`}
+              >
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition ${
+                    active ? 'bg-brand-700 text-white' : 'bg-ink-100 text-ink-600 group-hover:text-ink-800'
+                  }`}
+                >
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-bold text-ink-950">{t(labelKey)}</span>
+                  <span className="mt-0.5 block text-xs leading-relaxed text-ink-500">{t(hintKey)}</span>
+                </span>
+                <span
+                  aria-hidden="true"
+                  className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition ${
+                    active ? 'border-brand-700 bg-brand-700 text-white' : 'border-ink-300'
+                  }`}
+                >
+                  {active && <Check className="h-3 w-3" strokeWidth={3} />}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-4">

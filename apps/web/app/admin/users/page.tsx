@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Users } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, MailCheck, PhoneCall, Search, Users } from 'lucide-react';
 import { adminApi, type AdminUser, type AdminUsersPage } from '@/lib/api';
 import { StatusBadge } from '@/components/status-badge';
 import { EmptyState, LoadingBlock, PageHeader, Panel } from '@/components/ui/page';
@@ -96,7 +97,7 @@ export default function AdminUsersPage() {
       <PageHeader
         eyebrow="Admin · Accounts"
         title="User management"
-        description="Find platform accounts, review their status and suspend or restore access when needed."
+        description="Find platform accounts, review their details, and manage access. Providers show their business and verification state at a glance."
       />
 
       {error && (
@@ -181,10 +182,11 @@ export default function AdminUsersPage() {
               <thead>
                 <tr>
                   <th scope="col">User</th>
-                  <th scope="col" className="w-28">Role</th>
+                  <th scope="col" className="w-24">Role</th>
+                  <th scope="col">Provider</th>
                   <th scope="col" className="w-40">Status</th>
-                  <th scope="col" className="w-36">Joined</th>
-                  <th scope="col" className="w-36 text-right">Account access</th>
+                  <th scope="col" className="w-32">Joined</th>
+                  <th scope="col" className="w-56 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -192,39 +194,83 @@ export default function AdminUsersPage() {
                   const isAdmin = user.role === 'ADMIN';
                   const canSuspend = user.status === 'ACTIVE';
                   const canActivate = user.status === 'SUSPENDED';
+                  const primaryProvider = user.providers[0] ?? null;
                   return (
                     <tr key={user.id}>
                       <td>
-                        <span className="block font-semibold text-ink-900">
+                        <Link href={`/admin/users/${user.id}`} className="block font-semibold text-ink-900 hover:text-brand-700">
                           {user.firstName} {user.lastName}
+                        </Link>
+                        <span className="flex items-center gap-1.5 text-xs text-ink-500">
+                          {user.email}
+                          {user.emailVerified && (
+                            <MailCheck className="h-3 w-3 text-success-600" aria-label="Email verified" />
+                          )}
                         </span>
-                        <span className="block text-xs text-ink-500">{user.email}</span>
-                        {user.phone && <span className="block text-xs text-ink-400">{user.phone}</span>}
+                        {user.phone && (
+                          <span className="flex items-center gap-1.5 text-xs text-ink-400">
+                            {user.phone}
+                            {user.phoneVerified && (
+                              <PhoneCall className="h-3 w-3 text-success-600" aria-label="Phone verified" />
+                            )}
+                          </span>
+                        )}
                       </td>
-                      <td className="text-sm text-ink-600">{user.role.toLowerCase()}</td>
+                      <td className="text-sm capitalize text-ink-600">{user.role.toLowerCase()}</td>
+                      <td>
+                        {primaryProvider ? (
+                          <div className="min-w-0">
+                            <Link
+                              href={`/admin/users/${user.id}`}
+                              className="block truncate text-sm font-medium text-ink-800 hover:text-brand-700"
+                            >
+                              {primaryProvider.businessName}
+                            </Link>
+                            <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                              <span className="text-2xs uppercase tracking-wide text-ink-500">
+                                {primaryProvider.providerType ?? 'No type'}
+                              </span>
+                              <StatusBadge status={primaryProvider.verificationStatus} />
+                            </span>
+                            {user.providers.length > 1 && (
+                              <span className="block text-2xs text-ink-400">
+                                +{user.providers.length - 1} more workspace{user.providers.length - 1 === 1 ? '' : 's'}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-ink-400">Not a provider</span>
+                        )}
+                      </td>
                       <td><StatusBadge status={user.status} /></td>
                       <td className="whitespace-nowrap text-sm text-ink-500">
                         {new Date(user.createdAt).toLocaleDateString()}
                       </td>
-                      <td className="text-right">
-                        {isAdmin ? (
-                          <span className="text-xs text-ink-400">Protected</span>
-                        ) : canSuspend || canActivate ? (
-                          <button
-                            type="button"
-                            onClick={() => void changeStatus(user)}
-                            disabled={busyUserId !== null}
-                            className={canSuspend ? 'btn-secondary btn-sm' : 'btn-primary btn-sm'}
-                          >
-                            {busyUserId === user.id
-                              ? 'Updating…'
-                              : canSuspend
-                                ? 'Suspend'
-                                : 'Reactivate'}
-                          </button>
-                        ) : (
-                          <span className="text-xs text-ink-400">No action</span>
-                        )}
+                      <td>
+                        <div className="flex items-center justify-end gap-2">
+                          <Link href={`/admin/users/${user.id}`} className="btn-secondary btn-sm whitespace-nowrap">
+                            Manage
+                            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                          </Link>
+                          {isAdmin ? (
+                            <span className="text-xs text-ink-400">Protected</span>
+                          ) : canSuspend || canActivate ? (
+                            <button
+                              type="button"
+                              onClick={() => void changeStatus(user)}
+                              disabled={busyUserId !== null}
+                              className={canSuspend ? 'btn-secondary btn-sm' : 'btn-primary btn-sm'}
+                            >
+                              {busyUserId === user.id
+                                ? 'Updating…'
+                                : canSuspend
+                                  ? 'Suspend'
+                                  : 'Reactivate'}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-ink-400">No access action</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

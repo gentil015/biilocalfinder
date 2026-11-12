@@ -1,11 +1,14 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../common/services/audit-log.service';
+import { VerificationService } from '../verification/verification.service';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { ListAuditLogsQueryDto } from './dto/list-audit-logs-query.dto';
 import { ListSubscriptionsQueryDto } from './dto/list-subscriptions-query.dto';
 import { BusinessAnalyticsQueryDto } from './dto/business-analytics-query.dto';
+import { AdminUpdateProviderDto } from './dto/admin-update-provider.dto';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -23,6 +26,7 @@ export class AdminService {
   constructor(
     private prisma: PrismaService,
     private auditLog: AuditLogService,
+    private verification: VerificationService,
   ) {}
 
   // --- Dashboard analytics (spec §32) ---
@@ -292,7 +296,20 @@ export class AdminService {
           lastName: true,
           role: true,
           status: true,
+          emailVerified: true,
+          phoneVerified: true,
           createdAt: true,
+          providers: {
+            select: {
+              id: true,
+              businessName: true,
+              providerType: true,
+              verificationStatus: true,
+              subscriptionStatus: true,
+              availabilityStatus: true,
+            },
+            orderBy: { createdAt: 'asc' },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -320,7 +337,20 @@ export class AdminService {
         lastName: true,
         role: true,
         status: true,
+        emailVerified: true,
+        phoneVerified: true,
         createdAt: true,
+        providers: {
+          select: {
+            id: true,
+            businessName: true,
+            providerType: true,
+            verificationStatus: true,
+            subscriptionStatus: true,
+            availabilityStatus: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        },
       },
     });
 
@@ -332,6 +362,307 @@ export class AdminService {
     );
 
     return updated;
+  }
+
+  async getUser(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        firstName: true,
+        lastName: true,
+        avatarUrl: true,
+        role: true,
+        status: true,
+        emailVerified: true,
+        phoneVerified: true,
+        locale: true,
+        createdAt: true,
+        updatedAt: true,
+        clientProfile: {
+          select: {
+            id: true,
+            bio: true,
+            createdAt: true,
+            _count: { select: { serviceRequests: true, bookings: true, reviews: true } },
+          },
+        },
+        providers: {
+          orderBy: { createdAt: 'asc' },
+          select: {
+            id: true,
+            businessName: true,
+            description: true,
+            bio: true,
+            phone: true,
+            providerType: true,
+            onboardingStep: true,
+            onboardingCompletedAt: true,
+            logoUrl: true,
+            registrationNumber: true,
+            representativeName: true,
+            teamSize: true,
+            serviceRadiusKm: true,
+            yearsOfExperience: true,
+            verificationStatus: true,
+            identityVerified: true,
+            businessVerified: true,
+            verificationExpiresAt: true,
+            rating: true,
+            reviewCount: true,
+            verifiedReviewCount: true,
+            responseRate: true,
+            responseTimeMinutes: true,
+            availabilityStatus: true,
+            subscriptionStatus: true,
+            createdAt: true,
+            updatedAt: true,
+            location: {
+              select: {
+                id: true,
+                label: true,
+                addressLine: true,
+                city: true,
+                country: true,
+                latitude: true,
+                longitude: true,
+              },
+            },
+            workspace: { select: { id: true, name: true, type: true, status: true } },
+            services: {
+              orderBy: { createdAt: 'asc' },
+              select: {
+                id: true,
+                title: true,
+                description: true,
+                basePrice: true,
+                priceType: true,
+                duration: true,
+                currency: true,
+                isActive: true,
+                createdAt: true,
+                service: {
+                  select: {
+                    id: true,
+                    name: true,
+                    category: { select: { id: true, name: true, slug: true } },
+                  },
+                },
+              },
+            },
+            verifications: {
+              orderBy: { submittedAt: 'desc' },
+              take: 10,
+              select: {
+                id: true,
+                type: true,
+                status: true,
+                legalName: true,
+                referenceNumber: true,
+                decisionNote: true,
+                submittedAt: true,
+                reviewedAt: true,
+                verifiedAt: true,
+                expiresAt: true,
+                serviceOffering: {
+                  select: { id: true, title: true, service: { select: { name: true } } },
+                },
+              },
+            },
+            subscriptions: {
+              orderBy: { createdAt: 'desc' },
+              select: {
+                id: true,
+                status: true,
+                startDate: true,
+                endDate: true,
+                renewalDate: true,
+                createdAt: true,
+                plan: {
+                  select: {
+                    id: true,
+                    name: true,
+                    price: true,
+                    currency: true,
+                    billingInterval: true,
+                  },
+                },
+              },
+            },
+            _count: {
+              select: {
+                services: true,
+                bookings: true,
+                reviews: true,
+                serviceRequests: true,
+                verifications: true,
+              },
+            },
+          },
+        },
+        providerApplications: {
+          orderBy: { createdAt: 'desc' },
+          take: 5,
+          select: {
+            id: true,
+            status: true,
+            businessName: true,
+            providerType: true,
+            decisionNote: true,
+            createdAt: true,
+            reviewedAt: true,
+          },
+        },
+        _count: {
+          select: {
+            reportsFiled: true,
+            disputesRaised: true,
+            disputesAgainst: true,
+          },
+        },
+      },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  async updateProvider(adminId: string, providerId: string, dto: AdminUpdateProviderDto) {
+    const provider = await this.prisma.provider.findUnique({
+      where: { id: providerId },
+      select: { id: true, workspaceId: true, businessName: true, providerType: true },
+    });
+    if (!provider) throw new NotFoundException('Provider not found');
+
+    const data: Prisma.ProviderUpdateInput = {};
+    if (dto.businessName !== undefined) data.businessName = dto.businessName.trim();
+    if (dto.description !== undefined) data.description = dto.description.trim() || null;
+    if (dto.bio !== undefined) data.bio = dto.bio.trim() || null;
+    if (dto.phone !== undefined) data.phone = dto.phone.trim() || null;
+    if (dto.providerType !== undefined) data.providerType = dto.providerType;
+    if (dto.yearsOfExperience !== undefined) data.yearsOfExperience = dto.yearsOfExperience;
+    if (dto.registrationNumber !== undefined) data.registrationNumber = dto.registrationNumber.trim() || null;
+    if (dto.representativeName !== undefined) data.representativeName = dto.representativeName.trim() || null;
+    if (dto.teamSize !== undefined) data.teamSize = dto.teamSize;
+    if (dto.serviceRadiusKm !== undefined) data.serviceRadiusKm = dto.serviceRadiusKm;
+
+    if (Object.keys(data).length === 0) throw new BadRequestException('Nothing to update');
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.provider.update({ where: { id: providerId }, data });
+      if (dto.providerType !== undefined) {
+        await tx.workspace.update({
+          where: { id: provider.workspaceId },
+          data: { type: dto.providerType },
+        });
+      }
+      return row;
+    });
+
+    await this.auditLog.log(adminId, 'PROVIDER_UPDATED', 'Provider', providerId, {
+      fields: Object.keys(data),
+      previousBusinessName: provider.businessName,
+    });
+
+    return updated;
+  }
+
+  async verifyProvider(adminId: string, providerId: string, note?: string) {
+    return this.verification.adminVerifyProvider(adminId, providerId, note);
+  }
+
+  async unverifyProvider(adminId: string, providerId: string, reason: string) {
+    return this.verification.adminUnverifyProvider(adminId, providerId, reason);
+  }
+
+  // Account deletion is anonymization-in-place: financial and booking history
+  // must survive for both sides of a transaction, but the person's identifying
+  // details should not. The row stays so existing providers/clients keep their
+  // history, while login is impossible (random password hash + revoked tokens).
+  async deleteUser(adminId: string, targetUserId: string) {
+    if (adminId === targetUserId) {
+      throw new BadRequestException('You cannot delete your own account from here');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true, role: true, email: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.role === 'ADMIN') throw new BadRequestException('Admin accounts cannot be deleted from here');
+
+    const anonymizedEmail = `deleted+${targetUserId}@deleted.biilocalfinder.local`;
+    const providerIds = await this.prisma.provider.findMany({
+      where: { userId: targetUserId },
+      select: { id: true, workspaceId: true },
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.refreshToken.updateMany({
+        where: { userId: targetUserId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await tx.refreshToken.deleteMany({ where: { userId: targetUserId } });
+      await tx.passwordResetToken.deleteMany({ where: { userId: targetUserId } });
+      await tx.favorite.deleteMany({ where: { userId: targetUserId } });
+      await tx.savedSearch.deleteMany({ where: { userId: targetUserId } });
+      await tx.pushSubscription.deleteMany({ where: { userId: targetUserId } });
+      await tx.contactVerificationCode.deleteMany({ where: { userId: targetUserId } });
+
+      await tx.clientProfile.updateMany({
+        where: { userId: targetUserId },
+        data: { bio: null },
+      });
+
+      for (const provider of providerIds) {
+        await tx.portfolio.deleteMany({ where: { providerId: provider.id } });
+        await tx.providerExperience.deleteMany({ where: { providerId: provider.id } });
+        await tx.providerEducation.deleteMany({ where: { providerId: provider.id } });
+        await tx.provider.update({
+          where: { id: provider.id },
+          data: {
+            businessName: 'Deleted provider',
+            description: null,
+            bio: null,
+            phone: null,
+            logoUrl: null,
+            registrationNumber: null,
+            representativeName: null,
+            availabilityStatus: 'UNAVAILABLE',
+          },
+        });
+        await tx.workspace.update({
+          where: { id: provider.workspaceId },
+          data: { name: 'Deleted workspace' },
+        });
+      }
+
+      await tx.user.update({
+        where: { id: targetUserId },
+        data: {
+          email: anonymizedEmail,
+          phone: null,
+          firstName: 'Deleted',
+          lastName: 'Account',
+          avatarUrl: null,
+          passwordHash: `deleted-${randomUUID()}`,
+          status: 'DEACTIVATED',
+          emailVerified: false,
+          phoneVerified: false,
+          locale: 'en',
+        },
+      });
+    });
+
+    await this.auditLog.log(adminId, 'USER_DELETED', 'User', targetUserId, {
+      previousEmail: user.email,
+      providers: providerIds.map((p) => p.id),
+      anonymized: true,
+    });
+
+    return { id: targetUserId, deleted: true, anonymized: true };
   }
 
   async auditLogs(query: ListAuditLogsQueryDto) {

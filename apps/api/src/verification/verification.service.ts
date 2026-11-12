@@ -527,6 +527,126 @@ export class VerificationService {
   }
 
   // ---------------------------------------------------------------------
+  // Admin override from the user detail screen
+  // ---------------------------------------------------------------------
+
+  // Grants the provider-level badge without a document submission, for cases
+  // an admin has already checked offline. It still respects the derived-state
+  // rule: a verified phone number is required, and a suspended record must be
+  // reinstated rather than silently overridden.
+  async adminVerifyProvider(adminId: string, providerId: string, note?: string, now = new Date()) {
+    const provider = await this.prisma.provider.findUnique({
+      where: { id: providerId },
+      select: { id: true, userId: true, user: { select: { phoneVerified: true } } },
+    });
+    if (!provider) throw new NotFoundException('Provider not found');
+    if (!provider.user.phoneVerified) {
+      throw new BadRequestException('The provider must verify their phone number before the badge can be granted');
+    }
+
+    const records = await this.prisma.verificationRecord.findMany({
+      where: { providerId, type: { in: PROVIDER_LEVEL_TYPES }, serviceOfferingId: null },
+      orderBy: { submittedAt: 'desc' },
+    });
+
+    if (records.some((r) => r.status === 'SUSPENDED')) {
+      throw new BadRequestException('This provider has a suspended verification. Reinstate that record instead.');
+    }
+
+    const liveIdentity = records.find((r) => r.type === 'IDENTITY' && isLive(r, now));
+    const pendingIdentity = records.find((r) => r.type === 'IDENTITY' && r.status === 'PENDING');
+
+    // A real submission waiting in the queue should be reviewed through the
+    // normal flow so its documents and recorded decision stay consistent.
+    if (pendingIdentity) {
+      await this.approve(pendingIdentity.id, adminId, { note }, now);
+      return this.recomputeProvider(this.prisma, providerId, now);
+    }
+    if (liveIdentity) {
+      return this.recomputeProvider(this.prisma, providerId, now);
+    }
+
+    const expiresAt = addMonths(now, DEFAULT_VALIDITY_MONTHS);
+    const record = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const created = await tx.verificationRecord.create({
+        data: {
+          providerId,
+          type: 'IDENTITY',
+          status: 'VERIFIED',
+          submitterNote: 'Manually verified by an administrator',
+          decisionNote: note ?? null,
+          verifiedAt: now,
+          expiresAt,
+          reviewedAt: now,
+          reviewedById: adminId,
+        },
+      });
+      await this.recomputeProvider(tx, providerId, now);
+      return created;
+    });
+
+    await this.auditLog.log(adminId, 'VERIFICATION_MANUALLY_VERIFIED', 'Provider', providerId, {
+      recordId: record.id,
+      expiresAt: expiresAt.toISOString(),
+      note: note ?? null,
+    });
+    await this.notifyProvider(
+      provider.userId,
+      'IDENTITY',
+      'Your provider verification was approved',
+      `An administrator verified your account. Valid until ${expiresAt.toISOString().slice(0, 10)}.`,
+      record.id,
+    );
+
+    return this.recomputeProvider(this.prisma, providerId, now);
+  }
+
+  // Withdraws the provider-level badge. Suspends every live identity/business
+  // record so the derived status can't immediately flip back to VERIFIED.
+  async adminUnverifyProvider(adminId: string, providerId: string, reason: string, now = new Date()) {
+    const provider = await this.prisma.provider.findUnique({
+      where: { id: providerId },
+      select: { id: true, userId: true },
+    });
+    if (!provider) throw new NotFoundException('Provider not found');
+
+    const live = await this.prisma.verificationRecord.findMany({
+      where: {
+        providerId,
+        type: { in: PROVIDER_LEVEL_TYPES },
+        status: 'VERIFIED',
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+      select: { id: true, type: true },
+    });
+    if (live.length === 0) {
+      throw new BadRequestException('This provider has no active verification badge to remove');
+    }
+
+    await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await tx.verificationRecord.updateMany({
+        where: { id: { in: live.map((r) => r.id) } },
+        data: { status: 'SUSPENDED', reviewedAt: now, reviewedById: adminId, decisionNote: reason },
+      });
+      await this.recomputeProvider(tx, providerId, now);
+    });
+
+    await this.auditLog.log(adminId, 'VERIFICATION_MANUALLY_SUSPENDED', 'Provider', providerId, {
+      recordIds: live.map((r) => r.id),
+      reason,
+    });
+    await this.notifyProvider(
+      provider.userId,
+      'IDENTITY',
+      'Your provider verification was suspended',
+      reason,
+      live[0]!.id,
+    );
+
+    return this.recomputeProvider(this.prisma, providerId, now);
+  }
+
+  // ---------------------------------------------------------------------
   // Expiry (run daily by VerificationSweepProcessor; also callable by an admin)
   // ---------------------------------------------------------------------
 

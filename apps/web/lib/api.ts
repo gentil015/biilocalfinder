@@ -519,7 +519,83 @@ export interface AdminUser {
   lastName: string;
   role: 'CLIENT' | 'PROVIDER' | 'ADMIN';
   status: 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED' | 'PENDING_VERIFICATION';
+  emailVerified: boolean;
+  phoneVerified: boolean;
   createdAt: string;
+  providers: AdminProviderLite[];
+}
+
+export interface AdminProviderLite {
+  id: string;
+  businessName: string;
+  providerType: string | null;
+  verificationStatus: string;
+  subscriptionStatus: string;
+  availabilityStatus: string;
+}
+
+export interface AdminProviderDetail extends AdminProviderLite {
+  description: string | null;
+  bio: string | null;
+  phone: string | null;
+  onboardingStep: string;
+  onboardingCompletedAt: string | null;
+  logoUrl: string | null;
+  registrationNumber: string | null;
+  representativeName: string | null;
+  teamSize: number | null;
+  serviceRadiusKm: number;
+  yearsOfExperience: number;
+  identityVerified: boolean;
+  businessVerified: boolean;
+  verificationExpiresAt: string | null;
+  rating: string | number;
+  reviewCount: number;
+  verifiedReviewCount: number;
+  responseRate: string | number;
+  responseTimeMinutes: number | null;
+  createdAt: string;
+  updatedAt: string;
+  location: any | null;
+  workspace: { id: string; name: string; type: string; status: string };
+  services: any[];
+  verifications: any[];
+  subscriptions: any[];
+  _count: {
+    services: number;
+    bookings: number;
+    reviews: number;
+    serviceRequests: number;
+    verifications: number;
+  };
+}
+
+export interface AdminUserDetail {
+  id: string;
+  email: string;
+  phone: string | null;
+  firstName: string;
+  lastName: string;
+  avatarUrl: string | null;
+  role: AdminUser['role'];
+  status: AdminUser['status'];
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  locale: string;
+  createdAt: string;
+  updatedAt: string;
+  clientProfile: { id: string; bio: string | null; createdAt: string; _count: { serviceRequests: number; bookings: number; reviews: number } } | null;
+  providers: AdminProviderDetail[];
+  providerApplications: {
+    id: string;
+    status: string;
+    businessName: string;
+    providerType: string;
+    decisionNote: string | null;
+    createdAt: string;
+    reviewedAt: string | null;
+  }[];
+  _count: { reportsFiled: number; disputesRaised: number; disputesAgainst: number };
 }
 
 export interface AdminUsersPage {
@@ -606,9 +682,26 @@ export const adminApi = {
     if (params.page) query.set('page', String(params.page));
     return authRequest<AdminUsersPage>(`/admin/users?${query.toString()}`);
   },
+  user: (id: string) => authRequest<AdminUserDetail>(`/admin/users/${id}`),
   setUserStatus: (id: string, status: 'ACTIVE' | 'SUSPENDED') =>
     authRequest<AdminUser>(`/admin/users/${id}/${status === 'SUSPENDED' ? 'suspend' : 'activate'}`, {
       method: 'PATCH',
+    }),
+  deleteUser: (id: string) =>
+    authRequest<{ id: string; deleted: boolean; anonymized: boolean }>(`/admin/users/${id}`, {
+      method: 'DELETE',
+    }),
+  updateProvider: (id: string, data: Record<string, unknown>) =>
+    authRequest<any>(`/admin/providers/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  verifyProvider: (id: string, note?: string) =>
+    authRequest<any>(`/admin/providers/${id}/verify`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    }),
+  unverifyProvider: (id: string, reason: string) =>
+    authRequest<any>(`/admin/providers/${id}/unverify`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
     }),
   auditLogs: (params: { search?: string; action?: string; entity?: string; page?: number }) => {
     const query = new URLSearchParams();

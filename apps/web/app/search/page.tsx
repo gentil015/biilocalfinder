@@ -690,8 +690,31 @@ function SearchResults() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<SearchPageFallback />}>
       <SearchResults />
     </Suspense>
+  );
+}
+
+/**
+ * The page reads `useSearchParams`, so Next renders this fallback during the
+ * static pass and on the server. Keep the H1 here as well as in the real page:
+ * a crawler or screen reader that meets the loading state should still get the
+ * page's topic instead of an empty document.
+ */
+function SearchPageFallback() {
+  return (
+    <main className="page-shell py-6 md:py-8">
+      <div className="mb-5">
+        <p className="eyebrow">Marketplace</p>
+        <h1 className="page-title mt-1.5">Find a provider</h1>
+      </div>
+      <div className="skeleton h-12 w-full rounded-xl" />
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="skeleton h-56 rounded-2xl" />
+        <div className="skeleton h-56 rounded-2xl" />
+        <div className="skeleton h-56 rounded-2xl" />
+      </div>
+    </main>
   );
 }

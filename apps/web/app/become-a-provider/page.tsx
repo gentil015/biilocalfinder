@@ -154,6 +154,11 @@ export default function ApplyToBecomeProviderPage() {
   if (loading || sessionLoading) {
     return (
       <main className="page-narrow py-6 md:py-8">
+        <PageHeader
+          eyebrow="Become a provider"
+          title="Apply to become a provider"
+          description="Tell us what you do. An admin reviews every application, then your account is upgraded."
+        />
         <LoadingBlock label="Loading…" />
       </main>
     );

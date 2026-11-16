@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { BadgeCheck, Quote, Wallet, ArrowUpRight } from 'lucide-react';
+import { BadgeCheck, Quote, Wallet, ArrowUpRight, Mail, MapPin, Phone } from 'lucide-react';
 import { BrandMark } from '@/components/brand-mark';
 import { useSession } from '@/components/auth-provider';
 import { useI18n } from '@/components/locale-provider';
+import { COMPANY_LOCATION, COMPANY_NAME, SUPPORT_EMAIL, SUPPORT_PHONE } from '@/lib/seo';
 
 const EXPLORE_LINKS = [
   { href: '/search?q=Plumbing', label: 'Plumbing' },
@@ -41,6 +42,9 @@ export function SiteFooter() {
             Rwanda&rsquo;s marketplace for local services — search, compare structured quotes, book
             and review without handing your money to a middleman.
           </p>
+          <p className="mt-3 text-xs font-semibold text-ink-500">
+            {COMPANY_NAME} · Co-founder and CEO Dushime Gentil
+          </p>
 
           <ul className="mt-5 flex flex-wrap gap-2">
             {TRUST.map(({ icon: Icon, label }) => (
@@ -57,6 +61,33 @@ export function SiteFooter() {
           <p className="mt-5 text-xs font-bold uppercase tracking-wider text-brand-700">
             Serving Kigali · Rubavu · Musanze · Huye
           </p>
+
+          <ul className="mt-4 space-y-2 text-sm">
+            <li>
+              <a
+                href={`mailto:${SUPPORT_EMAIL}`}
+                className="inline-flex items-center gap-2 text-ink-600 transition hover:text-brand-700"
+              >
+                <Mail className="h-4 w-4 shrink-0 text-brand-600" aria-hidden="true" />
+                {SUPPORT_EMAIL}
+              </a>
+            </li>
+            {SUPPORT_PHONE && (
+              <li>
+                <a
+                  href={`tel:${SUPPORT_PHONE.replace(/\s+/g, '')}`}
+                  className="inline-flex items-center gap-2 text-ink-600 transition hover:text-brand-700"
+                >
+                  <Phone className="h-4 w-4 shrink-0 text-brand-600" aria-hidden="true" />
+                  {SUPPORT_PHONE}
+                </a>
+              </li>
+            )}
+            <li className="inline-flex items-center gap-2 text-ink-600">
+              <MapPin className="h-4 w-4 shrink-0 text-brand-600" aria-hidden="true" />
+              {COMPANY_LOCATION}
+            </li>
+          </ul>
         </div>
 
         <nav aria-label="Explore services" className="md:col-span-2">
@@ -166,12 +197,25 @@ export function SiteFooter() {
 
       <div className="border-t border-ink-100">
         <div className="page-shell flex flex-col items-start justify-between gap-2 py-6 text-xs text-ink-500 sm:flex-row sm:items-center">
-          <span>&copy; {new Date().getFullYear()} Bii Localfinder</span>
+          <span>
+            &copy; {new Date().getFullYear()} {COMPANY_NAME} · BII Localfinder
+          </span>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <Link href="/terms" className="font-semibold text-ink-600 underline-offset-4 hover:text-brand-700 hover:underline">
               {t('footer.terms')}
             </Link>
-            <span>{t('footer.privacyUnavailable')}</span>
+            <Link
+              href="/terms#terms-section-12"
+              className="font-semibold text-ink-600 underline-offset-4 hover:text-brand-700 hover:underline"
+            >
+              {t('footer.privacy')}
+            </Link>
+            <Link
+              href="/terms#terms-section-8"
+              className="font-semibold text-ink-600 underline-offset-4 hover:text-brand-700 hover:underline"
+            >
+              {t('footer.payments')}
+            </Link>
             <span>Built in Rwanda for trust, quotes and local work.</span>
           </div>
         </div>

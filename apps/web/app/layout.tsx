@@ -6,11 +6,16 @@ import { AuthProvider } from '@/components/auth-provider';
 import { LocaleProvider } from '@/components/locale-provider';
 import { ThemeProvider } from '@/components/theme-provider';
 import {
+  COMPANY_LEADER,
+  COMPANY_LEADER_ROLE,
+  COMPANY_NAME,
   DEFAULT_DESCRIPTION,
   DEFAULT_KEYWORDS,
   DEFAULT_TITLE,
   SITE_NAME,
   SITE_URL,
+  SUPPORT_EMAIL,
+  SUPPORT_PHONE,
   absoluteUrl,
 } from '@/lib/seo';
 import './globals.css';
@@ -114,9 +119,22 @@ const websiteStructuredData = {
       '@type': 'Organization',
       '@id': `${SITE_URL}/#organization`,
       name: SITE_NAME,
+      legalName: COMPANY_NAME,
       url: SITE_URL,
       logo: absoluteUrl('/icon1.png'),
       description: DEFAULT_DESCRIPTION,
+      email: SUPPORT_EMAIL,
+      telephone: SUPPORT_PHONE,
+      founder: {
+        '@type': 'Person',
+        name: COMPANY_LEADER,
+        jobTitle: COMPANY_LEADER_ROLE,
+      },
+      address: {
+        '@type': 'PostalAddress',
+        addressLocality: 'Kigali',
+        addressCountry: 'RW',
+      },
       areaServed: { '@type': 'Country', name: 'Rwanda' },
       knowsLanguage: ['en', 'rw', 'fr'],
     },

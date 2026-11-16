@@ -24,6 +24,7 @@ export default function HomePage() {
   if (loading) {
     return (
       <main className="bg-canvas">
+        <h1 className="sr-only">Find trusted local service providers in Rwanda</h1>
         <div className="page-shell space-y-6 py-10">
           <Skeleton className="h-10 w-64" />
           <Skeleton className="h-6 w-full max-w-md" />

@@ -20,7 +20,19 @@ export const SITE_URL = (
 
 export const DEFAULT_TITLE = 'BII Localfinder — Find trusted local service providers';
 export const DEFAULT_DESCRIPTION =
-  'Find verified plumbers, electricians, mechanics, cleaners, developers, photographers and more across Rwanda. Compare clear quotes and book directly with local professionals.';
+  'Find verified plumbers, electricians, mechanics, cleaners and more across Rwanda. Compare clear quotes and book trusted local professionals.';
+
+// Public company and contact details. The phone and email are shown in the
+// landing-page About section, the site footer and the organization JSON-LD.
+// They can still be overridden at deploy time without a code change.
+export const COMPANY_NAME = 'BII Technology';
+export const COMPANY_LEADER = 'Dushime Gentil';
+export const COMPANY_LEADER_ROLE = 'Co-founder and CEO';
+export const SUPPORT_EMAIL =
+  process.env.NEXT_PUBLIC_SUPPORT_EMAIL || 'support@biilocalfinder.com';
+export const SUPPORT_PHONE = process.env.NEXT_PUBLIC_SUPPORT_PHONE || '+250 795 946 213';
+export const SERVICE_AREAS = ['Kigali', 'Rubavu', 'Musanze', 'Huye'];
+export const COMPANY_LOCATION = 'Kigali, Rwanda';
 
 export const DEFAULT_KEYWORDS = [
   'local service providers Rwanda',

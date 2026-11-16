@@ -168,6 +168,8 @@ const EN = {
   'register.termsLink': 'Terms and Conditions',
   'footer.terms': 'Terms and Conditions',
   'footer.privacyUnavailable': 'Privacy Policy not yet published',
+  'footer.privacy': 'Privacy',
+  'footer.payments': 'Payments & refunds',
 
   'legal.terms.eyebrow': 'Legal',
   'legal.terms.title': 'Terms and Conditions',
@@ -789,6 +791,8 @@ const RW: Record<MessageKey, string> = {
   'register.termsLink': 'Amabwiriza n’Amategeko',
   'footer.terms': 'Amabwiriza n’Amategeko',
   'footer.privacyUnavailable': 'Politiki y’ibanga ntiratangazwa',
+  'footer.privacy': 'Ibanga',
+  'footer.payments': 'Kwishyura n’isubizwa',
 
   'legal.terms.eyebrow': 'Amategeko',
   'legal.terms.title': 'Amabwiriza n’Amategeko',

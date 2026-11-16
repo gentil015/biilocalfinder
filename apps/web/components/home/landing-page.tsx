@@ -13,6 +13,8 @@ import {
   ShieldCheck,
   Search,
   MapPin,
+  Mail,
+  Phone,
   ArrowRight,
   Quote,
   BadgeCheck,
@@ -31,13 +33,22 @@ import {
   ArrowUpRight,
   type LucideIcon,
 } from 'lucide-react';
-import { searchApi, servicesApi, type ProviderSearchItem } from '@/lib/api';
+import { searchApi, servicesApi, reviewsApi, type ProviderSearchItem } from '@/lib/api';
 import { HomeSearch } from '@/components/home/home-search';
 import { Reveal } from '@/components/home/reveal';
 import { ProviderCard } from '@/components/provider-card';
 import { ProviderCardSkeleton } from '@/components/provider-card-skeleton';
 import { VerificationBadge } from '@/components/verification-badge';
 import { useI18n } from '@/components/locale-provider';
+import {
+  COMPANY_LEADER,
+  COMPANY_LEADER_ROLE,
+  COMPANY_LOCATION,
+  COMPANY_NAME,
+  SERVICE_AREAS,
+  SUPPORT_EMAIL,
+  SUPPORT_PHONE,
+} from '@/lib/seo';
 
 const CATEGORIES: { name: string; hint: string; icon: LucideIcon }[] = [
   { name: 'Plumbing', hint: 'Leaks, fittings, tanks', icon: Wrench },
@@ -174,6 +185,22 @@ const FAQS = [
     q: 'What if the job goes wrong?',
     a: 'Every booking has a reporting path: either side can open a dispute, attach evidence and message from one thread, and an admin moderator reviews it to a resolution. Your payment, though, is still settled directly with the provider.',
   },
+  {
+    q: 'How do I contact BII Localfinder?',
+    a: `Email ${SUPPORT_EMAIL} or call ${SUPPORT_PHONE} for account, booking or verification help. Signed-in members can also use the in-app assistant and the report button on any profile, request or booking. BII Localfinder is operated by ${COMPANY_NAME} in Kigali, Rwanda.`,
+  },
+  {
+    q: 'Do you offer refunds?',
+    a: 'BII Localfinder does not hold or process payment for the service itself, so refunds for completed work are agreed directly with the provider. If a job goes wrong, open a dispute and our moderators will review the evidence. Provider subscription billing is handled separately and is described in the Terms.',
+  },
+  {
+    q: 'Where is BII Localfinder available?',
+    a: 'The marketplace currently serves Kigali, Rubavu, Musanze and Huye, with providers covering nearby areas. Search by your district or use your location to see who can reach you. We are expanding to more Rwandan cities as providers join.',
+  },
+  {
+    q: 'Does it cost anything to be a provider?',
+    a: 'Creating a profile, listing services and receiving structured requests is free. An optional provider subscription adds visibility and tools; the service work itself stays between you and the client, with no platform commission.',
+  },
 ];
 
 const FAQ_STRUCTURED_DATA = {
@@ -187,6 +214,15 @@ const FAQ_STRUCTURED_DATA = {
       text: faq.a,
     },
   })),
+};
+
+type Testimonial = {
+  id: string;
+  quote: string;
+  name: string;
+  rating: number;
+  providerId: string;
+  providerName: string;
 };
 
 function SectionIntro({
@@ -444,6 +480,7 @@ export function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [popular, setPopular] = useState<string[]>([]);
   const [providers, setProviders] = useState<ProviderSearchItem[] | null>(null);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
 
   useEffect(() => {
     servicesApi
@@ -467,7 +504,37 @@ export function LandingPage() {
     // and it can never claim a rating that doesn't exist.
     searchApi
       .providers({ sort: 'highest_rated', limit: 6 })
-      .then((res) => setProviders(res.items))
+      .then(async (res) => {
+        setProviders(res.items);
+
+        // Pull real published reviews from providers that actually have them.
+        // Nothing is invented: if no review has a comment, the section stays
+        // hidden instead of falling back to a fake quote.
+        const candidates = res.items.filter((provider) => provider.reviewCount > 0).slice(0, 3);
+        const lists = await Promise.all(
+          candidates.map(async (provider) => {
+            try {
+              const result = await reviewsApi.forProvider(provider.id, {
+                limit: 1,
+                sort: 'highest',
+              });
+              const review = result.items?.[0];
+              if (!review?.comment) return null;
+              return {
+                id: review.id,
+                quote: review.comment,
+                name: review.reviewer?.name || 'Verified client',
+                rating: review.rating,
+                providerId: provider.id,
+                providerName: provider.businessName,
+              } satisfies Testimonial;
+            } catch {
+              return null;
+            }
+          }),
+        );
+        setTestimonials(lists.filter((item): item is Testimonial => item !== null));
+      })
       .catch(() => setProviders([]));
   }, []);
 
@@ -698,6 +765,56 @@ export function LandingPage() {
           </p>
         </div>
       </section>
+
+      {/* ------------------------------------------------------------------
+          Real testimonials, only when published reviews exist.
+          ------------------------------------------------------------------ */}
+      {testimonials.length > 0 && (
+        <section className="page-shell py-14 sm:py-16 lg:py-20">
+          <Reveal>
+            <SectionIntro
+              eyebrow="From completed bookings"
+              title="What clients say after the work."
+              body="Quotes from published reviews. Every review is tied to a booking that was marked complete."
+            />
+          </Reveal>
+
+          <div className="mt-8 grid gap-4 md:grid-cols-3">
+            {testimonials.map((testimonial, i) => (
+              <Reveal key={testimonial.id} delay={i * 60} className="h-full">
+                <figure className="flex h-full flex-col rounded-2xl border border-ink-200 bg-surface p-5 shadow-xs">
+                  <div className="flex items-center gap-1" aria-label={`${testimonial.rating} out of 5 stars`}>
+                    {Array.from({ length: 5 }, (_, index) => (
+                      <Star
+                        key={index}
+                        className={`h-3.5 w-3.5 ${
+                          index < testimonial.rating
+                            ? 'fill-rating-400 text-rating-400'
+                            : 'text-ink-300'
+                        }`}
+                        aria-hidden="true"
+                      />
+                    ))}
+                  </div>
+                  <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-ink-700">
+                    &ldquo;{testimonial.quote}&rdquo;
+                  </blockquote>
+                  <figcaption className="mt-5 border-t border-ink-100 pt-4">
+                    <p className="text-sm font-bold text-ink-950">{testimonial.name}</p>
+                    <Link
+                      href={`/providers/${testimonial.providerId}`}
+                      className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-brand-700 underline-offset-4 hover:underline"
+                    >
+                      {testimonial.providerName}
+                      <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+                    </Link>
+                  </figcaption>
+                </figure>
+              </Reveal>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ------------------------------------------------------------------
           How it works.
@@ -968,6 +1085,160 @@ export function LandingPage() {
       </section>
 
       {/* ------------------------------------------------------------------
+          About and contact. Company information, a real reachable inbox and
+          links to the payment/privacy sections of the Terms — the signals a
+          visitor needs before trusting a marketplace with local work.
+          ------------------------------------------------------------------ */}
+      <section id="about" className="page-shell scroll-mt-24 py-14 sm:py-16 lg:py-20">
+        <div className="grid overflow-hidden rounded-3xl border border-ink-200 bg-surface shadow-card lg:grid-cols-12">
+          <div className="p-6 sm:p-8 lg:col-span-7 lg:p-10">
+            <Reveal>
+              <p className="eyebrow">About BII Localfinder</p>
+              <h2 className="mt-2 font-display text-[28px] font-extrabold leading-[1.1] tracking-[-0.03em] text-ink-950 sm:text-4xl">
+                Built in Rwanda, for local work.
+              </h2>
+              <p className="mt-4 max-w-xl text-sm leading-relaxed text-ink-600 sm:text-base">
+                BII Localfinder is operated by {COMPANY_NAME}, a Rwandan technology company. It
+                helps people find independent local service providers and agree the work in
+                writing. We are not the provider: the scope, price and timing are agreed directly
+                between you and the professional you choose.
+              </p>
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-600">
+                Providers can complete identity checks, publish real work and collect reviews from
+                completed bookings. Clients search, compare structured quotes and pay the provider
+                directly — there is no platform commission on the service.
+              </p>
+
+              <dl className="mt-7 grid gap-4 border-t border-ink-100 pt-6 sm:grid-cols-2">
+                <div>
+                  <dt className="text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
+                    Service area
+                  </dt>
+                  <dd className="mt-1.5 text-sm font-semibold text-ink-800">
+                    {SERVICE_AREAS.join(' · ')}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
+                    Based in
+                  </dt>
+                  <dd className="mt-1.5 text-sm font-semibold text-ink-800">{COMPANY_LOCATION}</dd>
+                </div>
+                <div>
+                  <dt className="text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
+                    Company
+                  </dt>
+                  <dd className="mt-1.5 text-sm font-semibold text-ink-800">{COMPANY_NAME}</dd>
+                </div>
+                <div>
+                  <dt className="text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
+                    Leadership
+                  </dt>
+                  <dd className="mt-1.5 text-sm font-semibold text-ink-800">
+                    {COMPANY_LEADER}, {COMPANY_LEADER_ROLE}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
+                    Privacy
+                  </dt>
+                  <dd className="mt-1.5 text-sm">
+                    <Link
+                      href="/terms#terms-section-12"
+                      className="font-semibold text-brand-700 underline-offset-4 hover:underline"
+                    >
+                      How personal information is handled
+                    </Link>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-2xs font-bold uppercase tracking-[0.14em] text-ink-400">
+                    Payments and refunds
+                  </dt>
+                  <dd className="mt-1.5 text-sm">
+                    <Link
+                      href="/terms#terms-section-8"
+                      className="font-semibold text-brand-700 underline-offset-4 hover:underline"
+                    >
+                      Payment, fee and refund terms
+                    </Link>
+                  </dd>
+                </div>
+              </dl>
+            </Reveal>
+          </div>
+
+          <div className="border-t border-ink-200 bg-home-mist p-6 sm:p-8 lg:col-span-5 lg:border-l lg:border-t-0 lg:p-10">
+            <Reveal delay={80}>
+              <p className="text-2xs font-bold uppercase tracking-[0.16em] text-brand-700">
+                Contact us
+              </p>
+              <h3 className="mt-2 font-display text-xl font-extrabold tracking-tight text-ink-950">
+                Questions before you book?
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-ink-600">
+                For account, booking, verification or trust-and-safety help, reach the{' '}
+                {COMPANY_NAME} team directly. We aim to reply within one business day.
+              </p>
+
+              <ul className="mt-6 space-y-3">
+                <li>
+                  <a
+                    href={`mailto:${SUPPORT_EMAIL}`}
+                    className="flex items-center gap-3 rounded-xl border border-ink-200 bg-surface px-4 py-3 text-sm font-semibold text-ink-800 transition hover:border-brand-300 hover:text-brand-800"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+                      <Mail className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-2xs font-bold uppercase tracking-wide text-ink-400">
+                        Email
+                      </span>
+                      <span className="block truncate">{SUPPORT_EMAIL}</span>
+                    </span>
+                  </a>
+                </li>
+                {SUPPORT_PHONE && (
+                  <li>
+                    <a
+                      href={`tel:${SUPPORT_PHONE.replace(/\s+/g, '')}`}
+                      className="flex items-center gap-3 rounded-xl border border-ink-200 bg-surface px-4 py-3 text-sm font-semibold text-ink-800 transition hover:border-brand-300 hover:text-brand-800"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+                        <Phone className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-2xs font-bold uppercase tracking-wide text-ink-400">
+                          Phone
+                        </span>
+                        <span className="block">{SUPPORT_PHONE}</span>
+                      </span>
+                    </a>
+                  </li>
+                )}
+                <li className="flex items-center gap-3 rounded-xl border border-ink-200 bg-surface px-4 py-3 text-sm font-semibold text-ink-800">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-700">
+                    <MapPin className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-2xs font-bold uppercase tracking-wide text-ink-400">
+                      Location
+                    </span>
+                    <span className="block">{COMPANY_LOCATION}</span>
+                  </span>
+                </li>
+              </ul>
+
+              <p className="mt-5 text-xs leading-relaxed text-ink-500">
+                Already have an account? Use the in-app assistant or the report button on any
+                profile, request or booking so the conversation stays attached to the job.
+              </p>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* ------------------------------------------------------------------
           FAQ.
           ------------------------------------------------------------------ */}
       <section className="bg-home-mist">
@@ -980,8 +1251,7 @@ export function LandingPage() {
                   Straight answers.
                 </h2>
                 <p className="mt-4 max-w-sm text-sm leading-relaxed text-ink-600">
-                  The two questions everyone asks — money and verification — answered up front,
-                  plus the rest.
+                  Money, verification, coverage and support — answered up front, plus the rest.
                 </p>
               </Reveal>
             </div>

@@ -214,6 +214,7 @@ export default function AccountPage() {
   if (loading) {
     return (
       <main className="page-workspace py-6 md:py-8">
+        <h1 className="sr-only">{t('account.eyebrow')}</h1>
         <LoadingBlock label={t('account.loading')} />
       </main>
     );
@@ -226,7 +227,7 @@ export default function AccountPage() {
     return (
       <main className="page-workspace py-16">
         <div className="empty-state">
-          <p className="text-sm font-bold text-ink-900">{t('account.signedOut')}</p>
+          <h1 className="text-sm font-bold text-ink-900">{t('account.signedOut')}</h1>
           <p className="mt-1.5 text-sm text-ink-500">{t('account.signedOutBody')}</p>
           <Link href="/login" className="btn-primary btn-sm mt-5">
             {t('account.logIn')}
@@ -277,9 +278,9 @@ export default function AccountPage() {
                 )}
               </span>
               <div className="min-w-0 pb-0.5">
-                <p className="truncate text-lg font-bold tracking-tight text-ink-950 sm:text-xl">
+                <h1 className="truncate font-display text-lg font-bold tracking-tight text-ink-950 sm:text-xl">
                   {user.firstName} {user.lastName}
-                </p>
+                </h1>
                 <p className="truncate text-sm text-ink-500">{user.email}</p>
               </div>
             </div>

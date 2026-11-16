@@ -1,3 +1,4 @@
+import { Analytics } from '@vercel/analytics/next';
 import type { Metadata, Viewport } from 'next';
 import localFont from 'next/font/local';
 import { AppChrome } from '@/components/app-chrome';
@@ -202,6 +203,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </ThemeProvider>
           </LocaleProvider>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );

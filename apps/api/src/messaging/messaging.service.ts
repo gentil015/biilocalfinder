@@ -4,10 +4,8 @@ import { ProviderContextService } from '../providers/provider-context.service';
 import { WorkspaceContextService } from '../common/workspace/workspace-context.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
-  ALLOWED_AUDIO_MIME_TYPES,
   ALLOWED_IMAGE_MIME_TYPES,
   ALLOWED_VIDEO_MIME_TYPES,
-  MAX_AUDIO_UPLOAD_BYTES,
   MAX_UPLOAD_BYTES,
   MAX_VIDEO_UPLOAD_BYTES,
   STORAGE_SERVICE,
@@ -188,9 +186,8 @@ export class MessagingService {
     });
   }
 
-  // Images, videos, and voice notes share one upload endpoint so the composer
-  // can attach any of them without a mode switch. MIME is sniffed from the
-  // bytes (the declared type only disambiguates shared containers), and each
+  // Images and videos share one upload endpoint so the composer can attach
+  // either without a mode switch. MIME is sniffed from the bytes and each
   // media kind keeps its own size limit.
   async uploadAttachment(conversationId: string, userId: string, file: Express.Multer.File | undefined) {
     await this.assertParticipant(conversationId, userId);
@@ -199,20 +196,14 @@ export class MessagingService {
     const mime = sniffMime(file.buffer, file.mimetype);
     const isImage = !!mime && ALLOWED_IMAGE_MIME_TYPES.includes(mime);
     const isVideo = !!mime && ALLOWED_VIDEO_MIME_TYPES.includes(mime);
-    const isAudio = !!mime && ALLOWED_AUDIO_MIME_TYPES.includes(mime);
-    if (!mime || (!isImage && !isVideo && !isAudio)) {
-      throw new BadRequestException(
-        'Only images (JPEG, PNG, WebP), videos (MP4, WebM, MOV), and voice notes are allowed',
-      );
+    if (!mime || (!isImage && !isVideo)) {
+      throw new BadRequestException('Only images (JPEG, PNG, WebP) and videos (MP4, WebM, MOV) are allowed');
     }
     if (isImage && file.size > MAX_UPLOAD_BYTES) {
       throw new BadRequestException('Images must be 8 MB or smaller');
     }
     if (isVideo && file.size > MAX_VIDEO_UPLOAD_BYTES) {
       throw new BadRequestException('Videos must be 100 MB or smaller');
-    }
-    if (isAudio && file.size > MAX_AUDIO_UPLOAD_BYTES) {
-      throw new BadRequestException('Voice notes must be 25 MB or smaller');
     }
     if (!this.storage) throw new Error('Storage service unavailable');
 
@@ -296,9 +287,7 @@ export class MessagingService {
         : attachmentData.length === 1
           ? attachmentData[0].mimeType.startsWith('video/')
             ? 'Sent a video'
-            : attachmentData[0].mimeType.startsWith('audio/')
-              ? 'Sent a voice note'
-              : 'Sent a photo'
+            : 'Sent a photo'
           : `Sent ${attachmentData.length} attachments`;
       await Promise.all(
         recipientIds.map((userId) =>

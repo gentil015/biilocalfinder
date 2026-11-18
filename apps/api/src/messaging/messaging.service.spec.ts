@@ -316,26 +316,6 @@ describe('MessagingService attachments', () => {
     expect(result.mimeType).toBe('video/mp4');
   });
 
-  it('accepts a voice note upload', async () => {
-    const buffer = Buffer.concat([
-      Buffer.from([0x1a, 0x45, 0xdf, 0xa3]),
-      Buffer.alloc(8),
-    ]);
-    storage.upload.mockResolvedValue({
-      key: `${prefix}voice.webm`,
-      url: 'https://cdn.test/voice.webm',
-    });
-
-    const result = await service.uploadAttachment(conversationId, userId, {
-      buffer,
-      size: buffer.length,
-      originalname: 'voice.webm',
-      mimetype: 'audio/webm;codecs=opus',
-    } as any);
-
-    expect(result.mimeType).toBe('audio/webm');
-  });
-
   it('stores attachment metadata read from storage, not the client', async () => {
     const storageKey = `${prefix}photo.jpg`;
     storage.statObject.mockResolvedValue({ sizeBytes: 2048, mimeType: 'image/jpeg' });

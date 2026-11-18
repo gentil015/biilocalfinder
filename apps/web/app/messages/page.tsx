@@ -68,9 +68,7 @@ export default function ConversationsPage() {
                         (lastMessage.attachments?.length
                           ? lastMessage.attachments[0].mimeType?.startsWith('video/')
                             ? tr('Video')
-                            : lastMessage.attachments[0].mimeType?.startsWith('audio/')
-                              ? tr('Voice note')
-                              : tr('Photo')
+                            : tr('Photo')
                           : tr('No messages yet'))}
                     </p>
                   ) : (

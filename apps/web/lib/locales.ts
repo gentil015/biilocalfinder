@@ -1723,7 +1723,6 @@ const PROVIDER_COPY_RW_EXTRA: Record<string, string> = {
   'Post a request': 'Tanga ubusabe',
   'Conversation': 'Ikiganiro',
   'Video': 'Videwo',
-  'Voice note': 'Ubutumwa bw’amajwi',
   'Photo': 'Ifoto',
   'No messages yet': 'Nta butumwa burimo',
   'Looking for something specific? Search providers to start a new thread.':
@@ -1735,19 +1734,13 @@ const PROVIDER_COPY_RW_EXTRA: Record<string, string> = {
   'Back to conversations': 'Subira ku biganiro',
   'No messages yet. Say hello to get started.': 'Nta butumwa burimo. Tangira ikiganiro ubasuhuze.',
   'Contact is typing': 'Uwo muvugana arimo kwandika',
-  'Recording voice note…': 'Birimo gufata ubutumwa bw’amajwi…',
-  'Voice': 'Ijwi',
   'Remove attachment': 'Kuraho inyandiko yometseho',
   'Attach an image or video': 'Ongeraho ifoto cyangwa videwo',
-  'Stop recording voice note': 'Hagarika gufata ubutumwa bw’amajwi',
-  'Record a voice note': 'Fata ubutumwa bw’amajwi',
   'Type a message…': 'Andika ubutumwa…',
   'Send message': 'Ohereza ubutumwa',
   'You can attach up to 5 files to a message.':
     'Ushobora gushyira ku butumwa dosiye zitarenze 5.',
   'Could not upload that file.': 'Ntitwashoboye kohereza iyo dosiye.',
-  'Could not upload that voice note.': 'Ntitwashoboye kohereza ubwo butumwa bw’amajwi.',
-  'Voice recording is not supported in this browser.': 'Iyi mushakisha ntiyemera gufata amajwi.',
   'Microphone access was blocked. Allow it and try again.':
     'Ntibyemewe gukoresha mikoro. Yemerere hanyuma wongere ugerageze.',
   'Could not send that message.': 'Ntitwashoboye kohereza ubwo butumwa.',

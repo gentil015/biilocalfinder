@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useI18n } from '@/components/locale-provider';
-import { Mic, Paperclip, Send, Square, X } from 'lucide-react';
+import { Paperclip, Send, X } from 'lucide-react';
 import { BackButton } from '@/components/back-button';
 import { ReportButton } from '@/components/report-button';
 import { messagingApi, type UploadedMessageAttachment } from '@/lib/api';
@@ -34,113 +34,22 @@ function senderName(m: any, mine: boolean, tr: (message: string) => string) {
   return name || tr('Them');
 }
 
-function formatDuration(seconds: number) {
-  const minutes = Math.floor(seconds / 60);
-  return `${minutes}:${String(seconds % 60).padStart(2, '0')}`;
-}
-
-/**
- * WebM/MediaRecorder clips often lack duration metadata, so browsers report
- * `0:00` (duration `Infinity`). Seeking past the end forces duration discovery;
- * once known, jump back to the start. Clips fixed at upload time skip this.
- */
-function useMediaDurationFix(ref: { current: HTMLMediaElement | null }, src: string) {
-  useEffect(() => {
-    const media = ref.current;
-    if (!media) return;
-    let fixing = false;
-
-    const finish = () => {
-      if (!fixing) return;
-      if (Number.isFinite(media.duration) && media.duration > 0) {
-        fixing = false;
-        try {
-          media.currentTime = 0;
-        } catch {
-          // ignore
-        }
-        media.removeEventListener('durationchange', finish);
-        media.removeEventListener('timeupdate', finish);
-      }
-    };
-
-    const tryFix = () => {
-      if (Number.isFinite(media.duration) && media.duration > 0) return;
-      fixing = true;
-      media.addEventListener('durationchange', finish);
-      media.addEventListener('timeupdate', finish);
-      try {
-        media.currentTime = 1e101;
-      } catch {
-        try {
-          media.currentTime = 86400;
-        } catch {
-          fixing = false;
-        }
-      }
-    };
-
-    media.addEventListener('loadedmetadata', tryFix);
-    media.addEventListener('loadeddata', tryFix);
-    if (media.readyState >= 1) tryFix();
-
-    return () => {
-      media.removeEventListener('loadedmetadata', tryFix);
-      media.removeEventListener('loadeddata', tryFix);
-      media.removeEventListener('durationchange', finish);
-      media.removeEventListener('timeupdate', finish);
-    };
-  }, [ref, src]);
-}
-
-function VoiceNote({ src }: { src: string }) {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  useMediaDurationFix(audioRef, src);
-  return (
-    <audio
-      ref={audioRef}
-      src={src}
-      controls
-      preload="metadata"
-      className="w-64 max-w-full rounded-xl bg-home-night/5"
-    />
-  );
-}
-
-function FixedVideo({ src }: { src: string }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  useMediaDurationFix(videoRef, src);
-  return (
-    <video
-      ref={videoRef}
-      src={src}
-      controls
-      preload="metadata"
-      className="max-h-72 w-full rounded-xl bg-home-night object-contain"
-    />
-  );
-}
-
 function AttachmentMedia({ attachment }: { attachment: any }) {
-  const src = attachment.url || '';
-  const key = attachment.storageKey || '';
-  const mimeType = attachment.mimeType || '';
-  const looksLikeVoiceNote = /voice-note/i.test(src) || /voice-note/i.test(key);
-
-  // Some older voice notes were stored/served as video/webm (or without a
-  // .ctype sidecar) so mime may be wrong; prefer the audio player when we can
-  // confidently identify a voice note, and still fix duration for all media.
-  if (mimeType.startsWith('audio/') || (looksLikeVoiceNote && (mimeType === 'video/webm' || mimeType === ''))) {
-    return <VoiceNote src={src} />;
-  }
-  if (mimeType.startsWith('video/')) {
-    return <FixedVideo src={src} />;
+  if (attachment.mimeType?.startsWith('video/')) {
+    return (
+      <video
+        src={attachment.url}
+        controls
+        preload="metadata"
+        className="max-h-72 w-full rounded-xl bg-home-night object-contain"
+      />
+    );
   }
   return (
-    <a href={src} target="_blank" rel="noreferrer" className="block">
+    <a href={attachment.url} target="_blank" rel="noreferrer" className="block">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={src}
+        src={attachment.url}
         alt=""
         loading="lazy"
         decoding="async"
@@ -161,17 +70,8 @@ export default function ConversationThreadPage() {
   const [pendingAttachments, setPendingAttachments] = useState<UploadedMessageAttachment[]>([]);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [recording, setRecording] = useState(false);
-  const [recordSeconds, setRecordSeconds] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const recordingStreamRef = useRef<MediaStream | null>(null);
-  const recordingChunksRef = useRef<Blob[]>([]);
-  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recordLimitRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const recordStartedAtRef = useRef(0);
-  const cancelRecordingRef = useRef(false);
 
   useEffect(() => {
     messagingApi.messages(id).then(setMessages);
@@ -236,166 +136,7 @@ export default function ConversationThreadPage() {
     setPendingAttachments((prev) => prev.filter((a) => a.storageKey !== storageKey));
   }
 
-  function clearRecordingTimers() {
-    if (recordTimerRef.current) {
-      clearInterval(recordTimerRef.current);
-      recordTimerRef.current = null;
-    }
-    if (recordLimitRef.current) {
-      clearTimeout(recordLimitRef.current);
-      recordLimitRef.current = null;
-    }
-  }
-
-  function stopRecordingTracks() {
-    recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
-    recordingStreamRef.current = null;
-  }
-
-  async function uploadVoiceNote(file: File) {
-    setUploading(true);
-    setUploadError(null);
-    try {
-      const uploaded = await messagingApi.uploadAttachment(id, file);
-      setPendingAttachments((prev) => (prev.length >= 5 ? prev : [...prev, uploaded]));
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : 'Could not upload that voice note.');
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function startRecording() {
-    if (recording || uploading) return;
-    if (pendingAttachments.length >= 5) {
-      setUploadError('You can attach up to 5 files to a message.');
-      return;
-    }
-    if (
-      typeof navigator === 'undefined' ||
-      !navigator.mediaDevices?.getUserMedia ||
-      typeof MediaRecorder === 'undefined'
-    ) {
-      setUploadError('Voice recording is not supported in this browser.');
-      return;
-    }
-
-    setUploadError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const preferredTypes = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/mp4',
-        'audio/ogg;codecs=opus',
-        'audio/ogg',
-      ];
-      const mimeType = preferredTypes.find((type) => MediaRecorder.isTypeSupported(type));
-      const recorder = new MediaRecorder(stream, {
-        ...(mimeType ? { mimeType } : {}),
-        // Opus at 32kbps is plenty for speech and keeps a 2-minute clip well
-        // under the serverless request-body limit.
-        audioBitsPerSecond: 32_000,
-      });
-
-      recordingStreamRef.current = stream;
-      recordingChunksRef.current = [];
-      cancelRecordingRef.current = false;
-
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) recordingChunksRef.current.push(event.data);
-      };
-      recorder.onstop = () => {
-        clearRecordingTimers();
-        stopRecordingTracks();
-        setRecording(false);
-        recorderRef.current = null;
-        const chunks = recordingChunksRef.current;
-        recordingChunksRef.current = [];
-        const cancelled = cancelRecordingRef.current;
-        cancelRecordingRef.current = false;
-        const durationMs = Date.now() - recordStartedAtRef.current;
-        if (cancelled || chunks.length === 0) return;
-
-        const type = recorder.mimeType || mimeType || 'audio/webm';
-        const extension = type.includes('mp4')
-          ? 'm4a'
-          : type.includes('ogg')
-            ? 'ogg'
-            : type.includes('mpeg')
-              ? 'mp3'
-              : type.includes('wav')
-                ? 'wav'
-                : 'webm';
-        const rawBlob = new Blob(chunks, { type });
-        void (async () => {
-          let blob = rawBlob;
-          if (type.includes('webm') && durationMs > 0) {
-            try {
-              // Chrome/Firefox MediaRecorder output has no Duration element,
-              // so players show 0:00. Patch the real duration into the WebM
-              // before uploading.
-              const mod: any = await import('fix-webm-duration');
-              const fixWebmDuration = mod?.default ?? mod;
-              if (typeof fixWebmDuration === 'function') {
-                blob = await fixWebmDuration(rawBlob, durationMs, { logger: false });
-              }
-            } catch {
-              blob = rawBlob;
-            }
-          }
-          if (blob.type !== type) {
-            blob = new Blob([blob], { type });
-          }
-          await uploadVoiceNote(
-            new File([blob], `voice-note-${Date.now()}.${extension}`, { type }),
-          );
-        })();
-      };
-
-      recorderRef.current = recorder;
-      recordStartedAtRef.current = Date.now();
-      recorder.start(250);
-      setRecording(true);
-      setRecordSeconds(0);
-      recordTimerRef.current = setInterval(() => {
-        setRecordSeconds((seconds) => seconds + 1);
-      }, 1000);
-      // Keep clips short enough to stay under the upload limit.
-      recordLimitRef.current = setTimeout(() => {
-        if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
-      }, 120_000);
-    } catch {
-      stopRecordingTracks();
-      setUploadError('Microphone access was blocked. Allow it and try again.');
-    }
-  }
-
-  function stopRecording(cancel = false) {
-    cancelRecordingRef.current = cancel;
-    clearRecordingTimers();
-    const recorder = recorderRef.current;
-    if (recorder && recorder.state !== 'inactive') {
-      recorder.stop();
-    } else {
-      stopRecordingTracks();
-      setRecording(false);
-    }
-  }
-
-  useEffect(
-    () => () => {
-      cancelRecordingRef.current = true;
-      clearRecordingTimers();
-      const recorder = recorderRef.current;
-      if (recorder && recorder.state !== 'inactive') recorder.stop();
-      recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
-    },
-    [],
-  );
-
   async function send() {
-    if (recording) return;
     const text = body.trim();
     if (!text && pendingAttachments.length === 0) return;
     const socket = getSocket();
@@ -604,23 +345,8 @@ export default function ConversationThreadPage() {
           void send();
         }}
       >
-        {(pendingAttachments.length > 0 || uploadError || recording) && (
+        {(pendingAttachments.length > 0 || uploadError) && (
           <div className="mb-2">
-            {recording && (
-              <div className="mb-2 flex items-center gap-2 rounded-lg bg-danger-50 px-3 py-2 text-sm text-danger-700">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-danger-600" aria-hidden="true" />
-                <span className="font-medium">
-                  {tr('Recording voice note…')} <span className="tabular">{formatDuration(recordSeconds)}</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => stopRecording(true)}
-                  className="ml-auto text-xs font-semibold underline"
-                >
-                  {tr('Cancel')}
-                </button>
-              </div>
-            )}
             {pendingAttachments.length > 0 && (
               <ul className="flex flex-wrap gap-2">
                 {pendingAttachments.map((a) => (
@@ -628,12 +354,7 @@ export default function ConversationThreadPage() {
                     key={a.storageKey}
                     className="relative h-16 w-16 overflow-hidden rounded-lg bg-ink-100 ring-1 ring-inset ring-ink-200"
                   >
-                    {a.mimeType.startsWith('audio/') ? (
-                      <span className="flex h-full w-full flex-col items-center justify-center gap-0.5 text-ink-500">
-                        <Mic className="h-4 w-4" aria-hidden="true" />
-                        <span className="text-2xs font-semibold">{tr('Voice')}</span>
-                      </span>
-                    ) : a.mimeType.startsWith('video/') ? (
+                    {a.mimeType.startsWith('video/') ? (
                       <video src={a.url} className="h-full w-full object-cover" muted preload="metadata" />
                     ) : (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -671,26 +392,12 @@ export default function ConversationThreadPage() {
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            disabled={uploading || recording || pendingAttachments.length >= 5}
+            disabled={uploading || pendingAttachments.length >= 5}
             className="btn-secondary h-11 w-11 shrink-0 !px-0"
             aria-label={tr('Attach an image or video')}
             title={tr('Attach an image or video')}
           >
             <Paperclip className="h-4 w-4" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            onClick={() => (recording ? stopRecording() : void startRecording())}
-            disabled={uploading || (!recording && pendingAttachments.length >= 5)}
-            className={`${recording ? 'btn-danger' : 'btn-secondary'} h-11 w-11 shrink-0 !px-0`}
-            aria-label={tr(recording ? 'Stop recording voice note' : 'Record a voice note')}
-            title={tr(recording ? 'Stop recording voice note' : 'Record a voice note')}
-          >
-            {recording ? (
-              <Square className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <Mic className="h-4 w-4" aria-hidden="true" />
-            )}
           </button>
           <label htmlFor="message-body" className="sr-only">
             {tr('Message')}
@@ -698,7 +405,7 @@ export default function ConversationThreadPage() {
           <textarea
             id="message-body"
             rows={1}
-            placeholder={tr(recording ? 'Recording voice note…' : uploading ? 'Uploading…' : 'Type a message…')}
+            placeholder={tr(uploading ? 'Uploading…' : 'Type a message…')}
             className="max-h-32 min-h-[2.75rem] flex-1 resize-none py-2.5"
             value={body}
             onChange={(e) => onTypingChange(e.target.value)}
@@ -711,7 +418,7 @@ export default function ConversationThreadPage() {
           />
           <button
             type="submit"
-            disabled={(!body.trim() && pendingAttachments.length === 0) || uploading || recording}
+            disabled={(!body.trim() && pendingAttachments.length === 0) || uploading}
             className="btn-primary h-11 w-11 shrink-0 !px-0"
             aria-label={tr('Send message')}
           >

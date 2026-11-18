@@ -14,10 +14,6 @@ const MIME_BY_EXT: Record<string, string> = {
   '.mp4': 'video/mp4',
   '.webm': 'video/webm',
   '.mov': 'video/quicktime',
-  '.m4a': 'audio/mp4',
-  '.ogg': 'audio/ogg',
-  '.mp3': 'audio/mpeg',
-  '.wav': 'audio/wav',
 };
 
 /**

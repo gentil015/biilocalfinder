@@ -14,6 +14,10 @@ const MIME_BY_EXT: Record<string, string> = {
   '.mp4': 'video/mp4',
   '.webm': 'video/webm',
   '.mov': 'video/quicktime',
+  '.m4a': 'audio/mp4',
+  '.ogg': 'audio/ogg',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
 };
 
 /**
@@ -63,19 +67,20 @@ export class LocalStorageService implements StorageService {
     }
   }
 
-  async upload(buffer: Buffer, originalName: string, _mimeType: string, prefix: string): Promise<UploadedFileResult> {
+  async upload(buffer: Buffer, originalName: string, mimeType: string, prefix: string): Promise<UploadedFileResult> {
     const key = this.buildKey(prefix, originalName);
     const full = this.safeJoin(this.publicDir, key);
     if (!full) throw new Error('Invalid storage key');
     await fsp.mkdir(path.dirname(full), { recursive: true });
     await fsp.writeFile(full, buffer);
+    await fsp.writeFile(`${full}.ctype`, mimeType).catch(() => {});
     return { key, url: this.getUrl(key) };
   }
 
   async uploadPrivate(
     buffer: Buffer,
     originalName: string,
-    _mimeType: string,
+    mimeType: string,
     prefix: string,
   ): Promise<{ key: string }> {
     const key = this.buildKey(prefix, originalName);
@@ -83,6 +88,7 @@ export class LocalStorageService implements StorageService {
     if (!full) throw new Error('Invalid storage key');
     await fsp.mkdir(path.dirname(full), { recursive: true });
     await fsp.writeFile(full, buffer);
+    await fsp.writeFile(`${full}.ctype`, mimeType).catch(() => {});
     return { key };
   }
 
@@ -90,9 +96,15 @@ export class LocalStorageService implements StorageService {
     const full = this.resolvePrivate(key) ?? this.resolvePublic(key);
     if (!full) return null;
     const stat = await fsp.stat(full);
+    let mimeType = MIME_BY_EXT[path.extname(full).toLowerCase()] ?? 'application/octet-stream';
+    try {
+      mimeType = (await fsp.readFile(`${full}.ctype`, 'utf8')).trim() || mimeType;
+    } catch {
+      // no sidecar
+    }
     return {
       sizeBytes: stat.size,
-      mimeType: MIME_BY_EXT[path.extname(full).toLowerCase()] ?? 'application/octet-stream',
+      mimeType,
     };
   }
 
@@ -111,6 +123,7 @@ export class LocalStorageService implements StorageService {
     for (const full of [this.safeJoin(this.privateDir, key), this.safeJoin(this.publicDir, key)]) {
       if (!full) continue;
       await fsp.rm(full, { force: true });
+      await fsp.rm(`${full}.ctype`, { force: true });
     }
   }
 
@@ -142,6 +155,12 @@ export class LocalStorageService implements StorageService {
   }
 
   mimeFor(file: string): string {
+    try {
+      const stored = fs.readFileSync(`${file}.ctype`, 'utf8').trim();
+      if (stored) return stored;
+    } catch {
+      // no sidecar
+    }
     return MIME_BY_EXT[path.extname(file).toLowerCase()] ?? 'application/octet-stream';
   }
 

@@ -95,24 +95,29 @@ function VoiceNote({ src }: { src: string }) {
 }
 
 function AttachmentMedia({ attachment }: { attachment: any }) {
-  if (attachment.mimeType?.startsWith('video/')) {
+  const src = attachment.url || '';
+  const key = attachment.storageKey || '';
+  const mimeType = attachment.mimeType || '';
+  const looksLikeVoiceNote = /voice-note/i.test(src) || /voice-note/i.test(key);
+
+  if (mimeType.startsWith('audio/') || (mimeType === 'video/webm' && looksLikeVoiceNote)) {
+    return <VoiceNote src={src} />;
+  }
+  if (mimeType.startsWith('video/')) {
     return (
       <video
-        src={attachment.url}
+        src={src}
         controls
         preload="metadata"
         className="max-h-72 w-full rounded-xl bg-home-night object-contain"
       />
     );
   }
-  if (attachment.mimeType?.startsWith('audio/')) {
-    return <VoiceNote src={attachment.url} />;
-  }
   return (
-    <a href={attachment.url} target="_blank" rel="noreferrer" className="block">
+    <a href={src} target="_blank" rel="noreferrer" className="block">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={attachment.url}
+        src={src}
         alt=""
         loading="lazy"
         decoding="async"
@@ -307,11 +312,17 @@ export default function ConversationThreadPage() {
               // Chrome/Firefox MediaRecorder output has no Duration element,
               // so players show 0:00. Patch the real duration into the WebM
               // before uploading.
-              const { default: fixWebmDuration } = await import('fix-webm-duration');
-              blob = await fixWebmDuration(rawBlob, durationMs, { logger: false });
+              const mod: any = await import('fix-webm-duration');
+              const fixWebmDuration = mod?.default ?? mod;
+              if (typeof fixWebmDuration === 'function') {
+                blob = await fixWebmDuration(rawBlob, durationMs, { logger: false });
+              }
             } catch {
               blob = rawBlob;
             }
+          }
+          if (blob.type !== type) {
+            blob = new Blob([blob], { type });
           }
           await uploadVoiceNote(
             new File([blob], `voice-note-${Date.now()}.${extension}`, { type }),

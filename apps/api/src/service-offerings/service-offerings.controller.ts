@@ -13,6 +13,12 @@ import { UpdateOfferingDto } from './dto/update-offering.dto';
 export class ServiceOfferingsController {
   constructor(private offeringsService: ServiceOfferingsService) {}
 
+  // Public — crawl discovery (sitemap). Minimal fields, no tracking.
+  @Get('service-offerings')
+  listPublic() {
+    return this.offeringsService.listPublicSitemapEntries();
+  }
+
   // Public — the dedicated service offering page (spec §19). Stays public
   // via OptionalJwtAuthGuard, but records a VIEW_SERVICE interaction when
   // the viewer happens to be logged in (same pattern as the provider

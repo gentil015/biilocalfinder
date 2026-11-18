@@ -130,6 +130,16 @@ export class ServiceOfferingsService {
     return offering;
   }
 
+  // Public — minimal listing for crawl discovery (sitemap). Excludes inactive
+  // offerings; no viewer-specific tracking or heavy joins.
+  async listPublicSitemapEntries() {
+    return this.prisma.serviceOffering.findMany({
+      where: { isActive: true },
+      select: { id: true, updatedAt: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
   async update(userId: string, id: string, dto: UpdateOfferingDto) {
     const offering = await this.findOneForOwner(userId, id);
 

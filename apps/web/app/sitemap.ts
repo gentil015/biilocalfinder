@@ -54,8 +54,19 @@ async function loadProviderIds() {
   return Array.from(ids);
 }
 
+async function loadServiceOfferingEntries() {
+  const response = await fetch(`${API_URL}/api/service-offerings`, {
+    cache: 'no-store',
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!response.ok) return [] as { id: string; updatedAt?: string }[];
+  const result = (await response.json()) as { id: string; updatedAt?: string }[];
+  return Array.isArray(result) ? result : [];
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let providerRoutes: MetadataRoute.Sitemap = [];
+  let offeringRoutes: MetadataRoute.Sitemap = [];
 
   try {
     const ids = await loadProviderIds();
@@ -69,5 +80,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     providerRoutes = [];
   }
 
-  return [...STATIC_ROUTES, ...providerRoutes];
+  try {
+    const entries = await loadServiceOfferingEntries();
+    offeringRoutes = entries.map((entry) => ({
+      url: absoluteUrl(`/service-offerings/${entry.id}`),
+      lastModified: entry.updatedAt ? new Date(entry.updatedAt) : LAST_MODIFIED,
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    }));
+  } catch {
+    offeringRoutes = [];
+  }
+
+  return [...STATIC_ROUTES, ...providerRoutes, ...offeringRoutes];
 }

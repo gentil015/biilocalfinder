@@ -40,49 +40,62 @@ function formatDuration(seconds: number) {
 }
 
 /**
- * Voice notes recorded with MediaRecorder are WebM files without a Duration
- * element, so browsers report them as `0:00` (duration `Infinity`). Seeking
- * past the end forces the browser to scan the file and discover the real
- * duration; once it does, jump back to the start. Clips recorded after the
- * upload-time fix in `startRecording` already carry a duration and skip this.
+ * WebM/MediaRecorder clips often lack duration metadata, so browsers report
+ * `0:00` (duration `Infinity`). Seeking past the end forces duration discovery;
+ * once known, jump back to the start. Clips fixed at upload time skip this.
  */
-function VoiceNote({ src }: { src: string }) {
-  const audioRef = useRef<HTMLAudioElement>(null);
-
+function useMediaDurationFix(ref: { current: HTMLMediaElement | null }, src: string) {
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    const media = ref.current;
+    if (!media) return;
     let fixing = false;
 
-    const onDurationChange = () => {
+    const finish = () => {
       if (!fixing) return;
-      if (Number.isFinite(audio.duration) && audio.duration > 0) {
+      if (Number.isFinite(media.duration) && media.duration > 0) {
         fixing = false;
-        audio.currentTime = 0;
-        audio.removeEventListener('durationchange', onDurationChange);
+        try {
+          media.currentTime = 0;
+        } catch {
+          // ignore
+        }
+        media.removeEventListener('durationchange', finish);
+        media.removeEventListener('timeupdate', finish);
       }
     };
 
-    const onLoadedMetadata = () => {
-      if (Number.isFinite(audio.duration) && audio.duration > 0) return;
+    const tryFix = () => {
+      if (Number.isFinite(media.duration) && media.duration > 0) return;
       fixing = true;
-      audio.addEventListener('durationchange', onDurationChange);
+      media.addEventListener('durationchange', finish);
+      media.addEventListener('timeupdate', finish);
       try {
-        audio.currentTime = Number.MAX_SAFE_INTEGER;
+        media.currentTime = 1e101;
       } catch {
-        fixing = false;
+        try {
+          media.currentTime = 86400;
+        } catch {
+          fixing = false;
+        }
       }
     };
 
-    audio.addEventListener('loadedmetadata', onLoadedMetadata);
-    if (audio.readyState >= 1) onLoadedMetadata();
+    media.addEventListener('loadedmetadata', tryFix);
+    media.addEventListener('loadeddata', tryFix);
+    if (media.readyState >= 1) tryFix();
 
     return () => {
-      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
-      audio.removeEventListener('durationchange', onDurationChange);
+      media.removeEventListener('loadedmetadata', tryFix);
+      media.removeEventListener('loadeddata', tryFix);
+      media.removeEventListener('durationchange', finish);
+      media.removeEventListener('timeupdate', finish);
     };
-  }, [src]);
+  }, [ref, src]);
+}
 
+function VoiceNote({ src }: { src: string }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  useMediaDurationFix(audioRef, src);
   return (
     <audio
       ref={audioRef}
@@ -94,24 +107,34 @@ function VoiceNote({ src }: { src: string }) {
   );
 }
 
+function FixedVideo({ src }: { src: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useMediaDurationFix(videoRef, src);
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      controls
+      preload="metadata"
+      className="max-h-72 w-full rounded-xl bg-home-night object-contain"
+    />
+  );
+}
+
 function AttachmentMedia({ attachment }: { attachment: any }) {
   const src = attachment.url || '';
   const key = attachment.storageKey || '';
   const mimeType = attachment.mimeType || '';
   const looksLikeVoiceNote = /voice-note/i.test(src) || /voice-note/i.test(key);
 
-  if (mimeType.startsWith('audio/') || (mimeType === 'video/webm' && looksLikeVoiceNote)) {
+  // Some older voice notes were stored/served as video/webm (or without a
+  // .ctype sidecar) so mime may be wrong; prefer the audio player when we can
+  // confidently identify a voice note, and still fix duration for all media.
+  if (mimeType.startsWith('audio/') || (looksLikeVoiceNote && (mimeType === 'video/webm' || mimeType === ''))) {
     return <VoiceNote src={src} />;
   }
   if (mimeType.startsWith('video/')) {
-    return (
-      <video
-        src={src}
-        controls
-        preload="metadata"
-        className="max-h-72 w-full rounded-xl bg-home-night object-contain"
-      />
-    );
+    return <FixedVideo src={src} />;
   }
   return (
     <a href={src} target="_blank" rel="noreferrer" className="block">

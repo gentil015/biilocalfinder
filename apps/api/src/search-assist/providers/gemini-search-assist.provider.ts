@@ -3,7 +3,7 @@ import { SearchAssistInput, SearchAssistOutput, SearchAssistProvider } from '../
 import { buildSearchSystemPrompt, buildSearchUserPayload } from '../search-assist.prompt';
 
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
-const DEFAULT_MODEL = 'gemini-flash-latest';
+const DEFAULT_MODEL = 'gemini-3-flash-preview';
 const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1_500;

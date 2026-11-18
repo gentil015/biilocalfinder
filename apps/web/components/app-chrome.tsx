@@ -6,7 +6,6 @@ import { SiteHeader } from '@/components/site-header';
 import { SiteFooter } from '@/components/site-footer';
 import { MobileTabBar } from '@/components/mobile-tab-bar';
 import { NavigationHistoryTracker } from '@/components/back-button';
-import { CustomerAssistWidget } from '@/components/customer-assist/customer-assist-widget';
 import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 
 function isAuthPath(pathname: string) {
@@ -60,12 +59,6 @@ export function AppChrome({ children }: { children: React.ReactNode }) {
       {!auth && !appShell && <SiteFooter />}
       {!auth && !appShell && <MobileTabBar />}
 
-      {/* "Ask BII Assistant" — marketplace guide and task helper. It appears
-          everywhere, including the app shells and auth screens: the API is
-          public, and a valid session is picked up automatically so the same
-          widget can answer account/provider questions and offer confirmed
-          write actions. */}
-      <CustomerAssistWidget />
       <PwaInstallPrompt />
     </div>
   );

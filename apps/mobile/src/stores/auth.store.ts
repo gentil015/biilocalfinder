@@ -47,6 +47,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     try {
       const { user, workspaces } = await loadContext();
+      if (user.role === 'PROVIDER') {
+        await useAppStore.getState().setActiveExperience('provider');
+      }
       set({ status: 'authenticated', user, workspaces });
     } catch {
       await tokenStore.clear();

@@ -1,12 +1,26 @@
+import { NativeModules, Platform } from 'react-native';
+
 let configured = false;
+let cachedModule: GoogleSigninModule | null | undefined;
 
 type GoogleSigninModule = typeof import('@react-native-google-signin/google-signin');
 
+function hasNativeGoogleSignin() {
+  // Expo Go / non-native builds won't have the RNGoogleSignin native module.
+  return Boolean((NativeModules as Record<string, unknown>).RNGoogleSignin);
+}
+
 function getGoogleSigninModule(): GoogleSigninModule | null {
+  if (cachedModule !== undefined) return cachedModule;
+  if (Platform.OS === 'web' || !hasNativeGoogleSignin()) {
+    cachedModule = null;
+    return null;
+  }
   try {
-    // Lazy require prevents Expo Go / non-native contexts from crashing on app startup.
-    return require('@react-native-google-signin/google-signin') as GoogleSigninModule;
+    cachedModule = require('@react-native-google-signin/google-signin') as GoogleSigninModule;
+    return cachedModule;
   } catch {
+    cachedModule = null;
     return null;
   }
 }

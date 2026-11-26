@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Building2, Mail, Users } from 'lucide-react-native';
+import { Building2, Check, Mail, ShieldCheck, Trash2, UserRound, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppScreenHeader } from '@/src/components/ui/AppScreenHeader';
@@ -18,7 +18,12 @@ import { EmptyState, ErrorState } from '@/src/components/ui/States';
 import { useToast } from '@/src/components/ui/Toast';
 import { queryKeys, useAuthWorkspaces } from '@/src/hooks/queries';
 import { toApiError } from '@/src/services/api/errors';
-import { workspacesApi, type WorkspaceInvitation } from '@/src/services/api/endpoints/workspaces';
+import {
+  workspacesApi,
+  type WorkspaceInvitation,
+  type WorkspaceInvitationPreview,
+  type WorkspaceMember,
+} from '@/src/services/api/endpoints/workspaces';
 import { useAppStore } from '@/src/stores/app.store';
 import { useAuthStore } from '@/src/stores/auth.store';
 import { useTheme } from '@/src/theme/ThemeProvider';
@@ -33,6 +38,13 @@ const roleOptions: SegmentOption<'MEMBER' | 'MANAGER'>[] = [
   { label: 'Manager', value: 'MANAGER' },
 ];
 
+type PendingMemberAction = { kind: 'remove' | 'transfer'; member: WorkspaceMember } | null;
+
+function memberName(member: WorkspaceMember): string {
+  const fullName = [member.user?.firstName, member.user?.lastName].filter(Boolean).join(' ').trim();
+  return fullName || member.user?.email || member.invitedEmail || 'Invited member';
+}
+
 export default function WorkspacesScreen() {
   const theme = useTheme();
   const { colors } = theme;
@@ -40,6 +52,7 @@ export default function WorkspacesScreen() {
   const queryClient = useQueryClient();
   const workspaces = useAuthWorkspaces();
   const activeWorkspaceId = useAppStore((state) => state.activeWorkspaceId);
+  const user = useAuthStore((state) => state.user);
   const [createName, setCreateName] = useState('');
   const [createType, setCreateType] = useState<ProviderType>('INDIVIDUAL');
   const [renameName, setRenameName] = useState('');
@@ -47,8 +60,16 @@ export default function WorkspacesScreen() {
   const [inviteRole, setInviteRole] = useState<'MANAGER' | 'MEMBER'>('MEMBER');
   const [notice, setNotice] = useState<{ message: string; tone: NoticeTone } | null>(null);
   const [pendingRevoke, setPendingRevoke] = useState<WorkspaceInvitation | null>(null);
+  const [pendingMemberAction, setPendingMemberAction] = useState<PendingMemberAction>(null);
+  const [inviteToken, setInviteToken] = useState('');
+  const [invitationPreview, setInvitationPreview] = useState<WorkspaceInvitationPreview | null>(null);
   const activeWorkspace = workspaces.data?.find((workspace) => workspace.id === activeWorkspaceId);
   const canManage = activeWorkspace?.role === 'OWNER' || activeWorkspace?.role === 'MANAGER';
+  const members = useQuery({
+    queryKey: ['workspace-members', activeWorkspaceId],
+    queryFn: () => workspacesApi.members(activeWorkspaceId!),
+    enabled: Boolean(activeWorkspaceId),
+  });
   const invitations = useQuery({
     queryKey: ['workspace-invitations', activeWorkspaceId],
     queryFn: () => workspacesApi.invitations(activeWorkspaceId!),
@@ -63,6 +84,14 @@ export default function WorkspacesScreen() {
   };
 
   const error = (message: string) => setNotice({ message, tone: 'error' });
+
+  const refreshWorkspace = async () => {
+    await Promise.all([
+      refresh(),
+      queryClient.invalidateQueries({ queryKey: ['workspace-members', activeWorkspaceId] }),
+      queryClient.invalidateQueries({ queryKey: ['workspace-invitations', activeWorkspaceId] }),
+    ]);
+  };
 
   const create = useMutation({
     mutationFn: () => workspacesApi.create({ name: createName.trim(), type: createType }),
@@ -107,6 +136,77 @@ export default function WorkspacesScreen() {
     },
     onError: (caught) => {
       setPendingRevoke(null);
+      error(toApiError(caught).message);
+    },
+  });
+
+  const acceptMembership = useMutation({
+    mutationFn: ({ workspaceId, membershipId }: { workspaceId: string; membershipId: string }) =>
+      workspacesApi.acceptMembership(workspaceId, membershipId),
+    onSuccess: async () => {
+      setNotice({ message: 'Invitation accepted.', tone: 'success' });
+      showToast('Invitation accepted.', 'success');
+      await refreshWorkspace();
+    },
+    onError: (caught) => error(toApiError(caught).message),
+  });
+
+  const previewInvitation = useMutation({
+    mutationFn: (token: string) => workspacesApi.previewInvitation(token),
+    onSuccess: (preview) => {
+      setInvitationPreview(preview);
+      setNotice(null);
+    },
+    onError: (caught) => error(toApiError(caught).message),
+  });
+
+  const acceptToken = useMutation({
+    mutationFn: (token: string) => workspacesApi.acceptInvitationToken(token),
+    onSuccess: async () => {
+      setInvitationPreview(null);
+      setInviteToken('');
+      setNotice({ message: 'Invitation accepted.', tone: 'success' });
+      showToast('Invitation accepted.', 'success');
+      await refreshWorkspace();
+    },
+    onError: (caught) => error(toApiError(caught).message),
+  });
+
+  const changeRole = useMutation({
+    mutationFn: ({ membershipId, role }: { membershipId: string; role: 'MANAGER' | 'MEMBER' }) =>
+      workspacesApi.updateMemberRole(activeWorkspaceId!, membershipId, role),
+    onSuccess: async () => {
+      setNotice({ message: 'Member role updated.', tone: 'success' });
+      showToast('Member role updated.', 'success');
+      await refreshWorkspace();
+    },
+    onError: (caught) => error(toApiError(caught).message),
+  });
+
+  const removeMember = useMutation({
+    mutationFn: (membershipId: string) => workspacesApi.removeMember(activeWorkspaceId!, membershipId),
+    onSuccess: async () => {
+      setPendingMemberAction(null);
+      setNotice({ message: 'Member removed.', tone: 'success' });
+      showToast('Member removed.', 'success');
+      await refreshWorkspace();
+    },
+    onError: (caught) => {
+      setPendingMemberAction(null);
+      error(toApiError(caught).message);
+    },
+  });
+
+  const transferOwnership = useMutation({
+    mutationFn: (membershipId: string) => workspacesApi.transferOwnership(activeWorkspaceId!, membershipId),
+    onSuccess: async () => {
+      setPendingMemberAction(null);
+      setNotice({ message: 'Ownership transferred.', tone: 'success' });
+      showToast('Ownership transferred.', 'success');
+      await refreshWorkspace();
+    },
+    onError: (caught) => {
+      setPendingMemberAction(null);
       error(toApiError(caught).message);
     },
   });
@@ -169,12 +269,123 @@ export default function WorkspacesScreen() {
                     .filter(Boolean)
                     .join(' · ')}
                 </Text>
+                {workspace.membershipStatus === 'INVITED' && workspace.membershipId ? (
+                  <Button
+                    label="Accept invite"
+                    variant="secondary"
+                    size="sm"
+                    loading={acceptMembership.isPending}
+                    onPress={() =>
+                      acceptMembership.mutate({
+                        workspaceId: workspace.id,
+                        membershipId: workspace.membershipId,
+                      })
+                    }
+                  />
+                ) : null}
               </View>
               {workspace.id === activeWorkspaceId ? <Badge label="Active" tone="success" /> : null}
             </View>
           </Card>
         ))}
       </View>
+
+      <Card variant="default">
+        <SectionHeader title="Members" subtitle={activeWorkspace?.name ?? 'Choose a workspace first'} />
+        {members.isPending ? (
+          <View style={{ gap: theme.spacing.sm }}>
+            <Card variant="muted">
+              <Skeleton height={16} />
+              <Skeleton width="60%" height={12} />
+            </Card>
+            <Card variant="muted">
+              <Skeleton height={16} />
+              <Skeleton width="70%" height={12} />
+            </Card>
+          </View>
+        ) : null}
+        {members.isError ? (
+          <ErrorState message="Members could not be loaded." onRetry={() => void members.refetch()} />
+        ) : null}
+        {members.isSuccess && !members.data?.length ? (
+          <EmptyState
+            icon={<Users size={24} color={colors.primaryDark} />}
+            title="No members yet"
+            message="People with access to this workspace will appear here."
+          />
+        ) : null}
+        {members.data?.map((member) => {
+          const self = member.userId === user?.id;
+          const owner = member.role === 'OWNER';
+          const manageable = canManage && !owner && !self && member.status !== 'REMOVED';
+          return (
+            <View key={member.id} style={styles.memberRow}>
+              {owner ? (
+                <ShieldCheck size={18} color={colors.primaryDark} />
+              ) : (
+                <UserRound size={18} color={colors.textMuted} />
+              )}
+              <View style={{ flex: 1, gap: theme.spacing.xs }}>
+                <Text numberOfLines={1} style={[typography.small, { color: colors.text }]}>
+                  {memberName(member)}
+                </Text>
+                <Text style={[typography.caption, { color: colors.textMuted }]}>
+                  {[humanize(member.role), humanize(member.status)].filter(Boolean).join(' · ')}
+                </Text>
+              </View>
+              {member.status === 'INVITED' && self ? (
+                <Button
+                  label="Accept"
+                  size="sm"
+                  icon={<Check size={14} />}
+                  loading={acceptMembership.isPending}
+                  onPress={() => {
+                    if (activeWorkspaceId) {
+                      acceptMembership.mutate({ workspaceId: activeWorkspaceId, membershipId: member.id });
+                    }
+                  }}
+                />
+              ) : null}
+              {manageable ? (
+                <View style={styles.actions}>
+                  {activeWorkspace?.role === 'OWNER' ? (
+                    <Button
+                      label={member.role === 'MANAGER' ? 'Make member' : 'Make manager'}
+                      variant="secondary"
+                      size="sm"
+                      disabled={changeRole.isPending}
+                      onPress={() =>
+                        changeRole.mutate({
+                          membershipId: member.id,
+                          role: member.role === 'MANAGER' ? 'MEMBER' : 'MANAGER',
+                        })
+                      }
+                    />
+                  ) : null}
+                  {activeWorkspace?.role === 'OWNER' && member.status === 'ACTIVE' ? (
+                    <Button
+                      label="Make owner"
+                      variant="secondary"
+                      size="sm"
+                      disabled={transferOwnership.isPending}
+                      onPress={() => setPendingMemberAction({ kind: 'transfer', member })}
+                    />
+                  ) : null}
+                  <IconButton
+                    icon={<Trash2 size={18} />}
+                    label={`Remove ${memberName(member)}`}
+                    variant="ghost"
+                    tone="danger"
+                    size={theme.hit.compact}
+                    disabled={removeMember.isPending}
+                    onPress={() => setPendingMemberAction({ kind: 'remove', member })}
+                  />
+                </View>
+              ) : null}
+            </View>
+          );
+        })}
+      </Card>
 
       {canManage ? (
         <Card variant="default">
@@ -267,6 +478,55 @@ export default function WorkspacesScreen() {
         </Card>
       ) : null}
 
+      <Card variant="default">
+        <SectionHeader title="Accept an invitation" subtitle="Paste the token from your invitation link" />
+        <View style={styles.formGroup}>
+          <Input
+            label="Invitation token"
+            value={inviteToken}
+            onChangeText={setInviteToken}
+            placeholder="Paste token"
+            autoCapitalize="none"
+          />
+          <Button
+            label="Preview invitation"
+            variant="secondary"
+            disabled={!inviteToken.trim() || previewInvitation.isPending}
+            loading={previewInvitation.isPending}
+            onPress={() => previewInvitation.mutate(inviteToken.trim())}
+          />
+          {invitationPreview ? (
+            <View style={{ gap: theme.spacing.sm }}>
+              <View style={styles.row}>
+                <Mail size={18} color={colors.primaryDark} />
+                <View style={{ flex: 1, gap: theme.spacing.xs }}>
+                  <Text style={[typography.bodyStrong, { color: colors.text }]}>
+                    {invitationPreview.workspace.name}
+                  </Text>
+                  <Text style={[typography.caption, { color: colors.textMuted }]}>
+                    {[
+                      invitationPreview.email,
+                      humanize(invitationPreview.role),
+                      `Invited by ${invitationPreview.inviterName}`,
+                      `Expires ${new Date(invitationPreview.expiresAt).toLocaleDateString()}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </Text>
+                </View>
+              </View>
+              <Button
+                label="Accept invitation"
+                disabled={acceptToken.isPending}
+                loading={acceptToken.isPending}
+                onPress={() => acceptToken.mutate(inviteToken.trim())}
+                fullWidth
+              />
+            </View>
+          ) : null}
+        </View>
+      </Card>
+
       <Card variant="elevated">
         <SectionHeader title="Create workspace" subtitle="A new workspace keeps your clients and team organised" />
         <View style={styles.formGroup}>
@@ -312,6 +572,29 @@ export default function WorkspacesScreen() {
         }}
         onCancel={() => setPendingRevoke(null)}
       />
+
+      <ConfirmDialog
+        visible={Boolean(pendingMemberAction)}
+        title={pendingMemberAction?.kind === 'transfer' ? 'Transfer ownership?' : 'Remove this member?'}
+        message={
+          pendingMemberAction
+            ? pendingMemberAction.kind === 'transfer'
+              ? `${memberName(pendingMemberAction.member)} will become the owner and you will become a manager.`
+              : `${memberName(pendingMemberAction.member)} will lose access to this workspace.`
+            : ''
+        }
+        confirmLabel={pendingMemberAction?.kind === 'transfer' ? 'Transfer ownership' : 'Remove member'}
+        destructive
+        loading={
+          pendingMemberAction?.kind === 'transfer' ? transferOwnership.isPending : removeMember.isPending
+        }
+        onConfirm={() => {
+          if (!pendingMemberAction) return;
+          if (pendingMemberAction.kind === 'transfer') transferOwnership.mutate(pendingMemberAction.member.id);
+          else removeMember.mutate(pendingMemberAction.member.id);
+        }}
+        onCancel={() => setPendingMemberAction(null)}
+      />
     </Screen>
   );
 }
@@ -321,4 +604,6 @@ const styles = StyleSheet.create({
   formGroup: { gap: spacing.md },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   inviteRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  memberRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.sm },
 });

@@ -8,6 +8,7 @@ import { AppScreenHeader } from '@/src/components/ui/AppScreenHeader';
 import { Badge } from '@/src/components/ui/Badges';
 import { Button } from '@/src/components/ui/Button';
 import { Card, SectionHeader } from '@/src/components/ui/Card';
+import { Input } from '@/src/components/ui/Input';
 import { Notice, type NoticeTone } from '@/src/components/ui/Notice';
 import { Screen } from '@/src/components/ui/Screen';
 import { SegmentedControl, type SegmentOption } from '@/src/components/ui/SegmentedControl';
@@ -19,7 +20,7 @@ import { providerApi } from '@/src/services/api/endpoints/provider';
 import { toApiError } from '@/src/services/api/errors';
 import { useTheme } from '@/src/theme/ThemeProvider';
 import { spacing, typography } from '@/src/theme/metrics';
-import { humanize, statusLabel } from '@/src/utils/format';
+import { formatDate, humanize, statusLabel } from '@/src/utils/format';
 
 const MAX_DOCUMENT_BYTES = 8 * 1024 * 1024;
 
@@ -57,6 +58,13 @@ interface VerificationRecordView {
   type?: string;
   status?: string;
   decisionNote?: string | null;
+  offering?: { id?: string; name?: string } | null;
+  legalName?: string | null;
+  referenceNumber?: string | null;
+  submittedAt?: string | null;
+  verifiedAt?: string | null;
+  expiresAt?: string | null;
+  expiringSoon?: boolean;
   documents?: Array<{ originalName?: string; documentType?: string; sizeBytes?: number }>;
 }
 
@@ -87,6 +95,9 @@ export default function VerificationScreen() {
   const offerings = useOfferings();
   const [type, setType] = useState<VerificationType>('IDENTITY');
   const [serviceOfferingId, setServiceOfferingId] = useState('');
+  const [legalName, setLegalName] = useState('');
+  const [referenceNumber, setReferenceNumber] = useState('');
+  const [note, setNote] = useState('');
   const [document, setDocument] = useState<{ storageKey: string; name: string; sizeBytes?: number } | null>(null);
   const [notice, setNotice] = useState<{ message: string; tone: NoticeTone } | null>(null);
   const [picking, setPicking] = useState(false);
@@ -107,6 +118,9 @@ export default function VerificationScreen() {
       providerApi.submitVerification({
         type,
         ...(type === 'SERVICE' ? { serviceOfferingId } : {}),
+        legalName: legalName.trim() || undefined,
+        referenceNumber: referenceNumber.trim() || undefined,
+        note: note.trim() || undefined,
         documents: document ? [{ storageKey: document.storageKey, documentType: TYPES.find((item) => item.value === type)!.doc }] : [],
       }),
     onSuccess: async () => {
@@ -158,6 +172,20 @@ export default function VerificationScreen() {
   const businessVerified = typeof data.businessVerified === 'boolean' ? data.businessVerified : null;
   const nextSteps = Array.isArray(data.nextSteps) ? data.nextSteps.map(String) : [];
   const records = Array.isArray(data.records) ? (data.records as VerificationRecordView[]) : [];
+  const expiresAt = asText(data.expiresAt);
+  const phoneVerified = typeof data.phoneVerified === 'boolean' ? data.phoneVerified : null;
+  const emailVerified = typeof data.emailVerified === 'boolean' ? data.emailVerified : null;
+  const hasPhone = typeof data.hasPhone === 'boolean' ? data.hasPhone : null;
+  const verifiedOfferings = Array.isArray(data.offerings)
+    ? (data.offerings as Array<{ id?: string; name?: string }>).filter((offering) => asText(offering.name))
+    : [];
+  const hasStatusDetails = Boolean(
+    expiresAt ||
+      hasPhone !== null ||
+      phoneVerified !== null ||
+      emailVerified !== null ||
+      verifiedOfferings.length > 0,
+  );
   const canSubmit =
     Boolean(document) &&
     !submit.isPending &&
@@ -205,6 +233,27 @@ export default function VerificationScreen() {
               <JourneyRow label="Identity" verified={identityVerified} />
               <JourneyRow label="Business" verified={businessVerified} />
             </View>
+            {hasStatusDetails ? (
+              <View style={{ gap: theme.spacing.sm }}>
+                <Text style={[typography.eyebrow, { color: colors.primary }]}>STATUS DETAILS</Text>
+                {expiresAt ? <DetailRow label="Verification expires" value={formatDate(expiresAt)} /> : null}
+                {hasPhone !== null ? <DetailRow label="Phone on file" value={hasPhone ? 'Yes' : 'No'} /> : null}
+                {phoneVerified !== null ? <JourneyRow label="Phone verified" verified={phoneVerified} /> : null}
+                {emailVerified !== null ? <JourneyRow label="Email verified" verified={emailVerified} /> : null}
+                {verifiedOfferings.length ? (
+                  <View style={{ gap: theme.spacing.xs }}>
+                    <Text style={[typography.caption, { color: colors.textMuted }]}>
+                      Offerings available for verification
+                    </Text>
+                    {verifiedOfferings.map((offering, index) => (
+                      <Text key={offering.id ?? index} style={[typography.small, { color: colors.textSecondary }]}>
+                        {offering.name}
+                      </Text>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
             {nextSteps.length ? (
               <View style={{ gap: theme.spacing.sm }}>
                 <Text style={[typography.eyebrow, { color: colors.warning }]}>NEXT STEPS</Text>
@@ -237,6 +286,26 @@ export default function VerificationScreen() {
         <SectionHeader title="Submit a document" subtitle="Images up to 8 MB" />
         <Card variant="default">
           <View style={{ gap: theme.spacing.md }}>
+            <Input
+              label="Legal name"
+              value={legalName}
+              onChangeText={setLegalName}
+              placeholder="Name exactly as on the document"
+            />
+            <Input
+              label="Reference number"
+              value={referenceNumber}
+              onChangeText={setReferenceNumber}
+              placeholder="Registration or licence number"
+            />
+            <Input
+              label="Note for reviewer"
+              value={note}
+              onChangeText={setNote}
+              placeholder="Anything the reviewer should know"
+              multiline
+              numberOfLines={3}
+            />
             <SegmentedControl
               options={serviceTypeDisabled ? TYPE_OPTIONS.filter((option) => option.value !== 'SERVICE') : TYPE_OPTIONS}
               value={type}
@@ -352,6 +421,23 @@ export default function VerificationScreen() {
                         tone={recordTone(asText(record.status) ?? undefined)}
                       />
                     </View>
+                    {asText(record.legalName) ? <DetailRow label="Legal name" value={asText(record.legalName)!} /> : null}
+                    {asText(record.referenceNumber) ? (
+                      <DetailRow label="Reference number" value={asText(record.referenceNumber)!} />
+                    ) : null}
+                    {asText(record.offering?.name) ? (
+                      <DetailRow label="Linked offering" value={asText(record.offering?.name)!} />
+                    ) : null}
+                    {asText(record.submittedAt) ? (
+                      <DetailRow label="Submitted" value={formatDate(asText(record.submittedAt))} />
+                    ) : null}
+                    {asText(record.verifiedAt) ? (
+                      <DetailRow label="Verified" value={formatDate(asText(record.verifiedAt))} />
+                    ) : null}
+                    {asText(record.expiresAt) ? (
+                      <DetailRow label="Expires" value={formatDate(asText(record.expiresAt))} />
+                    ) : null}
+                    {record.expiringSoon === true ? <Badge label="Expiring soon" tone="warning" /> : null}
                     {record.documents?.length ? (
                       <View style={{ gap: theme.spacing.xs }}>
                         {record.documents.map((doc, docIndex) => (
@@ -374,6 +460,16 @@ export default function VerificationScreen() {
         ) : null}
       </View>
     </Screen>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  const { colors } = useTheme();
+  return (
+    <View style={styles.row}>
+      <Text style={[typography.caption, { color: colors.textMuted }]}>{label}</Text>
+      <Text style={[typography.small, { color: colors.text, flex: 1, textAlign: 'right' }]}>{value}</Text>
+    </View>
   );
 }
 

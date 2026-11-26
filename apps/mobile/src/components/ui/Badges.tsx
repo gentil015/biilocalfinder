@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { StyleSheet, Text, View } from 'react-native';
-import { Star } from 'lucide-react-native';
+import { Clock, Star } from 'lucide-react-native';
 import { useTheme } from '@/src/theme/ThemeProvider';
 import { radius, spacing } from '@/src/theme/metrics';
 import type { AvailabilityStatus, VerificationStatus } from '@/src/types/api';
@@ -101,6 +101,28 @@ export function AvailabilityBadge({ status }: { status: AvailabilityStatus }) {
   };
   const tone = status === 'AVAILABLE' ? 'success' : status === 'BUSY' ? 'warning' : 'neutral';
   return <Badge label={label[status] ?? label.AVAILABLE} tone={tone} />;
+}
+
+export function AvailabilityDetails({
+  nextAvailableLabel,
+  todayHours,
+}: {
+  nextAvailableLabel?: string | null;
+  todayHours?: string | null;
+}) {
+  const { colors, typography } = useTheme();
+  const lines = [nextAvailableLabel, todayHours ? `Today: ${todayHours}` : null].filter(Boolean);
+  if (!lines.length) {
+    return <Text style={[typography.caption, { color: colors.textMuted }]}>Not enough data yet</Text>;
+  }
+  return (
+    <View style={styles.row}>
+      <Clock size={13} color={colors.textMuted} />
+      <Text style={[typography.caption, { color: colors.textMuted, flex: 1 }]} numberOfLines={2}>
+        {lines.join(' · ')}
+      </Text>
+    </View>
+  );
 }
 
 export function RatingRow({ rating, count }: { rating: number | string; count?: number }) {

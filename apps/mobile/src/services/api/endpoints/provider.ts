@@ -1,4 +1,5 @@
 import { apiRequest } from '../client';
+import { normalizeProvider, normalizeReview } from '../normalizers';
 import type { OfferingItem, ProviderDetail, ProviderOnboarding, ProviderType, ReviewItem } from '@/src/types/api';
 
 export interface CreateOfferingDto {
@@ -16,9 +17,9 @@ export interface WeeklyAvailabilityDto {
 }
 
 export const providerApi = {
-  profile: () => apiRequest<ProviderDetail>('/providers/me/profile'),
-  updateProfile: (dto: Record<string, unknown>) =>
-    apiRequest<ProviderDetail>('/providers/me/profile', { method: 'PATCH', body: JSON.stringify(dto) }),
+  profile: async () => normalizeProvider(await apiRequest<ProviderDetail>('/providers/me/profile')),
+  updateProfile: async (dto: Record<string, unknown>) =>
+    normalizeProvider(await apiRequest<ProviderDetail>('/providers/me/profile', { method: 'PATCH', body: JSON.stringify(dto) })),
   updateLocation: (dto: { label?: string; addressLine?: string; city?: string; latitude: number; longitude: number }) =>
     apiRequest<ProviderDetail>('/providers/me/location', { method: 'PATCH', body: JSON.stringify(dto) }),
   onboarding: () => apiRequest<ProviderOnboarding>('/providers/me/onboarding'),
@@ -77,10 +78,12 @@ export const providerApi = {
   }) => apiRequest<Record<string, unknown>>('/provider/verification', { method: 'POST', body: JSON.stringify(dto) }),
   analytics: () => apiRequest<Record<string, unknown>>('/personalization/provider-analytics'),
   insights: () => apiRequest<Record<string, unknown>>('/personalization/provider-insights'),
-  inboxReviews: (unanswered = false) =>
-    apiRequest<{ items: ReviewItem[]; total: number; unanswered: number }>(
+  inboxReviews: async (unanswered = false) => {
+    const result = await apiRequest<{ items: ReviewItem[]; total: number; unanswered: number }>(
       `/provider/reviews?unanswered=${unanswered ? 'true' : 'false'}`,
-    ),
-  respondToReview: (id: string, text: string) =>
-    apiRequest<ReviewItem>(`/reviews/${id}/response`, { method: 'POST', body: JSON.stringify({ text }) }),
+    );
+    return { ...result, items: result.items.map(normalizeReview) };
+  },
+  respondToReview: async (id: string, text: string) =>
+    normalizeReview(await apiRequest<ReviewItem>(`/reviews/${id}/response`, { method: 'POST', body: JSON.stringify({ text }) })),
 };

@@ -22,7 +22,7 @@ import { requestsApi } from '@/src/services/api/endpoints/requests';
 import { toApiError } from '@/src/services/api/errors';
 import { useTheme } from '@/src/theme/ThemeProvider';
 import { radius, spacing, typography } from '@/src/theme/metrics';
-import { formatDate, formatMoney, statusLabel } from '@/src/utils/format';
+import { formatDate, formatMoney, humanize, statusLabel } from '@/src/utils/format';
 
 const reviewSchema = z.object({
   rating: z.string().min(1, 'Choose a rating').refine((value) => Number(value) >= 1 && Number(value) <= 5, 'Choose a rating'),
@@ -33,14 +33,6 @@ const reviewSchema = z.object({
   comment: z.string().max(2000).optional(),
 });
 type ReviewValues = z.infer<typeof reviewSchema>;
-
-const TIMELINE: Array<{ status: string; label: string }> = [
-  { status: 'REQUESTED', label: 'Requested' },
-  { status: 'ACCEPTED', label: 'Accepted' },
-  { status: 'CONFIRMED', label: 'Confirmed' },
-  { status: 'IN_PROGRESS', label: 'In progress' },
-  { status: 'COMPLETED', label: 'Completed' },
-];
 
 function StarInput({ value, onChange, label }: { value: number; onChange: (n: number) => void; label: string }) {
   const { colors } = useTheme();
@@ -126,8 +118,9 @@ export default function BookingDetailScreen() {
   if (booking.isError || !booking.data) return <Screen><AppScreenHeader title="Booking" /><ErrorState message="Booking not found." onRetry={() => void booking.refetch()} /></Screen>;
   const data = booking.data;
   const isProvider = data.viewerRole === 'PROVIDER';
-  const currentIdx = TIMELINE.findIndex((t) => t.status === data.status);
-  const isCancelled = data.status === 'CANCELLED';
+  const history = (data.statusHistory ?? []) as Array<{ status?: string; toStatus?: string; note?: string | null; createdAt: string }>;
+  const assignedUser = data.assignedMembership?.user;
+  const assignedName = [assignedUser?.firstName, assignedUser?.lastName].filter(Boolean).join(' ');
   return (
     <Screen>
       <AppScreenHeader title="Booking" subtitle={data.request?.title ?? 'Service booking'} />
@@ -146,23 +139,30 @@ export default function BookingDetailScreen() {
           </View>
           <Text style={[typography.h2, { color: colors.primaryDark, marginTop: spacing.sm }]}>{formatMoney(data.agreedPrice, data.currency)}</Text>
           {data.contact?.phone || data.contact?.email ? <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>{data.contact.phone ?? data.contact.email}</Text> : null}
+          {assignedName ? <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>Assigned member: {assignedName}</Text> : null}
+          {data.paymentArrangementNote ? <Text style={[typography.small, { color: colors.textSecondary, marginTop: spacing.xs }]}>Payment: {data.paymentArrangementNote}</Text> : null}
         </Card>
 
         <Card>
           <SectionHeader title="Status timeline" />
-          <View style={{ gap: spacing.sm }}>
-            {isCancelled ? (
-              <View style={styles.timelineRow}><View style={[styles.dot, { backgroundColor: colors.danger }]} /><Text style={[typography.bodyStrong, { color: colors.danger }]}>Cancelled</Text></View>
-            ) : TIMELINE.map((step, idx) => {
-              const done = currentIdx >= idx;
-              const active = currentIdx === idx;
+          <View style={{ gap: spacing.md }}>
+            {history.length ? history.map((event, index) => {
+              const status = event.status ?? event.toStatus ?? '';
               return (
-                <View key={step.status} style={styles.timelineRow}>
-                  <View style={[styles.dot, { backgroundColor: done ? colors.primary : colors.borderStrong, borderWidth: active ? 2 : 0, borderColor: colors.gold }]} />
-                  <Text style={[typography.small, { color: done ? colors.text : colors.textMuted, fontWeight: active ? '700' : '400' }]}>{step.label}</Text>
+              <View key={`${status}-${event.createdAt}-${index}`} style={styles.timelineRow}>
+                <View style={[styles.dot, { backgroundColor: index === history.length - 1 ? colors.primary : colors.borderStrong }]} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <View style={styles.timelineHeading}>
+                    <Text style={[typography.small, { color: colors.text, fontWeight: '600', flex: 1 }]}>{status ? statusLabel.booking(status) : humanize('STATUS_UPDATED')}</Text>
+                    <Text style={[typography.caption, { color: colors.textMuted }]}>{formatDate(event.createdAt)}</Text>
+                  </View>
+                  {event.note ? <Text style={[typography.caption, { color: colors.textSecondary }]}>{event.note}</Text> : null}
                 </View>
+              </View>
               );
-            })}
+            }) : (
+              <Text style={[typography.small, { color: colors.textMuted }]}>No status history yet.</Text>
+            )}
           </View>
         </Card>
 
@@ -233,8 +233,9 @@ export default function BookingDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  timelineRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  dot: { width: 12, height: 12, borderRadius: 6 },
+  timelineRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
+  timelineHeading: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  dot: { width: 12, height: 12, borderRadius: 6, marginTop: 4 },
   upload: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, minHeight: 48, borderWidth: 1, borderStyle: 'dashed', borderRadius: radius.md },
   imageWrap: { position: 'relative' },
   image: { width: 64, height: 64, borderRadius: radius.sm },

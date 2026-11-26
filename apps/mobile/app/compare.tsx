@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppScreenHeader } from '@/src/components/ui/AppScreenHeader';
-import { Avatar, Badge } from '@/src/components/ui/Badges';
+import { AvailabilityDetails, Avatar, Badge } from '@/src/components/ui/Badges';
 import { Button } from '@/src/components/ui/Button';
 import { RoleGuardLoading } from '@/src/components/layout/RoleGuardLoading';
 import { Card } from '@/src/components/ui/Card';
@@ -17,6 +17,8 @@ import { useTheme } from '@/src/theme/ThemeProvider';
 import { spacing, typography } from '@/src/theme/metrics';
 import { formatMoney, humanize } from '@/src/utils/format';
 
+type CompareAvailability = NonNullable<CompareProvider['availability']> & { todayHours?: string | null };
+
 type CompareRow = {
   key: string;
   label: string;
@@ -27,25 +29,49 @@ const ROWS: CompareRow[] = [
   {
     key: 'rating',
     label: 'Rating',
-    render: (provider) =>
-      typeof provider.rating === 'number' && Number.isFinite(provider.rating)
-        ? `${provider.rating.toFixed(1)}${typeof provider.reviewCount === 'number' ? ` (${provider.reviewCount})` : ''}`
-        : '—',
+    render: (provider) => (
+      <CellText>
+        {typeof provider.rating === 'number' && Number.isFinite(provider.rating) && provider.rating > 0
+          ? `${provider.rating.toFixed(1)}${typeof provider.reviewCount === 'number' ? ` (${provider.reviewCount})` : ''}`
+          : '—'}
+      </CellText>
+    ),
   },
   {
     key: 'reviews',
     label: 'Reviews',
-    render: (provider) => (typeof provider.reviewCount === 'number' ? String(provider.reviewCount) : '—'),
+    render: (provider) => (
+      <CellText>{typeof provider.reviewCount === 'number' ? String(provider.reviewCount) : '—'}</CellText>
+    ),
+  },
+  {
+    key: 'verifiedReviews',
+    label: 'Verified reviews',
+    render: (provider) => (
+      <CellText>{provider.verifiedReviewCount != null ? String(provider.verifiedReviewCount) : '—'}</CellText>
+    ),
+  },
+  {
+    key: 'responseRate',
+    label: 'Response rate',
+    render: (provider) => {
+      const percentage = provider.responseRateSummary?.percentage;
+      return <CellText>{percentage != null ? `${Math.round(percentage)}%` : '—'}</CellText>;
+    },
   },
   {
     key: 'jobs',
     label: 'Completed jobs',
-    render: (provider) => (typeof provider.completedJobCount === 'number' ? String(provider.completedJobCount) : '—'),
+    render: (provider) => (
+      <CellText>{typeof provider.completedJobCount === 'number' ? String(provider.completedJobCount) : '—'}</CellText>
+    ),
   },
   {
     key: 'experience',
     label: 'Experience',
-    render: (provider) => (typeof provider.yearsOfExperience === 'number' ? `${provider.yearsOfExperience} yrs` : '—'),
+    render: (provider) => (
+      <CellText>{typeof provider.yearsOfExperience === 'number' ? `${provider.yearsOfExperience} yrs` : '—'}</CellText>
+    ),
   },
   {
     key: 'verification',
@@ -60,17 +86,36 @@ const ROWS: CompareRow[] = [
   {
     key: 'price',
     label: 'Starting price',
-    render: (provider) => formatMoney(provider.startingPrice, provider.currency ?? 'RWF'),
+    render: (provider) => <CellText>{formatMoney(provider.startingPrice, provider.currency ?? 'RWF')}</CellText>,
   },
   {
     key: 'availability',
     label: 'Availability',
     render: (provider) => {
-      const status = provider.availabilityStatus ?? (provider.availability?.availableToday ? 'AVAILABLE' : 'UNAVAILABLE');
-      return <Badge label={humanize(status)} tone={status === 'AVAILABLE' ? 'success' : 'neutral'} />;
+      const availability = provider.availability as CompareAvailability | null | undefined;
+      const status = provider.availabilityStatus;
+      return (
+        <View style={styles.availabilityCell}>
+          {status ? (
+            <Badge
+              label={humanize(status)}
+              tone={status === 'AVAILABLE' ? 'success' : status === 'BUSY' ? 'warning' : 'neutral'}
+            />
+          ) : null}
+          <AvailabilityDetails
+            nextAvailableLabel={availability?.nextAvailableLabel}
+            todayHours={availability?.todayHours}
+          />
+        </View>
+      );
     },
   },
 ];
+
+function CellText({ children }: { children: ReactNode }) {
+  const { colors } = useTheme();
+  return <Text style={[typography.small, { color: colors.text }]}>{children}</Text>;
+}
 
 const browseRoute: Href = '/(customer)/(tabs)/explore';
 
@@ -159,7 +204,7 @@ export default function CompareScreen() {
                   </View>
                   {comparison.data.map((provider) => (
                     <View key={provider.id} style={styles.cell}>
-                      <Text style={[typography.small, { color: colors.text }]}>{row.render(provider)}</Text>
+                      {row.render(provider)}
                     </View>
                   ))}
                 </View>
@@ -201,5 +246,6 @@ const styles = StyleSheet.create({
   labelCell: { width: 116, padding: 12, justifyContent: 'center' },
   cell: { width: 190, minHeight: 56, padding: 12, justifyContent: 'center', gap: 6 },
   cellContent: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  availabilityCell: { gap: spacing.xs },
   pressed: { opacity: 0.75 },
 });

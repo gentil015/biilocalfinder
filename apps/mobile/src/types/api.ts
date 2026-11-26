@@ -65,6 +65,7 @@ export interface AvailabilitySummary {
   availableTomorrow: boolean;
   nextAvailableDate: string | null;
   nextAvailableLabel: string;
+  todayHours?: string | null;
 }
 
 export interface ProviderSearchItem {
@@ -127,6 +128,57 @@ export interface ServiceWithCategory extends ServiceItem {
   durationMinutes?: number | null;
 }
 
+export interface ProviderExperience {
+  id: string;
+  title?: string | null;
+  company?: string | null;
+  description?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  isCurrent?: boolean;
+  position?: number | null;
+}
+
+export interface ProviderEducation {
+  id: string;
+  school?: string | null;
+  degree?: string | null;
+  fieldOfStudy?: string | null;
+  description?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  isCurrent?: boolean;
+  position?: number | null;
+}
+
+export interface ProviderPortfolioImage {
+  id: string;
+  storageKey?: string | null;
+  url?: string | null;
+  caption?: string | null;
+  position?: number | null;
+}
+
+export interface ProviderPortfolio {
+  id: string;
+  title?: string | null;
+  description?: string | null;
+  projectDate?: string | null;
+  isBeforeAfter?: boolean;
+  serviceId?: string | null;
+  service?: { id: string; name: string } | null;
+  images?: ProviderPortfolioImage[];
+}
+
+export interface ReviewSummary {
+  total: number;
+  average: number | null;
+  distribution?: Record<string, number>;
+  verifiedCount?: number;
+  withPhotosCount?: number;
+  subratings?: Record<string, number | null>;
+}
+
 export interface ProviderDetail extends ProviderSearchItem {
   businessName: string;
   logoUrl?: string | null;
@@ -134,19 +186,17 @@ export interface ProviderDetail extends ProviderSearchItem {
   city?: string | null;
   addressLine?: string | null;
   yearsOfExperience: number;
+  serviceRadiusKm?: number | null;
   completedJobCount?: number;
   responseRateSummary?: { percentage: number; answeredRequests: number; totalRequests: number } | null;
   reputationMetrics?: Record<string, unknown>;
-  serviceOfferings?: Array<{
-    id: string;
-    title: string;
-    description?: string | null;
-    basePrice?: number | null;
-    priceType?: string;
-    duration?: number | null;
-    service?: { id: string; name: string; category?: { id: string; name: string } | null } | null;
-  }>;
-  services?: ServiceItem[];
+  serviceOfferings?: OfferingItem[];
+  services?: OfferingItem[];
+  experiences?: ProviderExperience[];
+  educations?: ProviderEducation[];
+  portfolios?: ProviderPortfolio[];
+  reviews?: ReviewItem[];
+  reviewSummary?: ReviewSummary | null;
   serviceAreas?: Array<{ id: string; label: string; latitude: number; longitude: number; radiusKm: number }>;
   location?: { label?: string | null; city?: string | null; addressLine?: string | null; latitude: number; longitude: number } | null;
   availability?: AvailabilitySummary | null;
@@ -196,6 +246,13 @@ export interface ReviewItem {
   response?: { text: string; createdAt: string } | null;
   photos?: Array<{ url?: string; storageKey?: string }>;
   isVerified?: boolean;
+  images?: Array<{ url?: string; storageKey?: string }>;
+  providerResponse?: { text: string; createdAt: string } | null;
+  verifiedBooking?: boolean;
+  respondedAt?: string | null;
+  status?: string;
+  providerId?: string | null;
+  bookingId?: string | null;
 }
 
 export interface QuoteItem {
@@ -252,11 +309,24 @@ export interface ServiceRequestItem {
   client?: { id: string; firstName?: string; lastName?: string; avatarUrl?: string | null } | null;
   quotes?: QuoteItem[];
   assignedTo?: { id: string; firstName?: string; lastName?: string } | null;
+  assignedMembership?: { id: string; user?: { id: string; firstName?: string; lastName?: string } | null } | null;
+  serviceOffering?: OfferingItem | null;
+  location?: { id: string; label?: string | null; city?: string | null } | null;
+  attributeSnapshots?: Array<{ name?: string; label?: string; value?: unknown }>;
+  booking?: BookingItem | null;
+}
+
+export interface BookingStatusEvent {
+  status: BookingStatus | string;
+  note?: string | null;
+  createdAt: string;
+  changedBy?: string | null;
 }
 
 export interface BookingItem {
   id: string;
   requestId: string;
+  serviceRequestId?: string;
   quoteId: string;
   clientId: string;
   providerId: string;
@@ -265,8 +335,12 @@ export interface BookingItem {
   currency?: string;
   scheduledAt?: string | null;
   note?: string | null;
+  paymentArrangementNote?: string | null;
+  statusHistory?: BookingStatusEvent[];
+  assignedMembership?: { id: string; user?: { id: string; firstName?: string; lastName?: string } | null } | null;
   createdAt: string;
   request?: { id: string; title: string } | null;
+  serviceRequest?: { id: string; title: string } | null;
   provider?: { id: string; businessName?: string; avatarUrl?: string | null } | null;
   client?: { id: string; firstName?: string; lastName?: string; avatarUrl?: string | null } | null;
   viewerRole?: 'CLIENT' | 'PROVIDER';

@@ -31,6 +31,8 @@ function stringData(data: Record<string, unknown> | null | undefined, key: strin
 
 function routeFor(item: NotificationItem, role?: string): Href | null {
   const data = item.data;
+  const savedSearchId = stringData(data, 'savedSearchId');
+  if (savedSearchId) return '/saved-searches';
   const conversationId = stringData(data, 'conversationId');
   if (conversationId) return { pathname: '/messages/[id]', params: { id: conversationId } };
   const disputeId = stringData(data, 'disputeId');

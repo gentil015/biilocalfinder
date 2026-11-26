@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Plus, Trash2, Wrench, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -14,12 +14,14 @@ import { ConfirmDialog } from '@/src/components/ui/ConfirmDialog';
 import { AppScreenHeader } from '@/src/components/ui/AppScreenHeader';
 import { FormInput } from '@/src/components/ui/FormInput';
 import { IconButton } from '@/src/components/ui/IconButton';
+import { Input } from '@/src/components/ui/Input';
 import { Notice, type NoticeTone } from '@/src/components/ui/Notice';
 import { Screen } from '@/src/components/ui/Screen';
 import { ListSkeleton } from '@/src/components/ui/Skeleton';
 import { EmptyState, ErrorState } from '@/src/components/ui/States';
 import { useToast } from '@/src/components/ui/Toast';
 import { queryKeys, useOfferings, useServices } from '@/src/hooks/queries';
+import { discoveryApi } from '@/src/services/api/endpoints/discovery';
 import { providerApi } from '@/src/services/api/endpoints/provider';
 import { toApiError } from '@/src/services/api/errors';
 import { useTheme } from '@/src/theme/ThemeProvider';
@@ -29,11 +31,38 @@ import type { OfferingItem } from '@/src/types/api';
 
 type Values = z.infer<typeof offeringFormSchema>;
 type NoticeState = { message: string; tone: NoticeTone } | null;
+type AttributeType = 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'PRICE' | 'SELECT' | 'MULTI_SELECT';
+type AttributeValues = Record<string, unknown>;
+
+interface CategoryAttribute {
+  id: string;
+  name: string;
+  description?: string | null;
+  type: AttributeType;
+  isRequired?: boolean;
+  options?: string[] | null;
+}
 
 const priceTypes: Values['priceType'][] = ['FIXED', 'HOURLY', 'PER_DAY', 'STARTING_FROM', 'CUSTOM_QUOTE'];
 const emptyValues: Values = { serviceId: '', priceType: 'FIXED', basePrice: '', duration: '' };
 
-function toDto(values: Values) {
+function attributeValuesFromOffering(value: unknown): AttributeValues {
+  if (!value || typeof value !== 'object') return {};
+  if (!Array.isArray(value)) return value as AttributeValues;
+  const result: AttributeValues = {};
+  for (const entry of value as Array<Record<string, unknown>>) {
+    const id = entry.categoryAttributeId ?? entry.attributeId ?? (entry.categoryAttribute as { id?: string } | null)?.id;
+    if (typeof id !== 'string') continue;
+    if (typeof entry.booleanValue === 'boolean') result[id] = entry.booleanValue;
+    else if (Array.isArray(entry.jsonValue)) result[id] = entry.jsonValue.map(String);
+    else if (typeof entry.numberValue === 'number') result[id] = entry.numberValue;
+    else if (typeof entry.textValue === 'string') result[id] = entry.textValue;
+    else result[id] = '';
+  }
+  return result;
+}
+
+function toDto(values: Values, attributeValues: AttributeValues) {
   return {
     serviceId: values.serviceId,
     title: values.title || undefined,
@@ -41,6 +70,7 @@ function toDto(values: Values) {
     basePrice: values.basePrice === '' || values.basePrice === undefined ? undefined : Number(values.basePrice),
     priceType: values.priceType,
     duration: values.duration || undefined,
+    attributeValues,
   };
 }
 
@@ -51,6 +81,7 @@ export default function ProviderServicesScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [notice, setNotice] = useState<NoticeState>(null);
+  const [attributeValues, setAttributeValues] = useState<AttributeValues>({});
   const offerings = useOfferings();
   const services = useServices();
   const queryClient = useQueryClient();
@@ -67,7 +98,16 @@ export default function ProviderServicesScreen() {
   });
   const selectedServiceId = watch('serviceId');
   const selectedPriceType = watch('priceType');
-  const selectedServiceName = services.data?.find((service) => service.id === selectedServiceId)?.name;
+  const selectedService = services.data?.find((service) => service.id === selectedServiceId);
+  const selectedServiceName = selectedService?.name;
+  const attributesQuery = useQuery({
+    queryKey: ['category-attributes', selectedService?.categoryId ?? null],
+    queryFn: () => discoveryApi.categoryAttributes(selectedService!.categoryId),
+    enabled: Boolean(selectedService?.categoryId),
+  });
+  const attributes = ((attributesQuery.data ?? []) as CategoryAttribute[]).filter(
+    (attribute) => typeof attribute?.id === 'string' && typeof attribute?.name === 'string' && typeof attribute?.type === 'string',
+  );
 
   const invalidate = async () => queryClient.invalidateQueries({ queryKey: queryKeys.offerings });
   const reportError = (error: unknown) => {
@@ -76,10 +116,11 @@ export default function ProviderServicesScreen() {
     showToast(message, 'error');
   };
   const create = useMutation({
-    mutationFn: (values: Values) => providerApi.createOffering(toDto(values)),
+    mutationFn: (values: Values) => providerApi.createOffering(toDto(values, attributeValues)),
     onSuccess: async () => {
       await invalidate();
       reset(emptyValues);
+      setAttributeValues({});
       setShowForm(false);
       setNotice({ message: 'Service offering created.', tone: 'success' });
       showToast('Service offering created.', 'success');
@@ -87,10 +128,11 @@ export default function ProviderServicesScreen() {
     onError: reportError,
   });
   const update = useMutation({
-    mutationFn: ({ id, values }: { id: string; values: Values }) => providerApi.updateOffering(id, toDto(values)),
+    mutationFn: ({ id, values }: { id: string; values: Values }) => providerApi.updateOffering(id, toDto(values, attributeValues)),
     onSuccess: async () => {
       await invalidate();
       reset(emptyValues);
+      setAttributeValues({});
       setEditingId(null);
       setShowForm(false);
       setNotice({ message: 'Service offering updated.', tone: 'success' });
@@ -118,15 +160,21 @@ export default function ProviderServicesScreen() {
 
   const closeForm = () => {
     reset(emptyValues);
+    setAttributeValues({});
     setEditingId(null);
     setShowForm(false);
     setNotice(null);
   };
   const openCreate = () => {
     reset(emptyValues);
+    setAttributeValues({});
     setEditingId(null);
     setNotice(null);
     setShowForm(true);
+  };
+  const selectService = (serviceId: string) => {
+    setValue('serviceId', serviceId, { shouldValidate: true, shouldDirty: true });
+    setAttributeValues({});
   };
   const openEdit = (offering: OfferingItem) => {
     reset({
@@ -139,11 +187,24 @@ export default function ProviderServicesScreen() {
         : 'FIXED',
       duration: offering.duration !== null && offering.duration !== undefined ? String(offering.duration) : '',
     });
+    setAttributeValues(attributeValuesFromOffering(offering.attributeValues));
     setEditingId(offering.id);
     setNotice(null);
     setShowForm(true);
   };
+  const hasAttributeValue = (attribute: CategoryAttribute) => {
+    const value = attributeValues[attribute.id];
+    if (attribute.type === 'BOOLEAN') return typeof value === 'boolean';
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'string') return value.trim().length > 0;
+    return value !== undefined && value !== null;
+  };
   const submit = handleSubmit((values) => {
+    const missing = attributes.find((attribute) => attribute.isRequired && !hasAttributeValue(attribute));
+    if (missing) {
+      setNotice({ message: `"${missing.name}" is required.`, tone: 'error' });
+      return;
+    }
     if (editingId) update.mutate({ id: editingId, values });
     else create.mutate(values);
   });
@@ -152,6 +213,99 @@ export default function ProviderServicesScreen() {
     borderColor: colors.border,
     borderWidth: borderWidth.thin,
     borderRadius: radius.lg,
+  };
+
+  const setAttribute = (id: string, value: unknown) =>
+    setAttributeValues((current) => ({ ...current, [id]: value }));
+  const renderAttribute = (attribute: CategoryAttribute) => {
+    const value = attributeValues[attribute.id];
+    const label = `${attribute.name}${attribute.isRequired ? ' *' : ''}`;
+    const options = Array.isArray(attribute.options) ? attribute.options.map(String) : [];
+    const caption = attribute.description ? (
+      <Text style={[typography.caption, { color: colors.textMuted }]}>{attribute.description}</Text>
+    ) : null;
+    if (attribute.type === 'BOOLEAN') {
+      return (
+        <View key={attribute.id} style={{ gap: spacing.xs }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
+            <Text style={[typography.bodyStrong, { color: colors.text, flex: 1 }]}>{label}</Text>
+            <Switch
+              value={value === true}
+              accessibilityLabel={attribute.name}
+              onValueChange={(next) => setAttribute(attribute.id, next)}
+              trackColor={{ true: colors.primary, false: colors.borderStrong }}
+              thumbColor={colors.white}
+            />
+          </View>
+          {caption}
+        </View>
+      );
+    }
+    if (attribute.type === 'SELECT' || attribute.type === 'MULTI_SELECT') {
+      const selected = attribute.type === 'SELECT' ? value : Array.isArray(value) ? value.map(String) : [];
+      return (
+        <View key={attribute.id} style={{ gap: spacing.sm }}>
+          <Text style={[typography.bodyStrong, { color: colors.text }]}>{label}</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+            {attribute.type === 'MULTI_SELECT' ? (
+              <Chip
+                label="Not set"
+                tone="neutral"
+                selected={!Array.isArray(value) || value.length === 0}
+                onPress={() => setAttribute(attribute.id, [])}
+              />
+            ) : (
+              <Chip
+                label="Not set"
+                tone="neutral"
+                selected={value === undefined || value === null || value === ''}
+                onPress={() => setAttribute(attribute.id, undefined)}
+              />
+            )}
+            {options.map((option) => (
+              <Chip
+                key={option}
+                label={option}
+                tone="neutral"
+                selected={
+                  attribute.type === 'SELECT'
+                    ? selected === option
+                    : (selected as string[]).includes(option)
+                }
+                onPress={() => {
+                  if (attribute.type === 'SELECT') setAttribute(attribute.id, option);
+                  else {
+                    const current = Array.isArray(value) ? value.map(String) : [];
+                    setAttribute(
+                      attribute.id,
+                      current.includes(option) ? current.filter((item) => item !== option) : [...current, option],
+                    );
+                  }
+                }}
+              />
+            ))}
+          </View>
+          {caption}
+        </View>
+      );
+    }
+    return (
+      <View key={attribute.id} style={{ gap: spacing.xs }}>
+        <Input
+          label={label}
+          value={value === undefined || value === null ? '' : String(value)}
+          onChangeText={(text) =>
+            setAttribute(
+              attribute.id,
+              attribute.type === 'TEXT' ? text : text === '' ? undefined : Number(text),
+            )
+          }
+          keyboardType={attribute.type === 'TEXT' ? 'default' : 'numeric'}
+          placeholder={attribute.description ?? undefined}
+        />
+        {caption}
+      </View>
+    );
   };
 
   return (
@@ -283,7 +437,7 @@ export default function ProviderServicesScreen() {
                     key={service.id}
                     label={service.name}
                     selected={service.id === selectedServiceId}
-                    onPress={() => setValue('serviceId', service.id, { shouldValidate: true, shouldDirty: true })}
+                    onPress={() => selectService(service.id)}
                   />
                 ))}
               </View>
@@ -294,6 +448,20 @@ export default function ProviderServicesScreen() {
               {selectedServiceName ? `Selected: ${selectedServiceName}` : 'Choose a service from the list above.'}
             </Text>
           </View>
+
+          {selectedServiceId ? (
+            <View style={{ gap: spacing.sm }}>
+              <Text style={[typography.bodyStrong, { color: colors.text }]}>Service attributes</Text>
+              {attributesQuery.isError ? <Notice message="Attributes for this service could not be loaded." tone="error" /> : null}
+              {attributesQuery.isLoading ? <ListSkeleton rows={2} /> : null}
+              {attributes.length ? attributes.map(renderAttribute) : null}
+              {!attributesQuery.isLoading && !attributesQuery.isError && attributes.length === 0 ? (
+                <Text style={[typography.caption, { color: colors.textMuted }]}>
+                  No extra details are required for this service.
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
 
           <View style={{ gap: spacing.sm }}>
             <Text style={[typography.bodyStrong, { color: colors.text }]}>Price type</Text>

@@ -12,13 +12,15 @@ import {
   ImagePlus,
   Images,
   MapPin,
+  Pencil,
   Trash2,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { AppScreenHeader } from '@/src/components/ui/AppScreenHeader';
 import { Badge } from '@/src/components/ui/Badges';
+import { BottomSheet } from '@/src/components/ui/BottomSheet';
 import { Button } from '@/src/components/ui/Button';
 import { Card, SectionHeader } from '@/src/components/ui/Card';
 import { Chip } from '@/src/components/ui/Chip';
@@ -37,6 +39,8 @@ import {
   parityProviderApi,
   type CreatePortfolioDto,
   type PortfolioImage,
+  type PortfolioItem,
+  type UpdatePortfolioDto,
 } from '@/src/services/api/endpoints/parity-provider';
 import { toApiError } from '@/src/services/api/errors';
 import { useTheme } from '@/src/theme/ThemeProvider';
@@ -102,6 +106,13 @@ export default function ProviderPortfolioScreen() {
   const [serviceId, setServiceId] = useState('');
   const [projectDate, setProjectDate] = useState('');
   const [errors, setErrors] = useState<ProjectErrors>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editServiceId, setEditServiceId] = useState('');
+  const [editProjectDate, setEditProjectDate] = useState('');
+  const [editPair, setEditPair] = useState(false);
+  const [editErrors, setEditErrors] = useState<ProjectErrors>({});
   const [pairPortfolioId, setPairPortfolioId] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ message: string; tone: NoticeTone } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
@@ -118,6 +129,17 @@ export default function ProviderPortfolioScreen() {
       setProjectDate('');
       setNotice(null);
       showToast('Project added to your portfolio.', 'success');
+    },
+    onError: (error) => setNotice({ message: toApiError(error).message, tone: 'error' }),
+  });
+
+  const update = useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: UpdatePortfolioDto }) => parityProviderApi.updatePortfolio(id, dto),
+    onSuccess: async () => {
+      await invalidate();
+      setEditingId(null);
+      setNotice(null);
+      showToast('Project updated.', 'success');
     },
     onError: (error) => setNotice({ message: toApiError(error).message, tone: 'error' }),
   });
@@ -184,6 +206,43 @@ export default function ProviderPortfolioScreen() {
       description: description.trim() || undefined,
       serviceId: serviceId || undefined,
       projectDate: date || undefined,
+    });
+  };
+
+  const openEdit = (project: PortfolioItem) => {
+    setEditingId(project.id);
+    setEditTitle(project.title ?? '');
+    setEditDescription(project.description ?? '');
+    setEditServiceId(project.service?.id ?? (project as { serviceId?: string | null }).serviceId ?? '');
+    setEditProjectDate(project.projectDate ? project.projectDate.slice(0, 10) : '');
+    setEditPair(pairPortfolioId === project.id || project.images.some((image) => Boolean(image.beforeAfterRole)));
+    setEditErrors({});
+    setNotice(null);
+  };
+
+  const closeEdit = () => {
+    setEditingId(null);
+    setEditErrors({});
+  };
+
+  const submitEdit = () => {
+    if (!editingId) return;
+    const name = editTitle.trim();
+    const date = editProjectDate.trim();
+    const nextErrors: ProjectErrors = {};
+    if (name.length === 0) nextErrors.title = 'Give the project a title.';
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) nextErrors.projectDate = 'Use YYYY-MM-DD for dates.';
+    setEditErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
+    setPairPortfolioId((current) => (editPair ? editingId : current === editingId ? null : current));
+    update.mutate({
+      id: editingId,
+      dto: {
+        title: name,
+        description: editDescription.trim(),
+        serviceId: editServiceId || undefined,
+        projectDate: date || undefined,
+      },
     });
   };
 
@@ -356,15 +415,25 @@ export default function ProviderPortfolioScreen() {
                       {[project.service?.name, project.projectDate].filter(Boolean).join(' · ') || 'No service or date'}
                     </Text>
                   </View>
-                  <IconButton
-                    icon={<Trash2 size={18} />}
-                    label={`Delete ${project.title}`}
-                    variant="ghost"
-                    tone="danger"
-                    size={theme.hit.compact}
-                    disabled={remove.isPending}
-                    onPress={() => setPendingDelete({ kind: 'project', id: project.id, title: project.title })}
-                  />
+                  <View style={styles.actions}>
+                    <IconButton
+                      icon={<Pencil size={18} />}
+                      label={`Edit ${project.title}`}
+                      variant="ghost"
+                      size={theme.hit.compact}
+                      disabled={update.isPending}
+                      onPress={() => openEdit(project)}
+                    />
+                    <IconButton
+                      icon={<Trash2 size={18} />}
+                      label={`Delete ${project.title}`}
+                      variant="ghost"
+                      tone="danger"
+                      size={theme.hit.compact}
+                      disabled={remove.isPending}
+                      onPress={() => setPendingDelete({ kind: 'project', id: project.id, title: project.title })}
+                    />
+                  </View>
                 </View>
                 {project.description ? (
                   <Text style={[typography.small, { color: colors.textSecondary }]}>{project.description}</Text>
@@ -436,6 +505,77 @@ export default function ProviderPortfolioScreen() {
           onPress={() => router.push('/provider/insights')}
         />
       </Card>
+
+      <BottomSheet
+        visible={editingId !== null}
+        title="Edit project"
+        onClose={closeEdit}
+        footer={<Button label="Save changes" onPress={submitEdit} loading={update.isPending} fullWidth />}
+      >
+        <View style={{ gap: theme.spacing.md }}>
+          <Input
+            label="Project title"
+            value={editTitle}
+            onChangeText={setEditTitle}
+            error={editErrors.title}
+          />
+          <Input
+            label="Description"
+            value={editDescription}
+            onChangeText={setEditDescription}
+            placeholder="What did the job involve?"
+            multiline
+            numberOfLines={3}
+          />
+          <Input
+            label="Project date"
+            value={editProjectDate}
+            onChangeText={setEditProjectDate}
+            placeholder="YYYY-MM-DD"
+            hint="Optional · use YYYY-MM-DD"
+            error={editErrors.projectDate}
+          />
+          {offeringsData.length ? (
+            <View style={{ gap: theme.spacing.sm }}>
+              <Text style={[typography.bodyStrong, { color: colors.text }]}>Service</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: theme.spacing.sm }}>
+                <Chip
+                  label="No change"
+                  tone="neutral"
+                  selected={editServiceId === ''}
+                  onPress={() => setEditServiceId('')}
+                />
+                {offeringsData.map((offering) => {
+                  const value = offering.service?.id ?? offering.serviceId;
+                  return (
+                    <Chip
+                      key={offering.id}
+                      label={offering.title ?? offering.service?.name ?? 'Service'}
+                      selected={editServiceId === value}
+                      onPress={() => setEditServiceId(value)}
+                    />
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : null}
+          <View style={styles.row}>
+            <Text style={[typography.bodyStrong, { color: colors.text, flex: 1 }]}>
+              Next 2 photos are a before/after pair
+            </Text>
+            <Switch
+              value={editPair}
+              accessibilityLabel="Next 2 photos are a before/after pair"
+              onValueChange={setEditPair}
+              trackColor={{ true: colors.primary, false: colors.borderStrong }}
+              thumbColor={colors.white}
+            />
+          </View>
+          <Text style={[typography.caption, { color: colors.textMuted }]}>
+            This applies to the next photos you add, not to media already uploaded.
+          </Text>
+        </View>
+      </BottomSheet>
 
       <ConfirmDialog
         visible={Boolean(pendingDelete)}

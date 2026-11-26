@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Image as ExpoImage } from 'expo-image';
 import { ChevronDown, ChevronUp, MessageCircle } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -100,6 +101,14 @@ export default function RequestDetailScreen() {
   }
 
   const data = request.data;
+  const images = requestImages(data.images);
+  const snapshots = (data.attributeSnapshots ?? []) as Array<{
+    name?: string;
+    label?: string;
+    value?: unknown;
+    attributeName?: string;
+    attributeValue?: unknown;
+  }>;
   const canCancel = !['CANCELLED', 'BOOKED', 'EXPIRED'].includes(data.status);
   return (
     <Screen>
@@ -118,6 +127,74 @@ export default function RequestDetailScreen() {
             <Detail label="Visibility" value={data.isPublic ? 'Public' : 'Private'} />
           </View>
         </Card>
+
+        {data.serviceOffering ? (
+          <Card variant="muted" style={{ gap: spacing.sm }}>
+            <Text style={[typography.bodyStrong, { color: colors.text }]}>{data.serviceOffering.title ?? data.service?.name ?? 'Selected offering'}</Text>
+            {data.serviceOffering.description ? <Text style={[typography.small, { color: colors.textSecondary }]}>{data.serviceOffering.description}</Text> : null}
+            <View style={styles.details}>
+              {data.serviceOffering.basePrice != null ? <Detail label="Offering price" value={formatMoney(data.serviceOffering.basePrice)} /> : null}
+              {data.serviceOffering.priceType ? <Detail label="Price type" value={data.serviceOffering.priceType} /> : null}
+              {data.serviceOffering.duration != null ? <Detail label="Duration" value={String(data.serviceOffering.duration)} /> : null}
+            </View>
+          </Card>
+        ) : null}
+
+        {data.location ? (
+          <Card variant="muted">
+            <View style={styles.details}>
+              <Detail label="Location" value={data.location.label ?? data.location.city ?? 'Selected location'} />
+              {data.location.label && data.location.city ? <Detail label="City" value={data.location.city} /> : null}
+            </View>
+          </Card>
+        ) : null}
+
+        {snapshots.length ? (
+          <Card variant="muted" style={{ gap: spacing.sm }}>
+            <Text style={[typography.bodyStrong, { color: colors.text }]}>Service details</Text>
+            {snapshots.map((snapshot, index) => (
+              <Detail
+                key={`${snapshot.name ?? snapshot.label ?? snapshot.attributeName ?? 'attribute'}-${index}`}
+                label={snapshot.label ?? snapshot.name ?? snapshot.attributeName ?? 'Attribute'}
+                value={attributeValueText(snapshot.value ?? snapshot.attributeValue)}
+              />
+            ))}
+          </Card>
+        ) : null}
+
+        {images.length ? (
+          <Card variant="muted" style={{ gap: spacing.sm }}>
+            <Text style={[typography.bodyStrong, { color: colors.text }]}>Photos ({images.length})</Text>
+            {images.some((image) => image.uri) ? (
+              <View style={styles.imageRow}>
+                {images.filter((image) => image.uri).map((image, index) => (
+                  <ExpoImage key={`${image.label}-${index}`} source={{ uri: image.uri! }} style={styles.image} contentFit="cover" />
+                ))}
+              </View>
+            ) : null}
+            {images.map((image, index) => (
+              <Text key={`${image.label}-${index}`} style={[typography.caption, { color: colors.textMuted }]} numberOfLines={1}>{image.label}</Text>
+            ))}
+          </Card>
+        ) : null}
+
+        {data.additionalNotes ? (
+          <Card variant="muted" style={{ gap: spacing.xs }}>
+            <Text style={[typography.bodyStrong, { color: colors.text }]}>Additional notes</Text>
+            <Text style={[typography.small, { color: colors.textSecondary }]}>{data.additionalNotes}</Text>
+          </Card>
+        ) : null}
+
+        {data.booking ? (
+          <Card style={{ gap: spacing.sm }}>
+            <View style={styles.details}>
+              <Detail label="Booking" value={statusLabel.booking(data.booking.status)} />
+              <Detail label="Scheduled" value={formatDate(data.booking.scheduledAt ?? data.booking.createdAt)} />
+              <Detail label="Agreed price" value={formatMoney(data.booking.agreedPrice, data.booking.currency)} />
+            </View>
+            <Button label="View booking" variant="secondary" size="sm" onPress={() => router.push({ pathname: '/booking/[id]', params: { id: data.booking!.id } })} />
+          </Card>
+        ) : null}
 
         {data.providerId ? (
           <Button label="Message provider" variant="secondary" icon={<MessageCircle size={16} />} loading={message.isPending} onPress={() => message.mutate()} />
@@ -206,6 +283,30 @@ export default function RequestDetailScreen() {
   );
 }
 
+function requestImages(value: unknown): Array<{ uri?: string; label: string }> {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (typeof item === 'string' && item) {
+      return [{ uri: /^https?:\/\//.test(item) ? item : undefined, label: item }];
+    }
+    if (item && typeof item === 'object') {
+      const raw = item as { url?: string | null; storageKey?: string | null };
+      const label = raw.url ?? raw.storageKey;
+      if (!label) return [];
+      return [{ uri: /^https?:\/\//.test(label) ? label : undefined, label }];
+    }
+    return [];
+  });
+}
+
+function attributeValueText(value: unknown): string {
+  if (value === undefined || value === null) return '—';
+  if (Array.isArray(value)) return value.map(attributeValueText).join(', ');
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
 function Detail({ label, value }: { label: string; value: string }) {
   const { colors } = useTheme();
   return (
@@ -221,4 +322,6 @@ const styles = StyleSheet.create({
   details: { gap: spacing.sm, marginTop: spacing.md },
   detail: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, paddingVertical: 2 },
   counterHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  imageRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  image: { width: 72, height: 72, borderRadius: radius.sm },
 });

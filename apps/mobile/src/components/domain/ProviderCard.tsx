@@ -1,7 +1,7 @@
 import { BadgeCheck, Heart, MapPin, Shield } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Avatar, AvailabilityBadge, RatingRow, VerificationBadge } from '@/src/components/ui/Badges';
+import { AvailabilityBadge, AvailabilityDetails, Avatar, Badge, RatingRow, VerificationBadge } from '@/src/components/ui/Badges';
 import { Card } from '@/src/components/ui/Card';
 import { formatMoney, truncate } from '@/src/utils/format';
 import { useTheme } from '@/src/theme/ThemeProvider';
@@ -24,6 +24,8 @@ export function ProviderCard({
   const locationLabel = [provider.location?.city ?? provider.city, provider.distanceKm != null ? `${provider.distanceKm.toFixed(1)} km` : null]
     .filter(Boolean)
     .join(' · ');
+  const verifiedCount = provider.verifiedReviewCount;
+  const responsePct = provider.responseRateSummary?.percentage;
 
   return (
     <Card onPress={onPress} variant="elevated" style={styles.card}>
@@ -40,7 +42,7 @@ export function ProviderCard({
             </Text>
             {provider.businessVerified ? <BadgeCheck size={16} color={colors.primary} /> : null}
           </View>
-          {typeof provider.rating === 'number' && Number.isFinite(provider.rating) ? (
+          {typeof provider.rating === 'number' && Number.isFinite(provider.rating) && provider.rating > 0 ? (
             <RatingRow
               rating={provider.rating}
               count={typeof provider.reviewCount === 'number' ? provider.reviewCount : undefined}
@@ -71,6 +73,22 @@ export function ProviderCard({
           {truncate(provider.description ?? provider.bio ?? '', 140)}
         </Text>
       ) : null}
+      <View style={styles.details}>
+        <AvailabilityDetails
+          nextAvailableLabel={provider.availability?.nextAvailableLabel}
+          todayHours={provider.availability?.todayHours}
+        />
+        <View style={styles.chips}>
+          <Badge
+            label={verifiedCount != null ? `${verifiedCount} verified reviews` : 'Verified reviews: —'}
+            tone={verifiedCount ? 'success' : 'neutral'}
+          />
+          <Badge
+            label={responsePct != null ? `${Math.round(responsePct)}% response rate` : 'Response rate: —'}
+            tone={responsePct != null ? 'accent' : 'neutral'}
+          />
+        </View>
+      </View>
       <View style={styles.meta}>
         <View style={styles.pricePill}>
           <Text style={[typography.caption, { color: colors.primaryDark, fontWeight: '700' }]}>
@@ -100,6 +118,8 @@ const styles = StyleSheet.create({
   identity: { flex: 1, gap: spacing.xs },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: 2 },
+  details: { gap: spacing.sm },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   favorite: { width: 36, height: 36, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   meta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
   pricePill: { paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.pill },

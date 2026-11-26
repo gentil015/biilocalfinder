@@ -17,6 +17,7 @@ import {
   UserRound,
   Wrench,
 } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -35,6 +36,7 @@ import { ProfileSkeleton } from '@/src/components/ui/Skeleton';
 import { ErrorState, LoadingState } from '@/src/components/ui/States';
 import { ConfirmDialog } from '@/src/components/ui/ConfirmDialog';
 import { queryKeys, useAuthWorkspaces, useProviderProfile } from '@/src/hooks/queries';
+import { filesApi } from '@/src/services/api/endpoints/files';
 import { providerApi } from '@/src/services/api/endpoints/provider';
 import { toApiError } from '@/src/services/api/errors';
 import { useAppStore } from '@/src/stores/app.store';
@@ -59,6 +61,8 @@ export default function ProviderProfileScreen() {
   const [notice, setNotice] = useState<string | null>(null);
   const [noticeTone, setNoticeTone] = useState<'success' | 'error'>('success');
   const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [logoUrl, setLogoUrl] = useState('');
+  const [pickingLogo, setPickingLogo] = useState(false);
   const { control, handleSubmit, reset } = useForm<Values>({
     resolver: zodResolver(providerProfileFormSchema),
     defaultValues: { businessName: '', description: '', phone: '', yearsOfExperience: '', serviceRadiusKm: '' },
@@ -71,10 +75,37 @@ export default function ProviderProfileScreen() {
         description: profile.data.description ?? profile.data.bio ?? '',
         phone: user?.phone ?? '',
         yearsOfExperience: profile.data.yearsOfExperience ? String(profile.data.yearsOfExperience) : '',
-        serviceRadiusKm: '',
+        serviceRadiusKm:
+          profile.data.serviceRadiusKm !== null && profile.data.serviceRadiusKm !== undefined
+            ? String(profile.data.serviceRadiusKm)
+            : '',
       });
+      setLogoUrl(profile.data.logoUrl ?? '');
     }
   }, [profile.data, reset, user?.phone]);
+
+  const pickLogo = async () => {
+    setNotice(null);
+    setPickingLogo(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+      const asset = result.assets?.[0];
+      if (result.canceled || !asset) return;
+      const uploaded = await filesApi.uploadImage({
+        uri: asset.uri,
+        name: asset.fileName ?? asset.uri.split('/').pop() ?? 'logo.jpg',
+        type: asset.mimeType ?? 'image/jpeg',
+      });
+      setLogoUrl(uploaded.url);
+      setNotice('Logo uploaded. Save your profile to apply it.');
+      setNoticeTone('success');
+    } catch (error) {
+      setNotice(toApiError(error).message);
+      setNoticeTone('error');
+    } finally {
+      setPickingLogo(false);
+    }
+  };
 
   const save = useMutation({
     mutationFn: (values: Values) =>
@@ -86,6 +117,11 @@ export default function ProviderProfileScreen() {
           values.yearsOfExperience === '' || values.yearsOfExperience === undefined
             ? undefined
             : Number(values.yearsOfExperience),
+        serviceRadiusKm:
+          values.serviceRadiusKm === '' || values.serviceRadiusKm === undefined
+            ? undefined
+            : Number(values.serviceRadiusKm),
+        logoUrl,
       }),
     onSuccess: async () => {
       await Promise.all([
@@ -139,7 +175,11 @@ export default function ProviderProfileScreen() {
       ) : (
         <Card variant="elevated" style={[cardStyle, elevation.subtle]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-            <Avatar uri={profile.data?.avatarUrl} name={profile.data?.businessName ?? user?.firstName ?? 'Provider'} size={60} />
+            <Avatar
+              uri={logoUrl || profile.data?.logoUrl || profile.data?.avatarUrl}
+              name={profile.data?.businessName ?? user?.firstName ?? 'Provider'}
+              size={60}
+            />
             <View style={{ flex: 1, gap: spacing.xs }}>
               <Text style={[typography.h2, { color: colors.text }]}>{profile.data?.businessName ?? 'Your business'}</Text>
               <Text style={[typography.small, { color: colors.textMuted }]}>{user?.email}</Text>
@@ -209,10 +249,24 @@ export default function ProviderProfileScreen() {
         <Card variant="elevated" style={[cardStyle, elevation.subtle]}>
           <SectionHeader title="Edit business profile" />
           <View style={{ gap: spacing.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Avatar uri={logoUrl} name={profile.data?.businessName ?? user?.firstName ?? 'Provider'} size={48} />
+              <View style={{ flex: 1, gap: spacing.xs }}>
+                <Text style={[typography.bodyStrong, { color: colors.text }]}>Business logo</Text>
+                <Text style={[typography.caption, { color: colors.textMuted }]}>
+                  {logoUrl ? 'A new logo is ready to save.' : 'Upload a logo clients will see on your profile.'}
+                </Text>
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <Button label="Change logo" variant="secondary" loading={pickingLogo} onPress={() => void pickLogo()} />
+              {logoUrl ? <Button label="Remove logo" variant="ghost" onPress={() => setLogoUrl('')} /> : null}
+            </View>
             <FormInput label="Business name" control={control} name="businessName" />
             <FormInput label="Description" control={control} name="description" multiline numberOfLines={4} />
             <FormInput label="Phone" control={control} name="phone" keyboardType="phone-pad" />
             <FormInput label="Years of experience" control={control} name="yearsOfExperience" keyboardType="numeric" />
+            <FormInput label="Service radius (km)" control={control} name="serviceRadiusKm" keyboardType="numeric" />
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               <Button label="Save" onPress={handleSubmit((values) => save.mutate(values))} loading={save.isPending} />
               <Button label="Cancel" variant="secondary" onPress={() => setEditing(false)} />

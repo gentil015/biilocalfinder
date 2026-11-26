@@ -22,7 +22,8 @@ function Subrating({ label, value }: { label: string; value?: number | null }) {
 export function ReviewCard({ review }: { review: ReviewItem }) {
   const { colors } = useTheme();
   const photos = review.photos?.map((p) => p.url ?? p.storageKey).filter((u): u is string => Boolean(u)) ?? [];
-  const hasRating = typeof review.rating === 'number' && Number.isFinite(review.rating);
+  const hasRating = typeof review.rating === 'number' && Number.isFinite(review.rating) && review.rating > 0;
+  const response = review.response;
   return (
     <Card variant="muted">
       <View style={styles.header}>
@@ -70,10 +71,15 @@ export function ReviewCard({ review }: { review: ReviewItem }) {
           ))}
         </ScrollView>
       ) : null}
-      {review.response?.text ? (
+      {response?.text ? (
         <View style={[styles.response, { borderLeftColor: colors.primary, backgroundColor: colors.surface }]}>
-          <Text style={[typography.caption, { color: colors.primaryDark, fontWeight: '600' }]}>Provider response</Text>
-          <Text style={[typography.small, { color: colors.textSecondary }]}>{review.response.text}</Text>
+          <View style={styles.responseHead}>
+            <Text style={[typography.caption, { color: colors.primaryDark, fontWeight: '600' }]}>Provider response</Text>
+            {response.createdAt ? (
+              <Text style={[typography.caption, { color: colors.textMuted }]}>{formatDate(response.createdAt)}</Text>
+            ) : null}
+          </View>
+          <Text style={[typography.small, { color: colors.textSecondary }]}>{response.text}</Text>
         </View>
       ) : null}
     </Card>
@@ -90,4 +96,5 @@ const styles = StyleSheet.create({
   photos: { gap: spacing.sm },
   photo: { width: 72, height: 72, borderRadius: radius.sm },
   response: { borderLeftWidth: 2, padding: spacing.md, borderRadius: radius.sm, gap: spacing.xs },
+  responseHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm },
 });

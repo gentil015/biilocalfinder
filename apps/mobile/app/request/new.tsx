@@ -1,8 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image as ExpoImage } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { CalendarDays, Clock, ImagePlus, Sparkles, X } from 'lucide-react-native';
+import { CalendarDays, Clock, ImagePlus, MapPin, Sparkles, X } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -13,18 +13,31 @@ import { Button } from '@/src/components/ui/Button';
 import { Card } from '@/src/components/ui/Card';
 import { Chip } from '@/src/components/ui/Chip';
 import { FormInput } from '@/src/components/ui/FormInput';
+import { Input } from '@/src/components/ui/Input';
 import { Notice } from '@/src/components/ui/Notice';
 import { Screen } from '@/src/components/ui/Screen';
+import { discoveryApi } from '@/src/services/api/endpoints/discovery';
 import { filesApi } from '@/src/services/api/endpoints/files';
 import { requestsApi } from '@/src/services/api/endpoints/requests';
 import { parityCustomerApi } from '@/src/services/api/endpoints/parity-customer';
 import { toApiError } from '@/src/services/api/errors';
 import { queryKeys, useCategories, useServices } from '@/src/hooks/queries';
+import { useAppStore } from '@/src/stores/app.store';
 import { useTheme } from '@/src/theme/ThemeProvider';
 import { radius, spacing, typography } from '@/src/theme/metrics';
 import { serviceRequestFormSchema } from '@/src/utils/validation';
 
 type FormValues = z.infer<typeof serviceRequestFormSchema>;
+
+type AttributeDef = {
+  id: string;
+  name: string;
+  slug: string;
+  type: string;
+  isRequired?: boolean;
+  options?: string[] | null;
+  description?: string | null;
+};
 
 function pad(n: number) { return String(n).padStart(2, '0'); }
 function todayStr() { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
@@ -40,6 +53,91 @@ function budgetParam(value: string | string[] | undefined): number | '' | undefi
   const parsed = Number(raw);
   return Number.isFinite(parsed) ? parsed : '';
 }
+function asAttributeDefs(value: unknown): AttributeDef[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const raw = item as Record<string, unknown>;
+    if (typeof raw.id !== 'string' || typeof raw.name !== 'string') return [];
+    return [{
+      id: raw.id,
+      name: raw.name,
+      slug: typeof raw.slug === 'string' ? raw.slug : raw.id,
+      type: typeof raw.type === 'string' ? raw.type : 'TEXT',
+      isRequired: raw.isRequired === true,
+      options: Array.isArray(raw.options) ? raw.options.filter((option): option is string => typeof option === 'string') : null,
+      description: typeof raw.description === 'string' ? raw.description : null,
+    }];
+  });
+}
+function parseAttributeValues(value: string | undefined): Record<string, unknown> {
+  if (!value) return {};
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return parsed as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+}
+function asStringValue(value: unknown): string {
+  if (value === undefined || value === null) return '';
+  return String(value);
+}
+
+function AttributeInput({
+  attribute,
+  value,
+  onChange,
+}: {
+  attribute: AttributeDef;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) {
+  const { colors } = useTheme();
+  if (attribute.type === 'BOOLEAN') {
+    return (
+      <View style={styles.switchRow}>
+        <Text style={[typography.small, { color: colors.textSecondary, flex: 1 }]}>{attribute.name}</Text>
+        <Switch value={value === true} onValueChange={onChange} accessibilityLabel={attribute.name} />
+      </View>
+    );
+  }
+  if (attribute.type === 'SELECT' || attribute.type === 'MULTI_SELECT') {
+    const selected = Array.isArray(value) ? value.map(String) : typeof value === 'string' ? [value] : [];
+    return (
+      <View style={{ gap: spacing.sm }}>
+        <Text style={[typography.small, { color: colors.textSecondary }]}>{attribute.name}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          {(attribute.options ?? []).map((option) => {
+            const active = selected.includes(option);
+            return (
+              <Chip
+                key={option}
+                label={option}
+                selected={active}
+                onPress={() => {
+                  if (attribute.type === 'SELECT') onChange(active ? undefined : option);
+                  else onChange(active ? selected.filter((item) => item !== option) : [...selected, option]);
+                }}
+              />
+            );
+          })}
+        </ScrollView>
+      </View>
+    );
+  }
+  const numeric = attribute.type === 'NUMBER' || attribute.type === 'PRICE';
+  return (
+    <Input
+      label={attribute.name}
+      value={asStringValue(value)}
+      onChangeText={(text) => onChange(numeric ? (text === '' ? '' : Number(text)) : text)}
+      keyboardType={numeric ? 'numeric' : 'default'}
+      hint={attribute.description ?? undefined}
+    />
+  );
+}
 
 export default function NewServiceRequestScreen() {
   const params = useLocalSearchParams<{
@@ -54,17 +152,26 @@ export default function NewServiceRequestScreen() {
     budgetMax?: string;
     additionalNotes?: string;
     notes?: string;
+    isPublic?: string;
+    locationId?: string;
+    locationLabel?: string;
+    attributeValues?: string;
   }>();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { colors } = useTheme();
   const categories = useCategories();
+  const storedLocation = useAppStore((state) => state.selectedLocation);
+  const locationId = (storedLocation as unknown as { id?: string } | null)?.id ?? paramValue(params.locationId);
+  const locationLabel = storedLocation?.label ?? paramValue(params.locationLabel);
   const [categoryId, setCategoryId] = useState<string | undefined>();
   const services = useServices(categoryId);
   const allServices = useServices(undefined);
   const [images, setImages] = useState<Array<{ key: string; url: string; uploading?: boolean; error?: string }>>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [assistConsent, setAssistConsent] = useState(false);
+  const [isPublic, setIsPublic] = useState(paramValue(params.isPublic) === 'true');
+  const [attributeValues, setAttributeValues] = useState<Record<string, unknown>>(() => parseAttributeValues(paramValue(params.attributeValues)));
   const {
     control,
     setValue,
@@ -96,6 +203,13 @@ export default function NewServiceRequestScreen() {
   const timeOptions = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
   const serviceOptions = (categoryId ? services.data : allServices.data) ?? [];
   const selectedServiceName = (allServices.data ?? services.data ?? []).find((s) => s.id === selectedServiceId)?.name;
+  const attributeCategoryId = (allServices.data ?? services.data ?? []).find((s) => s.id === selectedServiceId)?.categoryId ?? categoryId;
+  const categoryAttributes = useQuery({
+    queryKey: ['category-attributes', attributeCategoryId ?? null],
+    queryFn: () => discoveryApi.categoryAttributes(attributeCategoryId!),
+    enabled: Boolean(attributeCategoryId),
+  });
+  const attributes = asAttributeDefs(categoryAttributes.data);
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
@@ -103,6 +217,9 @@ export default function NewServiceRequestScreen() {
         serviceId: values.serviceId,
         providerId: values.providerId || undefined,
         serviceOfferingId: values.serviceOfferingId || undefined,
+        isPublic,
+        locationId: locationId || undefined,
+        attributeValues: Object.keys(attributeValues).length ? attributeValues : undefined,
         title: values.title,
         description: values.description,
         preferredDate: values.preferredDate,
@@ -137,6 +254,9 @@ export default function NewServiceRequestScreen() {
     onSuccess: (result) => {
       if (result.title) setValue('title', result.title, { shouldValidate: true });
       if (result.description) setValue('description', result.description, { shouldValidate: true });
+      if (Object.keys(result.attributeValues ?? {}).length) {
+        setAttributeValues((current) => ({ ...result.attributeValues, ...current }));
+      }
       setNotice('AI draft added. Review it before sending.');
     },
     onError: (error) => setNotice(toApiError(error).message),
@@ -159,6 +279,11 @@ export default function NewServiceRequestScreen() {
     }
   };
 
+  const selectService = (id: string) => {
+    setValue('serviceId', id, { shouldValidate: true });
+    setAttributeValues({});
+  };
+
   return (
     <Screen>
       <AppScreenHeader title="Request a service" subtitle={selectedServiceName ? `For ${selectedServiceName}` : 'Tell us what you need'} />
@@ -169,25 +294,65 @@ export default function NewServiceRequestScreen() {
           <Text style={[typography.bodyStrong, { color: colors.text }]}>Service</Text>
           {!params.serviceId ? (
             <>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
                 <Chip label="All" selected={!categoryId} onPress={() => setCategoryId(undefined)} />
                 {categories.data?.slice(0, 10).map((c) => (
                   <Chip key={c.id} label={c.name} selected={categoryId === c.id} onPress={() => setCategoryId(categoryId === c.id ? undefined : c.id)} />
                 ))}
               </ScrollView>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
                 {serviceOptions.slice(0, 12).map((service) => (
                   <Chip
                     key={service.id}
                     label={service.name}
                     selected={selectedServiceId === service.id}
-                    onPress={() => setValue('serviceId', service.id, { shouldValidate: true })}
+                    onPress={() => selectService(service.id)}
                   />
                 ))}
               </ScrollView>
             </>
           ) : null}
           <FormInput label="Service ID" control={control} name="serviceId" error={errors.serviceId?.message} placeholder="Select a service" editable={!params.serviceId} />
+        </Card>
+
+        {attributes.length ? (
+          <Card variant="muted" style={{ gap: spacing.md }}>
+            <Text style={[typography.bodyStrong, { color: colors.text }]}>Service details</Text>
+            {attributes.map((attribute) => (
+              <AttributeInput
+                key={attribute.id}
+                attribute={attribute}
+                value={attributeValues[attribute.id]}
+                onChange={(value) => setAttributeValues((current) => {
+                  const next = { ...current };
+                  if (value === undefined || value === '') delete next[attribute.id];
+                  else next[attribute.id] = value;
+                  return next;
+                })}
+              />
+            ))}
+          </Card>
+        ) : null}
+
+        <Card style={{ gap: spacing.sm }}>
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1, gap: spacing.xs }}>
+              <Text style={[typography.bodyStrong, { color: colors.text }]}>Open request</Text>
+              <Text style={[typography.caption, { color: colors.textMuted }]}>Share this request with all available professionals.</Text>
+            </View>
+            <Switch value={isPublic} onValueChange={setIsPublic} accessibilityLabel="Open request" />
+          </View>
+        </Card>
+
+        <Card variant="muted" style={{ gap: spacing.sm }}>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/location')} style={styles.switchRow}>
+            <MapPin size={16} color={colors.primaryDark} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[typography.caption, { color: colors.textMuted }]}>Location</Text>
+              <Text style={[typography.small, { color: colors.text }]}>{locationLabel ?? 'Set a location'}</Text>
+            </View>
+            <Text style={[typography.caption, { color: colors.primaryDark }]}>{locationLabel ? 'Change' : 'Choose'}</Text>
+          </Pressable>
         </Card>
 
         <Card style={{ gap: spacing.md }}>
@@ -205,7 +370,7 @@ export default function NewServiceRequestScreen() {
 
         <View style={{ gap: spacing.sm }}>
           <View style={styles.labelRow}><CalendarDays size={16} color={colors.primary} /><Text style={[typography.bodyStrong, { color: colors.text }]}>Preferred date</Text></View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
             {dateOptions.map((d) => (
               <Chip key={d} label={formatDateLabel(d)} selected={preferredDate === d} onPress={() => setValue('preferredDate', d, { shouldValidate: true })} />
             ))}
@@ -215,7 +380,7 @@ export default function NewServiceRequestScreen() {
 
         <View style={{ gap: spacing.sm }}>
           <View style={styles.labelRow}><Clock size={16} color={colors.primary} /><Text style={[typography.bodyStrong, { color: colors.text }]}>Preferred time</Text></View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
             <Chip label="Any time" selected={!preferredTime} onPress={() => setValue('preferredTime', '', { shouldValidate: true })} />
             {timeOptions.map((t) => (
               <Chip key={t} label={t} selected={preferredTime === t} onPress={() => setValue('preferredTime', t, { shouldValidate: true })} />
@@ -269,6 +434,8 @@ export default function NewServiceRequestScreen() {
 const styles = StyleSheet.create({
   assistRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  switchRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   row2: { flexDirection: 'row', gap: spacing.md },
   upload: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, minHeight: 52, borderWidth: 1, borderStyle: 'dashed', borderRadius: radius.md },
   imageRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },

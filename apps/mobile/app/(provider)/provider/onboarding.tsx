@@ -1,22 +1,25 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import * as ImagePicker from 'expo-image-picker';
 import { Check, Circle } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { z } from 'zod';
-import { Badge } from '@/src/components/ui/Badges';
+import { Avatar, Badge } from '@/src/components/ui/Badges';
 import { Button } from '@/src/components/ui/Button';
 import { Card, SectionHeader } from '@/src/components/ui/Card';
 import { Chip } from '@/src/components/ui/Chip';
 import { AppScreenHeader } from '@/src/components/ui/AppScreenHeader';
 import { FormInput } from '@/src/components/ui/FormInput';
+import { Input } from '@/src/components/ui/Input';
 import { Notice, type NoticeTone } from '@/src/components/ui/Notice';
 import { Screen } from '@/src/components/ui/Screen';
 import { Skeleton } from '@/src/components/ui/Skeleton';
 import { ErrorState } from '@/src/components/ui/States';
-import { queryKeys, useOfferings, useOnboarding, useVerification } from '@/src/hooks/queries';
+import { queryKeys, useOfferings, useOnboarding, useProviderProfile, useVerification } from '@/src/hooks/queries';
+import { filesApi } from '@/src/services/api/endpoints/files';
 import { providerApi } from '@/src/services/api/endpoints/provider';
 import { toApiError } from '@/src/services/api/errors';
 import { useTheme } from '@/src/theme/ThemeProvider';
@@ -35,6 +38,10 @@ export default function ProviderOnboardingScreen() {
   const onboarding = useOnboarding();
   const offerings = useOfferings();
   const verification = useVerification();
+  const profile = useProviderProfile();
+  const [logoUrl, setLogoUrl] = useState('');
+  const [serviceRadiusKm, setServiceRadiusKm] = useState('');
+  const [pickingLogo, setPickingLogo] = useState(false);
   const [notice, setNotice] = useState<NoticeState>(null);
   const { control, handleSubmit, reset, watch } = useForm<Values>({
     resolver: zodResolver(providerOnboardingFormSchema),
@@ -62,7 +69,34 @@ export default function ProviderOnboardingScreen() {
       representativeName: data.representativeName ?? '',
       teamSize: data.teamSize ? String(data.teamSize) : '',
     });
+    setLogoUrl(data.logoUrl ?? '');
   }, [onboarding.data, reset]);
+
+  useEffect(() => {
+    const radius = profile.data?.serviceRadiusKm;
+    if (radius !== null && radius !== undefined) setServiceRadiusKm(String(radius));
+  }, [profile.data?.serviceRadiusKm]);
+
+  const pickLogo = async () => {
+    setNotice(null);
+    setPickingLogo(true);
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+      const asset = result.assets?.[0];
+      if (result.canceled || !asset) return;
+      const uploaded = await filesApi.uploadImage({
+        uri: asset.uri,
+        name: asset.fileName ?? asset.uri.split('/').pop() ?? 'logo.jpg',
+        type: asset.mimeType ?? 'image/jpeg',
+      });
+      setLogoUrl(uploaded.url);
+      setNotice({ message: 'Logo uploaded. Save your details to apply it.', tone: 'success' });
+    } catch (error) {
+      setNotice({ message: toApiError(error).message, tone: 'error' });
+    } finally {
+      setPickingLogo(false);
+    }
+  };
 
   const data = onboarding.data;
   const hasOffering = Boolean(data?.hasActiveOffering || offerings.data?.some((item) => item.isActive));
@@ -103,7 +137,9 @@ export default function ProviderOnboardingScreen() {
         registrationNumber: values.registrationNumber || undefined,
         representativeName: values.representativeName || undefined,
         teamSize: values.teamSize ? Number(values.teamSize) : undefined,
+        logoUrl: logoUrl || undefined,
       });
+      if (serviceRadiusKm.trim()) await providerApi.updateProfile({ serviceRadiusKm: Number(serviceRadiusKm) });
     },
     onSuccess: async () => {
       await invalidate();
@@ -120,6 +156,17 @@ export default function ProviderOnboardingScreen() {
       router.back();
     },
     onError: (error) => setNotice({ message: toApiError(error).message, tone: 'error' }),
+  });
+
+  const submitDetails = handleSubmit((values) => {
+    if (serviceRadiusKm.trim()) {
+      const radius = Number(serviceRadiusKm);
+      if (!Number.isFinite(radius) || radius < 1 || radius > 200) {
+        setNotice({ message: 'Service radius must be between 1 and 200 km.', tone: 'error' });
+        return;
+      }
+    }
+    save.mutate(values);
   });
 
   return (
@@ -199,13 +246,43 @@ export default function ProviderOnboardingScreen() {
               </View>
             )}
           />
+          <View style={{ gap: spacing.sm }}>
+            <Text style={[typography.bodyStrong, { color: colors.text }]}>Logo</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Avatar
+                uri={logoUrl || data?.accountAvatarUrl}
+                name={data?.businessName ?? 'Provider'}
+                size={48}
+              />
+              <View style={{ flex: 1, gap: spacing.xs }}>
+                <Text style={[typography.caption, { color: colors.textMuted }]}>
+                  {logoUrl ? 'A new logo is ready to save.' : 'Upload a logo for your business profile.'}
+                </Text>
+                <Button
+                  label="Choose logo"
+                  variant="secondary"
+                  size="sm"
+                  loading={pickingLogo}
+                  onPress={() => void pickLogo()}
+                />
+              </View>
+            </View>
+          </View>
+          <Input
+            label="Service radius (km)"
+            value={serviceRadiusKm}
+            onChangeText={setServiceRadiusKm}
+            placeholder="e.g. 25"
+            keyboardType="numeric"
+            hint="Optional · distance you serve clients"
+          />
           <FormInput label="Business or professional name" control={control} name="businessName" />
           <FormInput label="Bio" control={control} name="bio" multiline numberOfLines={4} />
           <FormInput label="Phone" control={control} name="phone" keyboardType="phone-pad" />
           {showLegal ? <FormInput label="Registration number" control={control} name="registrationNumber" /> : null}
           {showRepresentative ? <FormInput label="Representative name" control={control} name="representativeName" /> : null}
           {showTeamSize ? <FormInput label="Team size" control={control} name="teamSize" keyboardType="numeric" /> : null}
-          <Button label="Save details" onPress={handleSubmit((values) => save.mutate(values))} loading={save.isPending} />
+          <Button label="Save details" onPress={submitDetails} loading={save.isPending} />
         </View>
       </Card>
 

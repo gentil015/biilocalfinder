@@ -1,4 +1,5 @@
 import { apiRequest } from '../client';
+import { normalizeBooking, normalizeServiceRequest } from '../normalizers';
 import type {
   BookingItem,
   QuoteItem,
@@ -47,22 +48,22 @@ export interface CreateReviewDto {
 }
 
 export const requestsApi = {
-  create: (dto: CreateServiceRequestDto) =>
-    apiRequest<ServiceRequestItem>('/service-requests', { method: 'POST', body: JSON.stringify(dto) }),
-  mine: () => apiRequest<ServiceRequestItem[]>('/service-requests/mine'),
-  incoming: () => apiRequest<ServiceRequestItem[]>('/service-requests/incoming'),
-  detail: (id: string) => apiRequest<ServiceRequestItem>(`/service-requests/${id}`),
-  updatePrivacy: (id: string, isPublic: boolean) =>
-    apiRequest<ServiceRequestItem>(`/service-requests/${id}/privacy`, {
+  create: async (dto: CreateServiceRequestDto) =>
+    normalizeServiceRequest(await apiRequest<ServiceRequestItem>('/service-requests', { method: 'POST', body: JSON.stringify(dto) })),
+  mine: async () => (await apiRequest<ServiceRequestItem[]>('/service-requests/mine')).map(normalizeServiceRequest),
+  incoming: async () => (await apiRequest<ServiceRequestItem[]>('/service-requests/incoming')).map(normalizeServiceRequest),
+  detail: async (id: string) => normalizeServiceRequest(await apiRequest<ServiceRequestItem>(`/service-requests/${id}`)),
+  updatePrivacy: async (id: string, isPublic: boolean) =>
+    normalizeServiceRequest(await apiRequest<ServiceRequestItem>(`/service-requests/${id}/privacy`, {
       method: 'PATCH',
       body: JSON.stringify({ isPublic }),
-    }),
-  cancel: (id: string) => apiRequest<ServiceRequestItem>(`/service-requests/${id}`, { method: 'DELETE' }),
+    })),
+  cancel: async (id: string) => normalizeServiceRequest(await apiRequest<ServiceRequestItem>(`/service-requests/${id}`, { method: 'DELETE' })),
 
   quotes: (requestId: string) => apiRequest<QuoteItem[]>(`/service-requests/${requestId}/quotes`),
   createQuote: (dto: CreateQuoteDto) =>
     apiRequest<QuoteItem>('/quotes', { method: 'POST', body: JSON.stringify(dto) }),
-  acceptQuote: (id: string) => apiRequest<BookingItem>(`/quotes/${id}/accept`, { method: 'POST' }),
+  acceptQuote: async (id: string) => normalizeBooking(await apiRequest<BookingItem>(`/quotes/${id}/accept`, { method: 'POST' })),
   rejectQuote: (id: string) => apiRequest<QuoteItem>(`/quotes/${id}/reject`, { method: 'POST' }),
   createRevision: (id: string, price: number, message?: string) =>
     apiRequest<QuoteRevision>(`/quotes/${id}/revisions`, {
@@ -72,14 +73,14 @@ export const requestsApi = {
   acceptRevision: (id: string) => apiRequest<QuoteRevision>(`/quote-revisions/${id}/accept`, { method: 'POST' }),
   rejectRevision: (id: string) => apiRequest<QuoteRevision>(`/quote-revisions/${id}/reject`, { method: 'POST' }),
 
-  myBookings: () => apiRequest<BookingItem[]>('/bookings/mine'),
-  providerBookings: () => apiRequest<BookingItem[]>('/bookings/provider/mine'),
-  booking: (id: string) => apiRequest<BookingItem>(`/bookings/${id}`),
-  updateBookingStatus: (id: string, status: string, note?: string) =>
-    apiRequest<BookingItem>(`/bookings/${id}/status`, {
+  myBookings: async () => (await apiRequest<BookingItem[]>('/bookings/mine')).map(normalizeBooking),
+  providerBookings: async () => (await apiRequest<BookingItem[]>('/bookings/provider/mine')).map(normalizeBooking),
+  booking: async (id: string) => normalizeBooking(await apiRequest<BookingItem>(`/bookings/${id}`)),
+  updateBookingStatus: async (id: string, status: string, note?: string) =>
+    normalizeBooking(await apiRequest<BookingItem>(`/bookings/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status, ...(note ? { note } : {}) }),
-    }),
+    })),
   bookingReview: (id: string) => apiRequest<{ review: unknown; canReview: boolean; reviewDeadline: string | null }>(`/bookings/${id}/review`),
   createReview: (id: string, dto: CreateReviewDto) =>
     apiRequest<unknown>(`/bookings/${id}/reviews`, { method: 'POST', body: JSON.stringify(dto) }),

@@ -13,6 +13,7 @@ export const queryKeys = {
   search: (params: ProviderSearchParams) => ['providers', 'search', params] as const,
   provider: (id: string) => ['provider', id] as const,
   reviews: (id: string) => ['provider', id, 'reviews'] as const,
+  reviewSummary: (id: string) => ['provider', id, 'reviews', 'summary'] as const,
   personalization: (lat?: number, lng?: number) => ['personalization', lat ?? null, lng ?? null] as const,
   favorites: ['favorites'] as const,
   myRequests: ['requests', 'mine'] as const,
@@ -66,6 +67,14 @@ export function useProviderReviews(id: string | undefined) {
   return useQuery({
     queryKey: queryKeys.reviews(id ?? ''),
     queryFn: () => discoveryApi.providerReviews(id!),
+    enabled: Boolean(id),
+  });
+}
+
+export function useReviewSummary(id: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.reviewSummary(id ?? ''),
+    queryFn: () => discoveryApi.reviewSummary(id!),
     enabled: Boolean(id),
   });
 }

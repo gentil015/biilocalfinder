@@ -17,6 +17,7 @@ import { Avatar, Badge } from '@/src/components/ui/Badges';
 import { Button } from '@/src/components/ui/Button';
 import { Card } from '@/src/components/ui/Card';
 import { Chip } from '@/src/components/ui/Chip';
+import { ConfirmDialog } from '@/src/components/ui/ConfirmDialog';
 import { Input } from '@/src/components/ui/Input';
 import { Notice, type NoticeTone } from '@/src/components/ui/Notice';
 import { Screen } from '@/src/components/ui/Screen';
@@ -43,7 +44,11 @@ function asParams(payload: Record<string, unknown> = {}): Record<string, string>
   );
 }
 
-function toRoute(action: CustomerAssistAction): Href | null {
+function toRoute(action: CustomerAssistAction, role?: string): Href | null {
+  if (action.kind === 'open-offering') {
+    const offeringId = action.payload?.offeringId;
+    if (offeringId) return { pathname: '/(provider)/provider/(tabs)/services', params: { offeringId: String(offeringId) } };
+  }
   if (action.href) {
     try {
       const url = new URL(action.href, 'https://bii.local');
@@ -51,7 +56,9 @@ function toRoute(action: CustomerAssistAction): Href | null {
       const params = Object.fromEntries(url.searchParams.entries());
       if (path === '/search') return { pathname: '/explore', params: { q: params.q ?? '' } };
       if (path === '/become-a-provider') return '/become-provider';
-      if (path === '/bookings') return '/(customer)/(tabs)/requests';
+      if (path === '/bookings') {
+        return (role === 'PROVIDER' ? '/(provider)/provider/(tabs)' : '/(customer)/(tabs)/requests') as Href;
+      }
       if (path === '/provider/offerings') return '/(provider)/provider/(tabs)/services';
       if (path.startsWith('/providers/')) return { pathname: '/provider/[id]', params: { id: path.split('/')[2] ?? '' } };
       if (path === '/requests/new') return { pathname: '/request/new', params: asParams(params) };
@@ -110,13 +117,13 @@ function TurnSuggestions({
 }: {
   result: CustomerAssistResult;
   onQuestion: (question: string) => void;
-  onAction: (route: Href) => void;
+  onAction: (action: CustomerAssistAction, route: Href) => void;
   onService: (id: string) => void;
   onProvider: (id: string) => void;
 }) {
   const { colors } = useTheme();
   const routes = result.actions
-    .map((action, index) => ({ action, index, route: toRoute(action) }))
+    .map((action, index) => ({ action, index, route: toRoute(action, result.role) }))
     .filter((item): item is { action: CustomerAssistAction; index: number; route: Href } => Boolean(item.route));
   const hasSuggestions =
     result.questions.length > 0 ||
@@ -146,7 +153,7 @@ function TurnSuggestions({
                 key={`${action.kind}-${index}`}
                 label={action.label}
                 tone="neutral"
-                onPress={() => onAction(route)}
+                onPress={() => onAction(action, route)}
               />
             ))}
           </View>
@@ -195,6 +202,7 @@ export default function AssistantScreen() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [notice, setNotice] = useState<{ message: string; tone: NoticeTone } | null>(null);
   const [failedPrompt, setFailedPrompt] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<{ action: CustomerAssistAction; route: Href } | null>(null);
   const chat = useMutation({
     mutationFn: ({ message, history }: { message: string; history: AssistTurn[] }) =>
       parityCustomerApi.customerAssistChat({ message, history, consentToProcess: true }),
@@ -222,6 +230,11 @@ export default function AssistantScreen() {
     setNotice(null);
     setFailedPrompt(null);
     chat.mutate({ message, history });
+  };
+
+  const runAction = (action: CustomerAssistAction, route: Href) => {
+    if (action.requiresConfirmation) setPendingAction({ action, route });
+    else router.push(route);
   };
 
   if (!ready) return <RoleGuardLoading />;
@@ -297,7 +310,7 @@ export default function AssistantScreen() {
                   <TurnSuggestions
                     result={turn.result}
                     onQuestion={(question) => send(question)}
-                    onAction={(route) => router.push(route)}
+                    onAction={runAction}
                     onService={(id) => router.push({ pathname: '/request/new', params: { serviceId: id } })}
                     onProvider={(id) => router.push({ pathname: '/provider/[id]', params: { id } })}
                   />
@@ -331,6 +344,21 @@ export default function AssistantScreen() {
             fullWidth
           />
         </View>
+        <ConfirmDialog
+          visible={Boolean(pendingAction)}
+          title="Confirm this action?"
+          message={pendingAction?.action.summary
+            ? `${pendingAction.action.label}: ${pendingAction.action.summary}`
+            : `${pendingAction?.action.label ?? 'Action'} will be prepared for review.`}
+          confirmLabel="Continue"
+          onConfirm={() => {
+            if (!pendingAction) return;
+            const route = pendingAction.route;
+            setPendingAction(null);
+            router.push(route);
+          }}
+          onCancel={() => setPendingAction(null)}
+        />
       </Screen>
     </KeyboardAvoidingView>
   );

@@ -48,6 +48,7 @@ export default function SavedSearchesScreen() {
     categoryId?: string;
     serviceId?: string;
     verifiedOnly?: string;
+    maxPrice?: string;
   }>();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -58,6 +59,7 @@ export default function SavedSearchesScreen() {
   const [serviceId, setServiceId] = useState(paramValue(params.serviceId));
   const [city, setCity] = useState(paramValue(params.city));
   const [verifiedOnly, setVerifiedOnly] = useState(paramValue(params.verifiedOnly) === 'true');
+  const [maxPrice, setMaxPrice] = useState(paramValue(params.maxPrice));
   const [notice, setNotice] = useState<{ message: string; tone: NoticeTone } | null>(null);
   const [pendingDelete, setPendingDelete] = useState<SavedSearch | null>(null);
 
@@ -80,6 +82,7 @@ export default function SavedSearchesScreen() {
         serviceId: serviceId || undefined,
         city: city.trim() || undefined,
         verifiedOnly,
+        maxPrice: maxPrice && Number.isFinite(Number(maxPrice)) ? Number(maxPrice) : undefined,
       }),
     onSuccess: async () => {
       setName('');
@@ -87,6 +90,7 @@ export default function SavedSearchesScreen() {
       setServiceId('');
       setCity('');
       setVerifiedOnly(false);
+      setMaxPrice('');
       setNotice({ message: 'Search saved.', tone: 'success' });
       showToast('Search saved.', 'success');
       await invalidate();
@@ -126,6 +130,7 @@ export default function SavedSearchesScreen() {
         categoryId: search.categoryId ?? '',
         serviceId: search.serviceId ?? '',
         verifiedOnly: search.verifiedOnly ? 'true' : 'false',
+        maxPrice: search.maxPrice ? String(search.maxPrice) : undefined,
       },
     });
   };
@@ -191,6 +196,7 @@ export default function SavedSearchesScreen() {
           )
         ) : null}
         <Input label="City (optional)" value={city} onChangeText={setCity} placeholder="Kigali" />
+        <Input label="Max price (optional)" value={maxPrice} onChangeText={setMaxPrice} keyboardType="numeric" placeholder="Any price" />
         <View style={styles.switchRow}>
           <Text style={[typography.small, { color: colors.textSecondary }]}>Verified providers only</Text>
           <Switch

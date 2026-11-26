@@ -70,6 +70,8 @@ export interface CreatePortfolioDto {
   projectDate?: string;
 }
 
+export type UpdatePortfolioDto = Partial<CreatePortfolioDto>;
+
 export interface AddPortfolioImageDto {
   url: string;
   storageKey: string;
@@ -181,6 +183,11 @@ export const parityProviderApi = {
   createPortfolio: (dto: CreatePortfolioDto) =>
     apiRequest<PortfolioItem>('/providers/me/portfolios', {
       method: 'POST',
+      body: JSON.stringify(dto),
+    }),
+  updatePortfolio: (id: string, dto: UpdatePortfolioDto) =>
+    apiRequest<PortfolioItem>(`/providers/me/portfolios/${segment(id)}`, {
+      method: 'PATCH',
       body: JSON.stringify(dto),
     }),
   deletePortfolio: (id: string) =>

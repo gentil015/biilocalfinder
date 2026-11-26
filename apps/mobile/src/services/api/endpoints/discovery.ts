@@ -1,10 +1,12 @@
 import { apiRequest, toQueryString } from '../client';
+import { normalizeProvider, normalizeReview, normalizeReviewSummary } from '../normalizers';
 import type {
   Category,
   NotificationItem,
   Paginated,
   ProviderDetail,
   ReviewItem,
+  ReviewSummary,
   ServiceItem,
   ServiceWithCategory,
 } from '@/src/types/api';
@@ -49,18 +51,27 @@ export const discoveryApi = {
   services: (categoryId?: string) =>
     apiRequest<ServiceItem[]>(`/services${categoryId ? toQueryString({ categoryId }) : ''}`),
   service: (id: string) => apiRequest<ServiceWithCategory>(`/services/${id}`),
-  searchProviders: (params: ProviderSearchParams) =>
-    apiRequest<Paginated<ProviderDetail>>(`/search/providers${toQueryString({ ...params })}`),
-  provider: (id: string, location?: { lat?: number; lng?: number }) =>
-    apiRequest<ProviderDetail>(`/providers/${id}${location ? toQueryString(location) : ''}`),
+  searchProviders: async (params: ProviderSearchParams) => {
+    const result = await apiRequest<Paginated<ProviderDetail>>(`/search/providers${toQueryString({ ...params })}`);
+    return { ...result, items: result.items.map(normalizeProvider) };
+  },
+  provider: async (id: string, location?: { lat?: number; lng?: number }) =>
+    normalizeProvider(await apiRequest<ProviderDetail>(`/providers/${id}${location ? toQueryString(location) : ''}`)),
   providerContact: (id: string) =>
     apiRequest<{ phone?: string | null; email?: string | null }>(`/providers/${id}/contact`),
-  providerReviews: (
+  providerReviews: async (
     id: string,
     params: { page?: number; limit?: number; sort?: string; verifiedOnly?: boolean; withPhotos?: boolean } = {},
-  ) => apiRequest<Paginated<ReviewItem>>(`/providers/${id}/reviews${toQueryString(params)}`),
-  reviewSummary: (id: string) => apiRequest<Record<string, unknown>>(`/providers/${id}/reviews/summary`),
-  favorites: () => apiRequest<ProviderDetail[]>('/favorites'),
+  ) => {
+    const result = await apiRequest<Paginated<ReviewItem>>(`/providers/${id}/reviews${toQueryString(params)}`);
+    return { ...result, items: result.items.map(normalizeReview) };
+  },
+  reviewSummary: async (id: string): Promise<ReviewSummary | null> =>
+    normalizeReviewSummary(await apiRequest<ReviewSummary>(`/providers/${id}/reviews/summary`)),
+  favorites: async () => {
+    const rows = await apiRequest<Array<ProviderDetail | { provider?: ProviderDetail | null }>>('/favorites');
+    return rows.map((row) => (row && 'provider' in row && row.provider ? row.provider : row)).map((provider) => normalizeProvider(provider as ProviderDetail));
+  },
   addFavorite: (providerId: string) => apiRequest<unknown>(`/favorites/${providerId}`, { method: 'POST' }),
   removeFavorite: (providerId: string) => apiRequest<{ success: boolean }>(`/favorites/${providerId}`, { method: 'DELETE' }),
   personalizationHome: (lat?: number, lng?: number) =>

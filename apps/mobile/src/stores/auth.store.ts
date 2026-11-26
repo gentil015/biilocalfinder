@@ -3,6 +3,7 @@ import { authApi } from '@/src/services/api/endpoints/auth';
 import { usersApi } from '@/src/services/api/endpoints/users';
 import { workspacesApi } from '@/src/services/api/endpoints/workspaces';
 import { tokenStore } from '@/src/services/storage/token-store';
+import { signOutGoogle } from '@/src/services/auth/google';
 import { useAppStore } from './app.store';
 import type { AuthTokens, AuthUser, WorkspaceSummary } from '@/src/types/api';
 
@@ -80,6 +81,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Local session cleanup must succeed even if the server call fails.
       }
     }
+    await signOutGoogle().catch(() => undefined);
     await tokenStore.clear();
     await useAppStore.getState().setActiveWorkspace(null);
     get().reset();

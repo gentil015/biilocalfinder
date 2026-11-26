@@ -2,7 +2,6 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AvailabilityService } from '../availability/availability.service';
-import { EntitlementsService } from '../subscriptions/entitlements.service';
 import { ProviderContextService } from './provider-context.service';
 import { UpdateProviderProfileDto } from './dto/update-provider-profile.dto';
 import { SetLocationDto } from './dto/set-location.dto';
@@ -33,6 +32,7 @@ const PUBLIC_PROVIDER_INCLUDE = {
     include: {
       service: { include: { category: true } },
       attributeValues: { include: { categoryAttribute: true } },
+      images: { orderBy: { position: 'asc' as const }, take: 1 },
     },
   },
   serviceAreas: true,
@@ -59,7 +59,6 @@ export class ProvidersService {
     private notifications: NotificationsService,
     private availability: AvailabilityService,
     private interactions: InteractionService,
-    private entitlements: EntitlementsService,
     private providerContext: ProviderContextService,
     private verification: VerificationService,
   ) {}
@@ -628,15 +627,6 @@ export class ProvidersService {
     }
     if (!dto.name && !dto.email && !dto.phone) {
       throw new BadRequestException('Provide at least a name, email, or phone number for this team member');
-    }
-    // AGENCY only: this roster IS the "managed providers" entitlement
-    // (spec §7). For TEAM, this same roster predates the workspace
-    // Members system (see docs/WORKSPACES.md) and isn't plan-limited —
-    // capping it here would also wrongly block TEAM's legacy add-member
-    // flow, since 'managedProviders' resolves to a hard 0 for any
-    // non-AGENCY type.
-    if (provider.providerType === 'AGENCY') {
-      await this.entitlements.assertCanAdd(provider, 'managedProviders');
     }
     return this.prisma.providerTeamMember.create({
       data: { providerId: provider.id, ...dto },

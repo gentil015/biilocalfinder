@@ -28,7 +28,6 @@ export interface MatchableProvider {
   verificationStatus: string;
   businessVerified: boolean;
   availabilityStatus: string;
-  subscriptionStatus: string;
   yearsOfExperience: number;
   responseRate: number;
   responseTimeMinutes: number | null;
@@ -302,10 +301,8 @@ export function scoreProviderMatch(
   const businessPoints = provider.businessVerified ? 1 : 0;
   const availabilityPoints =
     provider.availabilityStatus === 'AVAILABLE' ? 1.5 : provider.availabilityStatus === 'BUSY' ? 0.5 : 0;
-  const subscriptionPoints =
-    provider.subscriptionStatus === 'ACTIVE' || provider.subscriptionStatus === 'TRIALING' ? 0.5 : 0;
   const quality = clamp(
-    ratingPoints + verificationPoints + businessPoints + availabilityPoints + subscriptionPoints,
+    ratingPoints + verificationPoints + businessPoints + availabilityPoints,
     0,
     WEIGHTS.quality,
   );

@@ -7,15 +7,13 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { AdminService } from './admin.service';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { ListAuditLogsQueryDto } from './dto/list-audit-logs-query.dto';
-import { ListSubscriptionsQueryDto } from './dto/list-subscriptions-query.dto';
 import { BusinessAnalyticsQueryDto } from './dto/business-analytics-query.dto';
 import { AdminUpdateProviderDto } from './dto/admin-update-provider.dto';
 import { AdminUnverifyProviderDto, AdminVerifyProviderDto } from './dto/admin-provider-verification.dto';
 
-// Everything here is admin-only — categories/services/subscription plans/
-// provider verification/reports/disputes each have their own admin-gated
-// endpoints in their own modules (spec §39: "keep domain logic inside
-// appropriate modules"); this controller covers what's left: platform
+// Everything here is admin-only — categories/services, provider
+// verification/reports/disputes each have their own admin-gated endpoints
+// in their own modules; this controller covers what's left: platform
 // analytics, user management, and the audit trail.
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -90,10 +88,5 @@ export class AdminController {
   @Get('audit-logs')
   auditLogs(@Query() query: ListAuditLogsQueryDto) {
     return this.adminService.auditLogs(query);
-  }
-
-  @Get('subscriptions')
-  subscriptions(@Query() query: ListSubscriptionsQueryDto) {
-    return this.adminService.listSubscriptions(query);
   }
 }

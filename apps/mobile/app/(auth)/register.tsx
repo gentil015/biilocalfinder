@@ -15,6 +15,7 @@ import { AppScreenHeader } from '@/src/components/ui/AppScreenHeader';
 import { Button } from '@/src/components/ui/Button';
 import { Card } from '@/src/components/ui/Card';
 import { FormInput } from '@/src/components/ui/FormInput';
+import { GoogleAuthButton } from '@/src/components/auth/GoogleAuthButton';
 import { IconButton } from '@/src/components/ui/IconButton';
 import { Input } from '@/src/components/ui/Input';
 import { Notice } from '@/src/components/ui/Notice';
@@ -157,6 +158,12 @@ export default function RegisterScreen() {
           loading={isSubmitting}
           disabled={isSubmitting}
           fullWidth
+        />
+        <GoogleAuthButton
+          mode="register"
+          role={roleField.field.value}
+          termsAccepted={termsField.field.value}
+          onError={setFormError}
         />
         <Link
           href="/login"

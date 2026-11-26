@@ -24,6 +24,7 @@ const slugify_1 = require("../common/utils/slugify");
 const register_dto_1 = require("./dto/register.dto");
 const auth_email_templates_1 = require("./auth-email-templates");
 const email_sender_1 = require("../notifications/channels/email-sender");
+const terms_constants_1 = require("../legal/terms.constants");
 const ACCESS_EXPIRES_IN = process.env.JWT_ACCESS_EXPIRES_IN ?? '15m';
 const REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN ?? '30d';
 const REFRESH_EXPIRES_MS = 30 * 24 * 60 * 60 * 1000;
@@ -43,6 +44,9 @@ let AuthService = AuthService_1 = class AuthService {
     async register(dto) {
         if (!register_dto_1.REGISTERABLE_ROLES.includes(dto.role)) {
             throw new common_1.BadRequestException('Invalid role for self-registration');
+        }
+        if (dto.termsAccepted !== true || dto.termsVersion !== terms_constants_1.CURRENT_TERMS_VERSION) {
+            throw new common_1.BadRequestException('You must accept the current Terms and Conditions to register');
         }
         const existing = await this.prisma.user.findFirst({
             where: { OR: [{ email: dto.email }, ...(dto.phone ? [{ phone: dto.phone }] : [])] },
@@ -65,23 +69,34 @@ let AuthService = AuthService_1 = class AuthService {
                         ...(dto.role === 'CLIENT' ? { clientProfile: { create: {} } } : {}),
                     },
                 });
-                if (dto.role === 'PROVIDER') {
-                    const businessName = `${dto.firstName} ${dto.lastName}`;
-                    const workspace = await tx.workspace.create({
-                        data: {
-                            name: businessName,
-                            slug: await this.uniqueWorkspaceSlug(tx, businessName),
-                            type: 'INDIVIDUAL',
-                            ownerId: created.id,
-                        },
-                    });
-                    await tx.provider.create({
-                        data: { userId: created.id, workspaceId: workspace.id, businessName },
-                    });
-                    await tx.workspaceMembership.create({
-                        data: { workspaceId: workspace.id, userId: created.id, role: 'OWNER', status: 'ACTIVE', joinedAt: new Date() },
-                    });
-                }
+                await tx.termsAcceptance.create({
+                    data: {
+                        userId: created.id,
+                        documentType: terms_constants_1.TERMS_DOCUMENT_TYPE,
+                        version: terms_constants_1.CURRENT_TERMS_VERSION,
+                        accountRole: created.role,
+                    },
+                });
+                const registrationEvent = await tx.securityEvent.create({
+                    data: {
+                        userId: created.id,
+                        eventType: 'USER_REGISTERED',
+                        dedupeKey: `registration:${created.id}`,
+                    },
+                });
+                await tx.riskAssessment.create({
+                    data: {
+                        userId: created.id,
+                        sourceEventId: registrationEvent.id,
+                        riskScore: 0,
+                        riskLevel: 'LOW',
+                        assessmentVersion: 'v1',
+                        summary: 'Account registered. No automated fraud finding was made.',
+                    },
+                });
+                await this.acceptPendingInvites(tx, created.id, created.email);
+                if (dto.role === 'PROVIDER')
+                    await this.createProviderWorkspace(tx, created.id, `${dto.firstName} ${dto.lastName}`.trim());
                 return created;
             });
         }
@@ -105,15 +120,153 @@ let AuthService = AuthService_1 = class AuthService {
     }
     async login(dto) {
         const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
-        if (!user)
+        if (!user || !user.passwordHash)
             throw new common_1.UnauthorizedException('Invalid credentials');
         const valid = await bcrypt.compare(dto.password, user.passwordHash);
         if (!valid)
             throw new common_1.UnauthorizedException('Invalid credentials');
-        if (user.status !== 'ACTIVE') {
-            throw new common_1.UnauthorizedException('Account is not active');
+        await this.assertAccountActive(user.id, user.status);
+        return this.issueTokens(user.id, user.email, user.role);
+    }
+    async authenticateWithGoogle(identity, dto) {
+        const existingBySub = await this.prisma.user.findUnique({ where: { googleSub: identity.sub } });
+        if (existingBySub) {
+            await this.assertAccountActive(existingBySub.id, existingBySub.status);
+            const updated = await this.prisma.user.update({
+                where: { id: existingBySub.id },
+                data: {
+                    googleEmail: identity.email,
+                    emailVerified: true,
+                    ...(existingBySub.avatarUrl ? {} : identity.avatarUrl ? { avatarUrl: identity.avatarUrl } : {}),
+                },
+            });
+            return this.issueTokens(updated.id, updated.email, updated.role);
+        }
+        const existingByEmail = await this.prisma.user.findUnique({ where: { email: identity.email } });
+        if (existingByEmail) {
+            if (!existingByEmail.emailVerified) {
+                throw new common_1.UnauthorizedException('Verify your email before linking a Google account');
+            }
+            if (existingByEmail.googleSub && existingByEmail.googleSub !== identity.sub) {
+                throw new common_1.ConflictException('This account is linked to a different Google account');
+            }
+            await this.assertAccountActive(existingByEmail.id, existingByEmail.status);
+            const linked = await this.prisma.user.update({
+                where: { id: existingByEmail.id },
+                data: {
+                    googleSub: identity.sub,
+                    googleEmail: identity.email,
+                    emailVerified: true,
+                    ...(existingByEmail.avatarUrl ? {} : identity.avatarUrl ? { avatarUrl: identity.avatarUrl } : {}),
+                },
+            });
+            return this.issueTokens(linked.id, linked.email, linked.role);
+        }
+        return this.registerWithGoogle(identity, dto);
+    }
+    async registerWithGoogle(identity, dto) {
+        const role = dto.role;
+        if (!role || !register_dto_1.REGISTERABLE_ROLES.includes(role)) {
+            throw new common_1.BadRequestException('Select an account type to continue with Google');
+        }
+        if (dto.termsAccepted !== true || dto.termsVersion !== terms_constants_1.CURRENT_TERMS_VERSION) {
+            throw new common_1.BadRequestException('You must accept the current Terms and Conditions to register');
+        }
+        let user;
+        try {
+            user = await this.prisma.$transaction(async (tx) => {
+                const created = await tx.user.create({
+                    data: {
+                        email: identity.email,
+                        googleSub: identity.sub,
+                        googleEmail: identity.email,
+                        passwordHash: null,
+                        firstName: identity.firstName,
+                        lastName: identity.lastName,
+                        avatarUrl: identity.avatarUrl,
+                        role,
+                        emailVerified: true,
+                        ...(role === 'CLIENT' ? { clientProfile: { create: {} } } : {}),
+                    },
+                });
+                await tx.termsAcceptance.create({
+                    data: {
+                        userId: created.id,
+                        documentType: terms_constants_1.TERMS_DOCUMENT_TYPE,
+                        version: terms_constants_1.CURRENT_TERMS_VERSION,
+                        accountRole: created.role,
+                    },
+                });
+                const registrationEvent = await tx.securityEvent.create({
+                    data: {
+                        userId: created.id,
+                        eventType: 'USER_REGISTERED',
+                        dedupeKey: `registration:${created.id}`,
+                    },
+                });
+                await tx.riskAssessment.create({
+                    data: {
+                        userId: created.id,
+                        sourceEventId: registrationEvent.id,
+                        riskScore: 0,
+                        riskLevel: 'LOW',
+                        assessmentVersion: 'v1',
+                        summary: 'Account registered via Google. No automated fraud finding was made.',
+                    },
+                });
+                await this.acceptPendingInvites(tx, created.id, created.email);
+                if (role === 'PROVIDER')
+                    await this.createProviderWorkspace(tx, created.id, `${created.firstName} ${created.lastName}`.trim());
+                return created;
+            });
+        }
+        catch (err) {
+            if (err instanceof client_1.Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+                throw new common_1.ConflictException('An account with this email already exists');
+            }
+            throw err;
         }
         return this.issueTokens(user.id, user.email, user.role);
+    }
+    async assertAccountActive(userId, status) {
+        if (status !== 'ACTIVE')
+            throw new common_1.UnauthorizedException('Account is not active');
+        const suspension = await this.prisma.accountRestriction.findFirst({
+            where: {
+                userId,
+                status: 'ACTIVE',
+                restrictionType: { in: [client_1.RestrictionType.TEMPORARY_SUSPENSION, client_1.RestrictionType.PERMANENT_SUSPENSION] },
+                OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+            },
+            select: { id: true },
+        });
+        if (suspension)
+            throw new common_1.UnauthorizedException('Account access is temporarily restricted');
+    }
+    async acceptPendingInvites(tx, userId, email) {
+        const pendingInvites = await tx.workspaceInvitation.findMany({
+            where: { email: email.toLowerCase(), acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } },
+            select: { workspaceId: true, role: true },
+        });
+        for (const invite of pendingInvites) {
+            const existingMembership = await tx.workspaceMembership.findUnique({
+                where: { workspaceId_userId: { workspaceId: invite.workspaceId, userId } },
+            });
+            if (!existingMembership) {
+                await tx.workspaceMembership.create({
+                    data: { workspaceId: invite.workspaceId, userId, role: invite.role, status: 'INVITED', invitedEmail: email.toLowerCase(), invitedAt: new Date() },
+                });
+            }
+        }
+    }
+    async createProviderWorkspace(tx, userId, businessName) {
+        const workspace = await tx.workspace.create({
+            data: { name: businessName, slug: await this.uniqueWorkspaceSlug(tx, businessName), type: 'INDIVIDUAL', ownerId: userId },
+        });
+        await tx.provider.create({ data: { userId, workspaceId: workspace.id, businessName } });
+        await tx.workspaceMembership.create({
+            data: { workspaceId: workspace.id, userId, role: 'OWNER', status: 'ACTIVE', joinedAt: new Date() },
+        });
     }
     async refresh(refreshToken) {
         let payload;
@@ -159,11 +312,11 @@ let AuthService = AuthService_1 = class AuthService {
                     where: { userId: user.id, usedAt: null },
                     data: { usedAt: new Date() },
                 });
-                const code = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
+                const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
                 await this.prisma.passwordResetToken.create({
                     data: {
                         userId: user.id,
-                        tokenHash: this.hashToken(code),
+                        tokenHash: this.hashResetCode(code),
                         expiresAt: new Date(Date.now() + PASSWORD_RESET_EXPIRES_MS),
                     },
                 });
@@ -184,7 +337,7 @@ let AuthService = AuthService_1 = class AuthService {
         }
     }
     async resetPassword(token, newPassword) {
-        const tokenHash = this.hashToken(token.trim());
+        const tokenHash = this.hashResetCode(token.trim());
         const stored = await this.prisma.passwordResetToken.findFirst({
             where: { tokenHash, usedAt: null, expiresAt: { gt: new Date() } },
             select: { id: true, userId: true },
@@ -196,7 +349,7 @@ let AuthService = AuthService_1 = class AuthService {
         await this.prisma.$transaction(async (tx) => {
             await tx.user.update({
                 where: { id: stored.userId },
-                data: { passwordHash },
+                data: { passwordHash, emailVerified: true },
             });
             await tx.passwordResetToken.update({
                 where: { id: stored.id },
@@ -223,6 +376,10 @@ let AuthService = AuthService_1 = class AuthService {
     }
     hashToken(token) {
         return crypto.createHash('sha256').update(token).digest('hex');
+    }
+    hashResetCode(code) {
+        const secret = process.env.PASSWORD_RESET_PEPPER ?? process.env.JWT_SECRET ?? 'insecure-reset-pepper';
+        return crypto.createHmac('sha256', secret).update(code).digest('hex');
     }
 };
 exports.AuthService = AuthService;

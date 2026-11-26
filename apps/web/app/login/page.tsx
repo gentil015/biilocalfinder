@@ -7,6 +7,7 @@ import { ArrowRight, CheckCircle2, Eye, EyeOff, LoaderCircle, LockKeyhole, Mail 
 import { authApi, ApiError } from '@/lib/api';
 import { AuthShell, AUTH_POINTS_CLIENT } from '@/components/auth-shell';
 import { useAuth, homeForRole } from '@/components/auth-provider';
+import { GoogleAuthButton } from '@/components/google-auth-button';
 import { useI18n } from '@/components/locale-provider';
 
 // useSearchParams needs a Suspense boundary during static prerendering.
@@ -190,6 +191,8 @@ function LoginForm() {
               )}
             </button>
           </form>
+
+          <GoogleAuthButton mode="login" next={next} onError={setError} />
         </div>
       </div>
     </AuthShell>

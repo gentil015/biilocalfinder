@@ -37,9 +37,11 @@ function NewServiceOfferingForm() {
     title: '',
     description: '',
     basePrice: '',
-    priceType: 'FIXED',
+    priceType: 'FIXED' as 'FIXED' | 'HOURLY' | 'PER_DAY' | 'STARTING_FROM' | 'CUSTOM_QUOTE',
     duration: '',
+    availabilityNote: '',
   });
+  const [images, setImages] = useState<Array<{ storageKey: string; url: string; uploading?: boolean }>>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [onboardingState, setOnboardingState] = useState<ProviderOnboardingState | null>(null);
@@ -136,6 +138,8 @@ function NewServiceOfferingForm() {
         basePrice: form.basePrice ? Number(form.basePrice) : undefined,
         priceType: form.priceType,
         duration: form.duration || undefined,
+        availabilityNote: form.availabilityNote || undefined,
+        images: images.filter((i) => !i.uploading).map((i) => ({ storageKey: i.storageKey, url: i.url })),
         attributeValues,
       });
       if (isOnboarding) {
@@ -271,7 +275,7 @@ function NewServiceOfferingForm() {
               <select
                 id="offering-price-type"
                 value={form.priceType}
-                onChange={(e) => setForm({ ...form, priceType: e.target.value })}
+                onChange={(e) => setForm({ ...form, priceType: e.target.value as typeof form.priceType })}
               >
                 <option value="FIXED">{tr("Fixed")}</option>
                 <option value="HOURLY">{tr("Hourly")}</option>
@@ -291,6 +295,52 @@ function NewServiceOfferingForm() {
               value={form.duration}
               onChange={(e) => setForm({ ...form, duration: e.target.value })}
             />
+          </div>
+          <div className="field mb-0 mt-4">
+            <label htmlFor="offering-availability" className="label">
+              {tr("Availability note")} <span className="font-normal text-ink-400">{tr("(optional)")}</span>
+            </label>
+            <input
+              id="offering-availability"
+              placeholder={tr("e.g. Mon–Sat, 8:00 AM – 6:00 PM")}
+              value={form.availabilityNote}
+              onChange={(e) => setForm({ ...form, availabilityNote: e.target.value })}
+            />
+          </div>
+          <div className="field mb-0 mt-4">
+            <label className="label">{tr("Service photos")} <span className="font-normal text-ink-400">{tr("(optional)")}</span></label>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={async (e) => {
+                const files = Array.from(e.target.files ?? []).slice(0, 8 - images.length);
+                for (const file of files) {
+                  const tempKey = `tmp-${Date.now()}-${file.name}`;
+                  setImages((prev) => [...prev, { storageKey: tempKey, url: URL.createObjectURL(file), uploading: true }]);
+                  try {
+                    const uploaded = await (await import('@/lib/api')).filesApi.uploadImage(file);
+                    setImages((prev) => prev.map((img) => img.storageKey === tempKey ? { storageKey: uploaded.key, url: uploaded.url } : img));
+                  } catch {
+                    setImages((prev) => prev.filter((img) => img.storageKey !== tempKey));
+                  }
+                }
+                e.currentTarget.value = '';
+              }}
+            />
+            {images.length > 0 && (
+              <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+                {images.map((img) => (
+                  <div key={img.storageKey} className="relative overflow-hidden rounded-lg border border-ink-200">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={img.url} alt="" className="h-24 w-full object-cover" />
+                    <button type="button" className="absolute right-1 top-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white" onClick={() => setImages((prev) => prev.filter((i) => i.storageKey !== img.storageKey))}>
+                      {img.uploading ? '...' : 'Remove'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </Panel>
 

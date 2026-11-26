@@ -54,7 +54,6 @@ interface Row {
   verificationStatus: string;
   businessVerified: boolean;
   availabilityStatus: string;
-  subscriptionStatus: string;
   yearsOfExperience: number;
   latitude: number | null;
   longitude: number | null;
@@ -389,7 +388,6 @@ export class PostgresProviderSearchService implements ProviderSearchService {
         p."verificationStatus",
         p."businessVerified",
         p."availabilityStatus",
-        p."subscriptionStatus",
         p."yearsOfExperience",
         l.latitude,
         l.longitude,
@@ -425,7 +423,6 @@ export class PostgresProviderSearchService implements ProviderSearchService {
         availabilityStatus: r.availabilityStatus,
         yearsOfExperience: r.yearsOfExperience,
         verificationStatus: r.verificationStatus,
-        subscriptionStatus: r.subscriptionStatus,
         semanticScore,
       });
       return {

@@ -20,6 +20,7 @@ export function QuoteThread({
   const { translateMessage: tr } = useI18n();
   const [counterPrice, setCounterPrice] = useState('');
   const [counterMessage, setCounterMessage] = useState('');
+  const [counterDate, setCounterDate] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -174,10 +175,11 @@ export function QuoteThread({
                       <span className="font-semibold text-ink-900">
                         {tr(rev.proposedBy === viewerRole ? 'You' : 'They')}
                       </span>{' '}
-                      {tr(rev.proposedBy === viewerRole ? 'You proposed' : 'They proposed')}{' '}
+                      {tr('proposed')}{' '}
                       <span className="font-bold tabular text-ink-950">
                         {Number(rev.price).toLocaleString()} {quote.currency}
                       </span>
+                      {rev.proposedDate && <span className="text-ink-500"> · {new Date(rev.proposedDate).toLocaleDateString()}</span>}
                       {rev.message && <span className="text-ink-500"> — &ldquo;{rev.message}&rdquo;</span>}
                     </span>
                   </span>
@@ -232,20 +234,26 @@ export function QuoteThread({
             {/* Counter-offer composer */}
             <div>
               <p className="label">{tr('Propose a different price')}</p>
-              <div className="flex flex-col gap-2 sm:flex-row">
+              <div className="grid gap-2 sm:grid-cols-[160px_160px_1fr_auto]">
                 <input
                   type="number"
                   min={0}
                   aria-label={tr('Counter price in RWF')}
                   placeholder={tr('Price (RWF)')}
-                  className="tabular sm:w-40"
+                  className="tabular"
                   value={counterPrice}
                   onChange={(e) => setCounterPrice(e.target.value)}
                 />
                 <input
+                  type="date"
+                  aria-label={tr('Proposed date')}
+                  value={counterDate}
+                  onChange={(e) => setCounterDate(e.target.value)}
+                />
+                <input
                   aria-label={tr('Message')}
                   placeholder={tr('Message (optional)')}
-                  className="min-w-0 flex-1"
+                  className="min-w-0"
                   value={counterMessage}
                   onChange={(e) => setCounterMessage(e.target.value)}
                 />
@@ -256,15 +264,17 @@ export function QuoteThread({
                       quotesApi.proposeRevision(quote.id, {
                         price: Number(counterPrice),
                         message: counterMessage || undefined,
+                        proposedDate: counterDate || undefined,
                       }),
                     ).then(() => {
                       setCounterPrice('');
                       setCounterMessage('');
+                      setCounterDate('');
                     })
                   }
                   className="btn-secondary shrink-0"
                 >
-                  {tr('Propose')}
+                  {tr('Send counter')}
                 </button>
               </div>
             </div>

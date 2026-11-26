@@ -399,13 +399,17 @@ function NewServiceRequestForm() {
   const checklist = useMemo(
     () =>
       [
-        { label: t('requests.new.checkService'), done: !!form.serviceId },
-        { label: t('requests.new.checkTitle'), done: form.title.trim().length > 0 },
-        { label: t('requests.new.checkDesc'), done: form.description.trim().length > 0 },
+        { label: t('requests.new.checkService'), done: !!form.serviceId || !!serviceOfferingId },
+        ...(serviceOfferingId
+          ? []
+          : [
+              { label: t('requests.new.checkTitle'), done: form.title.trim().length > 0 },
+              { label: t('requests.new.checkDesc'), done: form.description.trim().length > 0 },
+            ]),
         { label: t('requests.new.checkDate'), done: dateChosen },
         { label: t('requests.new.checkBudget'), done: !budgetInverted },
       ] as const,
-    [form.serviceId, form.title, form.description, dateChosen, budgetInverted, t],
+    [form.serviceId, serviceOfferingId, form.title, form.description, dateChosen, budgetInverted, t],
   );
   const ready = checklist.every((c) => c.done);
 
@@ -470,9 +474,9 @@ function NewServiceRequestForm() {
 
   function getStepError(id: RequestStepId): string | null {
     if (id === 'basics') {
-      if (!form.serviceId) return t('requestSteps.error.service');
-      if (!form.title.trim()) return t('requestSteps.error.title');
-      if (!form.description.trim()) return t('requestSteps.error.description');
+      if (!form.serviceId && !serviceOfferingId) return t('requestSteps.error.service');
+      if (!serviceOfferingId && !form.title.trim()) return t('requestSteps.error.title');
+      if (!serviceOfferingId && !form.description.trim()) return t('requestSteps.error.description');
     }
     if (id === 'details') {
       const missing = openAttributes.find((attribute) => attribute.isRequired && !isAttributeFilled(attribute));
@@ -525,10 +529,10 @@ function NewServiceRequestForm() {
   const assistantFilledFields = useMemo(
     () => [
       ...(form.serviceId ? (['service'] as const) : []),
-      ...(form.title.trim() ? (['title'] as const) : []),
-      ...(form.description.trim() ? (['description'] as const) : []),
+      ...(serviceOfferingId || form.title.trim() ? (['title'] as const) : []),
+      ...(serviceOfferingId || form.description.trim() ? (['description'] as const) : []),
     ],
-    [form.serviceId, form.title, form.description],
+    [form.serviceId, serviceOfferingId, form.title, form.description],
   );
 
   async function submitRequest() {
@@ -551,13 +555,13 @@ function NewServiceRequestForm() {
       // the pinned ones, but defensive ordering costs nothing).
       const mergedValues = { ...providerSetValues, ...attributeValues };
       const request = await requestsApi.create({
-        serviceId: form.serviceId,
+        serviceId: form.serviceId || undefined,
         providerId,
         serviceOfferingId,
         isPublic: providerId ? openToOthers || undefined : undefined,
         attributeValues: Object.keys(mergedValues).length ? mergedValues : undefined,
-        title: form.title,
-        description: form.description,
+        title: form.title.trim() || undefined,
+        description: form.description.trim() || undefined,
         preferredDate: form.preferredDate,
         preferredTime: form.preferredTime || undefined,
         budgetMin: form.budgetMin ? Number(form.budgetMin) : undefined,
@@ -688,53 +692,67 @@ function NewServiceRequestForm() {
                   )}
                 </div>
 
-                <div>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <label htmlFor="title" className="label">
-                      {t('requests.new.titleLabel')}
-                    </label>
-                    <span className="text-2xs tabular text-ink-400">
-                      {form.title.length}/{TITLE_MAX}
-                    </span>
-                  </div>
-                  <input
-                    id="title"
-                    required
-                    maxLength={TITLE_MAX}
-                    placeholder={t('requests.new.titlePlaceholder')}
-                    value={form.title}
-                    onChange={(e) => {
-                      markEdited('title');
-                      setStepError(null);
-                      setForm({ ...form, title: e.target.value });
-                    }}
-                  />
-                </div>
+                {!serviceOfferingId ? (
+                  <>
+                    <div>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <label htmlFor="title" className="label">
+                          {t('requests.new.titleLabel')}
+                        </label>
+                        <span className="text-2xs tabular text-ink-400">
+                          {form.title.length}/{TITLE_MAX}
+                        </span>
+                      </div>
+                      <input
+                        id="title"
+                        required={!serviceOfferingId}
+                        maxLength={TITLE_MAX}
+                        placeholder={t('requests.new.titlePlaceholder')}
+                        value={form.title}
+                        onChange={(e) => {
+                          markEdited('title');
+                          setStepError(null);
+                          setForm({ ...form, title: e.target.value });
+                        }}
+                      />
+                    </div>
 
-                <div>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <label htmlFor="description" className="label">
-                      {t('requests.new.descLabel')}
-                    </label>
-                    <span className="text-2xs tabular text-ink-400">
-                      {form.description.length}/{DESCRIPTION_MAX}
-                    </span>
+                    <div>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <label htmlFor="description" className="label">
+                          {t('requests.new.descLabel')}
+                        </label>
+                        <span className="text-2xs tabular text-ink-400">
+                          {form.description.length}/{DESCRIPTION_MAX}
+                        </span>
+                      </div>
+                      <textarea
+                        id="description"
+                        required={!serviceOfferingId}
+                        maxLength={DESCRIPTION_MAX}
+                        rows={5}
+                        placeholder={t('requests.new.descPlaceholder')}
+                        value={form.description}
+                        onChange={(e) => {
+                          markEdited('description');
+                          setStepError(null);
+                          setForm({ ...form, description: e.target.value });
+                        }}
+                      />
+                      <p className="mt-1.5 text-xs text-ink-500">{t('requests.new.describeJobHint')}</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4">
+                    <p className="text-sm font-semibold text-ink-900">{t('requests.new.service')}</p>
+                    <p className="mt-1 text-sm text-ink-600">
+                      {selectedServiceName} {providerName ? `• ${providerName}` : ''}
+                    </p>
+                    <p className="mt-2 text-xs text-ink-500">
+                      {t('requests.new.describeJobHint')}
+                    </p>
                   </div>
-                  <textarea
-                    id="description"
-                    required
-                    maxLength={DESCRIPTION_MAX}
-                    rows={5}
-                    placeholder={t('requests.new.descPlaceholder')}
-                    value={form.description}
-                    onChange={(e) => {
-                      markEdited('description');
-                      setStepError(null);
-                      setForm({ ...form, description: e.target.value });
-                    }}
-                  />
-                  <p className="mt-1.5 text-xs text-ink-500">{t('requests.new.describeJobHint')}</p>
-                </div>
+                )}
 
                 <details className="group rounded-xl border border-ink-200 bg-ink-50/40">
                   <summary className="flex cursor-pointer list-none items-center gap-2 p-3.5 text-sm font-bold text-ink-800 [&::-webkit-details-marker]:hidden">
@@ -948,16 +966,20 @@ function NewServiceRequestForm() {
                         </dd>
                       </div>
                     )}
-                    <div className="border-t border-ink-100 pt-3">
-                      <dt className="text-xs font-bold text-ink-500">{t('requests.new.titleLabel')}</dt>
-                      <dd className="mt-1 font-semibold text-ink-900">{form.title || '—'}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs font-bold text-ink-500">{t('requests.new.descLabel')}</dt>
-                      <dd className="mt-1 whitespace-pre-wrap leading-relaxed text-ink-600">
-                        {form.description || '—'}
-                      </dd>
-                    </div>
+                    {!serviceOfferingId && (
+                      <>
+                        <div className="border-t border-ink-100 pt-3">
+                          <dt className="text-xs font-bold text-ink-500">{t('requests.new.titleLabel')}</dt>
+                          <dd className="mt-1 font-semibold text-ink-900">{form.title || '—'}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-bold text-ink-500">{t('requests.new.descLabel')}</dt>
+                          <dd className="mt-1 whitespace-pre-wrap leading-relaxed text-ink-600">
+                            {form.description || '—'}
+                          </dd>
+                        </div>
+                      </>
+                    )}
                     <div className="flex items-start justify-between gap-3 border-t border-ink-100 pt-3">
                       <dt className="shrink-0 text-ink-500">{t('requests.new.when')}</dt>
                       <dd className="text-right font-semibold text-ink-900">{whenLabel}</dd>

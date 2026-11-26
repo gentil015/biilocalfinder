@@ -7,13 +7,15 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
   Min,
 } from 'class-validator';
 
 export class CreateServiceRequestDto {
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsUUID()
-  serviceId: string;
+  serviceId?: string;
 
   @ApiProperty({ required: false, description: 'Target a specific provider, or omit to broadcast to the marketplace' })
   @IsOptional()
@@ -29,13 +31,17 @@ export class CreateServiceRequestDto {
   @IsBoolean()
   isPublic?: boolean;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  title: string;
+  @MaxLength(160)
+  title?: string;
 
-  @ApiProperty()
+  @ApiProperty({ required: false })
+  @IsOptional()
   @IsString()
-  description: string;
+  @MaxLength(4000)
+  description?: string;
 
   @ApiProperty({ description: 'Date the client needs the work done (YYYY-MM-DD)' })
   @IsDateString()

@@ -214,6 +214,9 @@ export class UsersService {
       select: { id: true, role: true, passwordHash: true, status: true },
     });
     if (!user) throw new NotFoundException('User not found');
+    if (!user.passwordHash) {
+      throw new BadRequestException('Set a password before deleting this account');
+    }
     if (!(await bcrypt.compare(password, user.passwordHash))) {
       throw new UnauthorizedException('Incorrect password');
     }
@@ -370,6 +373,8 @@ export class UsersService {
           email: deletedEmail,
           phone: null,
           passwordHash: unusablePasswordHash,
+          googleSub: null,
+          googleEmail: null,
           firstName: 'Deleted',
           lastName: 'Member',
           avatarUrl: null,

@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsDateString, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class ProposeRevisionDto {
   @ApiProperty({ description: 'The counter-proposed price' })
@@ -9,8 +9,20 @@ export class ProposeRevisionDto {
   @Min(0)
   price: number;
 
-  @ApiProperty({ required: false, example: 'Can you do this for 25,000 RWF?' })
+  @ApiProperty({ required: false, example: 'Can you do it for 12,000 RWF?' })
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   message?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsDateString()
+  proposedDate?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  estimatedDuration?: string;
 }

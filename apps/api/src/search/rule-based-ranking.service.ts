@@ -27,10 +27,8 @@ export class RuleBasedRankingService implements ProviderRankingService {
     // Experience: diminishing returns after ~10 years.
     score += Math.min(10, provider.yearsOfExperience) * 1;
 
-    // Verification and active subscription both boost visibility, per
-    // spec §9 ("Subscription tier where appropriate") and §56.
+    // Verification boosts visibility.
     if (provider.verificationStatus === 'VERIFIED') score += 10;
-    if (provider.subscriptionStatus === 'ACTIVE') score += 5;
 
     // Semantic relevance (pgvector cosine similarity to the search query,
     // when one was given): 0-1 -> 0-20pts. Only added when present, so a

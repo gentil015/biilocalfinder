@@ -357,13 +357,20 @@ export const categoriesApi = {
 };
 
 export const offeringsApi = {
+  listPublic: (params: { providerId?: string; serviceId?: string; categoryId?: string; q?: string; limit?: number } = {}) => {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => v != null && v !== '' && qs.set(k, String(v)));
+    return request<any[]>(`/service-offerings${qs.toString() ? `?${qs}` : ''}`);
+  },
   create: (data: {
     serviceId: string;
     title?: string;
     description?: string;
     basePrice?: number;
-    priceType?: string;
+    priceType?: 'FIXED' | 'HOURLY' | 'PER_DAY' | 'STARTING_FROM' | 'CUSTOM_QUOTE';
     duration?: string;
+    availabilityNote?: string;
+    images?: Array<{ storageKey: string; url?: string }>;
     attributeValues?: Record<string, unknown>;
   }) => authRequest<any>('/provider/service-offerings', { method: 'POST', body: JSON.stringify(data) }),
   mine: () => authRequest<any[]>('/provider/service-offerings'),
@@ -797,6 +804,14 @@ export interface ProviderAnalyticsSummary {
 
 export const providerAnalyticsApi = {
   get: () => authRequest<ProviderAnalyticsSummary>('/personalization/provider-analytics'),
+};
+
+export const filesApi = {
+  uploadImage: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return authRequest<{ key: string; url: string }>('/files/upload', { method: 'POST', body: form });
+  },
 };
 
 export const portfolioApi = {
@@ -1400,28 +1415,27 @@ export const searchAssistApi = {
 
 export const requestsApi = {
   create: (data: {
-    serviceId: string;
+    serviceId?: string;
     providerId?: string;
     serviceOfferingId?: string;
-    // Direct requests stay private to the pinned provider; true opens them
-    // so other matching providers can also submit competing quotes.
     isPublic?: boolean;
     attributeValues?: Record<string, unknown>;
-    title: string;
-    description: string;
+    title?: string;
+    description?: string;
     preferredDate: string;
     preferredTime?: string;
     budgetMin?: number;
     budgetMax?: number;
     additionalNotes?: string;
+    locationId?: string;
+    images?: string[];
   }) => authRequest<any>('/service-requests', { method: 'POST', body: JSON.stringify(data) }),
 
   mine: () => authRequest<any[]>('/service-requests/mine'),
   incoming: () => authRequest<any[]>('/service-requests/incoming'),
   getOne: (id: string) => authRequest<any>(`/service-requests/${id}`),
+  negotiation: (id: string) => authRequest<any>(`/service-requests/${id}/negotiation`),
   cancel: (id: string) => authRequest<any>(`/service-requests/${id}`, { method: 'DELETE' }),
-  // Client-controlled visibility on a direct request: true opens it to the
-  // marketplace, false pulls it back to being private to the pinned provider.
   setPrivacy: (id: string, isPublic: boolean) =>
     authRequest<any>(`/service-requests/${id}/privacy`, { method: 'PATCH', body: JSON.stringify({ isPublic }) }),
 };
@@ -1453,8 +1467,10 @@ export const quotesApi = {
   forRequest: (requestId: string) => authRequest<any[]>(`/service-requests/${requestId}/quotes`),
   accept: (id: string) => authRequest<any>(`/quotes/${id}/accept`, { method: 'POST' }),
   reject: (id: string) => authRequest<any>(`/quotes/${id}/reject`, { method: 'POST' }),
-  proposeRevision: (id: string, data: { price: number; message?: string }) =>
+  proposeRevision: (id: string, data: { price: number; message?: string; proposedDate?: string; estimatedDuration?: string }) =>
     authRequest<any>(`/quotes/${id}/revisions`, { method: 'POST', body: JSON.stringify(data) }),
+  counterOffer: (id: string, data: { price: number; message?: string; proposedDate?: string; estimatedDuration?: string }) =>
+    authRequest<any>(`/quotes/${id}/counter-offers`, { method: 'POST', body: JSON.stringify(data) }),
   acceptRevision: (id: string) => authRequest<any>(`/quote-revisions/${id}/accept`, { method: 'POST' }),
   rejectRevision: (id: string) => authRequest<any>(`/quote-revisions/${id}/reject`, { method: 'POST' }),
 };
@@ -1790,6 +1806,13 @@ export const authApi = {
 
   login: (data: { email: string; password: string }) =>
     request<AuthTokens>('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+
+  google: (data: {
+    idToken: string;
+    role?: 'CLIENT' | 'PROVIDER';
+    termsAccepted?: true;
+    termsVersion?: string;
+  }) => request<AuthTokens>('/auth/google', { method: 'POST', body: JSON.stringify(data) }),
 
   // Revokes the refresh token server-side. The API reads it from the HttpOnly
   // cookie; clearing the local session hint is handled by the caller so a

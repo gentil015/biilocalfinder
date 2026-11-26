@@ -1,6 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { EntitlementsService } from '../subscriptions/entitlements.service';
 import { ProviderContextService } from '../providers/provider-context.service';
 import { CreatePortfolioDto } from './dto/create-portfolio.dto';
 import { UpdatePortfolioDto } from './dto/update-portfolio.dto';
@@ -15,7 +14,6 @@ const PORTFOLIO_INCLUDE = {
 export class PortfolioService {
   constructor(
     private prisma: PrismaService,
-    private entitlements: EntitlementsService,
     private providerContext: ProviderContextService,
   ) {}
 
@@ -78,12 +76,6 @@ export class PortfolioService {
     if ((dto.beforeAfterRole && !dto.beforeAfterGroup) || (dto.beforeAfterGroup && !dto.beforeAfterRole)) {
       throw new BadRequestException('beforeAfterRole and beforeAfterGroup must be set together');
     }
-
-    // Centralized plan-based entitlement (spec §7) — replaces the old
-    // hardcoded "3 free, then require ACTIVE subscription" check with a
-    // real per-plan, per-type limit lookup. Applies across photos and
-    // videos alike — a provider's total media count, not just images.
-    await this.entitlements.assertCanAdd(provider, 'portfolioItems');
 
     const position = await this.prisma.portfolioImage.count({ where: { portfolioId } });
     return this.prisma.portfolioImage.create({

@@ -8,11 +8,11 @@ import type {
 } from '@/src/types/api';
 
 export interface CreateServiceRequestDto {
-  serviceId: string;
+  serviceId?: string;
   providerId?: string;
   isPublic?: boolean;
-  title: string;
-  description: string;
+  title?: string;
+  description?: string;
   preferredDate: string;
   preferredTime?: string;
   budgetMin?: number;
@@ -65,10 +65,15 @@ export const requestsApi = {
     apiRequest<QuoteItem>('/quotes', { method: 'POST', body: JSON.stringify(dto) }),
   acceptQuote: async (id: string) => normalizeBooking(await apiRequest<BookingItem>(`/quotes/${id}/accept`, { method: 'POST' })),
   rejectQuote: (id: string) => apiRequest<QuoteItem>(`/quotes/${id}/reject`, { method: 'POST' }),
-  createRevision: (id: string, price: number, message?: string) =>
+  createRevision: (id: string, price: number, message?: string, proposedDate?: string, estimatedDuration?: string) =>
     apiRequest<QuoteRevision>(`/quotes/${id}/revisions`, {
       method: 'POST',
-      body: JSON.stringify({ price, ...(message ? { message } : {}) }),
+      body: JSON.stringify({
+        price,
+        ...(message ? { message } : {}),
+        ...(proposedDate ? { proposedDate } : {}),
+        ...(estimatedDuration ? { estimatedDuration } : {}),
+      }),
     }),
   acceptRevision: (id: string) => apiRequest<QuoteRevision>(`/quote-revisions/${id}/accept`, { method: 'POST' }),
   rejectRevision: (id: string) => apiRequest<QuoteRevision>(`/quote-revisions/${id}/reject`, { method: 'POST' }),

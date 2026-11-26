@@ -4,6 +4,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { AuditLogService } from '../common/services/audit-log.service';
 import { StorageService } from '../files/storage.interface';
 import { ProviderContextService } from '../providers/provider-context.service';
+import { ProviderFraudDetectionService } from '../trust-safety/provider-fraud-detection.service';
 import { SubmitVerificationDto } from './dto/submit-verification.dto';
 import { ApproveVerificationDto, ReinstateVerificationDto, VerificationQueueQueryDto, VerificationReasonDto } from './dto/admin-verification.dto';
 type Db = Prisma.TransactionClient | PrismaService;
@@ -13,8 +14,9 @@ export declare class VerificationService {
     private auditLog;
     private storage;
     private providerContext;
+    private providerFraudDetection;
     private readonly logger;
-    constructor(prisma: PrismaService, notifications: NotificationsService, auditLog: AuditLogService, storage: StorageService, providerContext: ProviderContextService);
+    constructor(prisma: PrismaService, notifications: NotificationsService, auditLog: AuditLogService, storage: StorageService, providerContext: ProviderContextService, providerFraudDetection: ProviderFraudDetectionService);
     recomputeProvider(db: Db, providerId: string, now?: Date): Promise<import("./verification-status").ProviderVerificationState>;
     recomputeForUser(userId: string): Promise<void>;
     private providerFor;
@@ -51,6 +53,8 @@ export declare class VerificationService {
     reject(id: string, adminId: string, dto: VerificationReasonDto, now?: Date): Promise<any>;
     suspend(id: string, adminId: string, dto: VerificationReasonDto, now?: Date): Promise<any>;
     reinstate(id: string, adminId: string, dto: ReinstateVerificationDto, now?: Date): Promise<any>;
+    adminVerifyProvider(adminId: string, providerId: string, note?: string, now?: Date): Promise<import("./verification-status").ProviderVerificationState>;
+    adminUnverifyProvider(adminId: string, providerId: string, reason: string, now?: Date): Promise<import("./verification-status").ProviderVerificationState>;
     sweepExpired(now?: Date): Promise<{
         expired: number;
         reminded: number;

@@ -17,12 +17,22 @@ export interface LoginDto {
   password: string;
 }
 
+export interface GoogleAuthDto {
+  idToken: string;
+  role?: 'CLIENT' | 'PROVIDER';
+  termsAccepted?: true;
+  termsVersion?: string;
+}
+
 export const authApi = {
   register: (dto: RegisterDto) =>
     apiRequest<AuthTokens>('/auth/register', { method: 'POST', body: JSON.stringify(dto), auth: false }),
 
   login: (dto: LoginDto) =>
     apiRequest<AuthTokens>('/auth/login', { method: 'POST', body: JSON.stringify(dto), auth: false }),
+
+  google: (dto: GoogleAuthDto) =>
+    apiRequest<AuthTokens>('/auth/google', { method: 'POST', body: JSON.stringify(dto), auth: false }),
 
   logout: (refreshToken: string) =>
     apiRequest<null>('/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) }),

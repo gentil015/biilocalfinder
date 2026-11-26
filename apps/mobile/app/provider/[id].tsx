@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { BadgeCheck, Clock, Heart, MapPin, MessageCircle, Phone, Shield, Star } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
+import { ProviderServicesCatalogue } from '@/src/components/domain/ProviderServicesCatalogue';
 import { Image } from 'expo-image';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ReviewCard } from '@/src/components/domain/ReviewCard';
@@ -216,52 +217,20 @@ export default function ProviderDetailScreen() {
             </View>
           </Card>
 
-          <View>
-            <SectionHeader title="Services offered" subtitle={activeOffering ? `Selected: ${activeOffering.title ?? activeOffering.service?.name ?? 'Service'}` : undefined} />
-            {offerings.length ? (
-              <View style={{ gap: spacing.sm }}>
-                {offerings.map((offering) => {
-                  const selected = (activeOffering?.id ?? offerings[0]?.id) === offering.id;
-                  const attributes = offeringAttributes(offering.attributeValues);
-                  return (
-                    <Card key={offering.id} onPress={() => setSelectedOfferingId(offering.id)} style={selected ? { borderColor: colors.primary } : undefined}>
-                      <View style={styles.row}>
-                        <Text style={[typography.bodyStrong, { color: colors.text, flex: 1 }]}>{offering.title ?? offering.service?.name}</Text>
-                        <Text style={[typography.bodyStrong, { color: colors.primaryDark }]}>{formatMoney(offering.basePrice, data.currency)}</Text>
-                      </View>
-                      {offering.service?.category?.name ? (
-                        <Text style={[typography.caption, { color: colors.primary }]}>{offering.service.category.name}</Text>
-                      ) : null}
-                      {offering.description ? (
-                        <Text style={[typography.small, { color: colors.textSecondary }]}>{offering.description}</Text>
-                      ) : null}
-                      <View style={styles.offeringFacts}>
-                        {offering.priceType ? (
-                          <Text style={[typography.caption, { color: colors.textMuted }]}>Price type: {humanize(offering.priceType)}</Text>
-                        ) : null}
-                        {offering.duration != null ? (
-                          <Text style={[typography.caption, { color: colors.textMuted }]}>Duration: {String(offering.duration)}</Text>
-                        ) : null}
-                      </View>
-                      {attributes.length ? (
-                        <View style={styles.attributes}>
-                          {attributes.map((attribute) => (
-                            <View key={attribute.key} style={styles.attributeRow}>
-                              <Text style={[typography.caption, { color: colors.textMuted, flex: 1 }]}>{attribute.label}</Text>
-                              <Text style={[typography.caption, { color: colors.text, fontWeight: '600' }]}>{attribute.value}</Text>
-                            </View>
-                          ))}
-                        </View>
-                      ) : null}
-                      {selected ? <Text style={[typography.caption, { color: colors.primaryDark, fontWeight: '600' }]}>Selected for request</Text> : null}
-                    </Card>
-                  );
-                })}
-              </View>
-            ) : (
-              <EmptyState title="No offerings listed" message="Contact this provider to discuss your service." />
-            )}
-          </View>
+          <ProviderServicesCatalogue
+            providerId={id!}
+            offerings={offerings}
+            selectedId={activeOffering?.id}
+            onSelect={(offeringId) => setSelectedOfferingId(offeringId)}
+            onBook={(offering) => router.push({
+              pathname: '/request/new',
+              params: {
+                providerId: id!,
+                ...(offering.service?.id ? { serviceId: offering.service.id } : serviceId ? { serviceId } : {}),
+                serviceOfferingId: offering.id,
+              },
+            })}
+          />
 
           <View>
             <SectionHeader title="Client reviews" subtitle={summary ? `${summary.total} total` : 'Not enough data yet'} />

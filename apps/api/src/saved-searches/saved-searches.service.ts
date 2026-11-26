@@ -67,7 +67,6 @@ export class SavedSearchesService {
 
     const where: Prisma.ProviderWhereInput = {
       createdAt: { gt: since },
-      subscriptionStatus: { not: 'EXPIRED' },
       onboardingStep: 'COMPLETED', // never notify about a still-onboarding provider
       ...(search.verifiedOnly ? { verificationStatus: 'VERIFIED' } : {}),
       ...(search.city ? { location: { city: { equals: search.city, mode: 'insensitive' } } } : {}),

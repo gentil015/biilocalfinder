@@ -38,6 +38,7 @@ import { VerificationBadge, VerificationLabel } from '@/components/verification-
 import { ReportButton } from '@/components/report-button';
 import { PortfolioGallery } from '@/components/portfolio-gallery';
 import { ProviderLocationMap } from '@/components/provider-location-map';
+import { ProviderServicesCatalogue } from '@/components/provider-services-catalogue';
 import { ServesYourAreaCheck } from '@/components/serves-your-area-check';
 import { MessageProviderButton } from '@/components/message-provider-button';
 
@@ -565,83 +566,7 @@ export default async function ProviderProfilePage({ params }: { params: { id: st
             </section>
           )}
 
-          <section className="surface-card p-5 sm:p-6">
-            <SectionHeading
-              icon={Wrench}
-              eyebrow="Catalogue"
-              title="Services"
-              meta={
-                services.length > 0 ? (
-                  <span className="chip py-1 text-2xs">{services.length} listed</span>
-                ) : null
-              }
-            />
-
-            {services.length ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {services.map((offering: any) => (
-                  <Link
-                    key={offering.id}
-                    href={`/service-offerings/${offering.id}`}
-                    className="group relative flex flex-col overflow-hidden rounded-2xl border border-ink-200 bg-surface p-4 transition duration-200 ease-out hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-lg"
-                  >
-                    <span
-                      className="pointer-events-none absolute -right-6 -top-6 h-16 w-16 rounded-full bg-brand-50 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100"
-                      aria-hidden="true"
-                    />
-                    <div className="relative flex items-start justify-between gap-2">
-                      <p className="text-sm font-bold tracking-tight text-ink-950 group-hover:text-brand-800">
-                        {offering.title || offering.service?.name}
-                      </p>
-                      <ArrowUpRight className="h-4 w-4 shrink-0 text-ink-300 transition group-hover:text-brand-600" aria-hidden="true" />
-                    </div>
-                    {offering.service?.category?.name && (
-                      <p className="relative mt-1 text-xs font-medium text-ink-500">
-                        {offering.service.category.name}
-                      </p>
-                    )}
-
-                    {offering.basePrice != null && (
-                      <p className="relative mt-3 text-lg font-extrabold tabular tracking-tight text-ink-950">
-                        {offering.priceType === 'STARTING_FROM' && (
-                          <span className="mr-1 align-middle text-2xs font-bold uppercase tracking-wide text-ink-400">
-                            From
-                          </span>
-                        )}
-                        {Number(offering.basePrice).toLocaleString()}{' '}
-                        <span className="text-xs font-semibold text-ink-500">{offering.currency}</span>
-                      </p>
-                    )}
-
-                    {offering.attributeValues?.length > 0 && (
-                      <div className="relative mt-3 flex flex-wrap gap-1">
-                        {offering.attributeValues.slice(0, 3).map((v: any) => {
-                          const label =
-                            v.booleanValue === true
-                              ? v.categoryAttribute.name
-                              : v.jsonValue?.length
-                                ? v.jsonValue[0]
-                                : v.textValue;
-                          if (!label) return null;
-                          return (
-                            <span key={v.id} className="chip py-0.5 text-2xs font-medium">
-                              {label}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <div className="empty-state py-10">
-                <Wrench className="h-5 w-5 text-ink-300" aria-hidden="true" />
-                <p className="mt-3 text-sm font-semibold text-ink-800">No services listed yet</p>
-                <p className="mt-1 text-sm text-ink-500">This provider hasn&apos;t published any services.</p>
-              </div>
-            )}
-          </section>
+          <ProviderServicesCatalogue providerId={provider.id} providerName={provider.businessName} services={services} />
 
           <section className="surface-card p-5 sm:p-6">
             <SectionHeading icon={Images} eyebrow="Proof of work" title="Portfolio" />

@@ -30,7 +30,6 @@ import { ProfessionalProfileModule } from './professional-profile/professional-p
 import { ReviewsModule } from './reviews/reviews.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { FilesModule } from './files/files.module';
-import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { ReportsModule } from './reports/reports.module';
 import { VerificationModule } from './verification/verification.module';
 import { AvailabilityModule } from './availability/availability.module';
@@ -95,7 +94,6 @@ function parseRedisUrl(url: string) {
     FavoritesModule,
     FilesModule,
     // Phase 7
-    SubscriptionsModule,
     // Phase 8 (reports/disputes ship with admin's moderation tools)
     ReportsModule,
     DisputesModule,

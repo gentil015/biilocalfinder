@@ -197,6 +197,7 @@ export default function NewServiceRequestScreen() {
   });
 
   const selectedServiceId = watch('serviceId');
+  const selectedServiceOfferingId = watch('serviceOfferingId');
   const preferredDate = watch('preferredDate');
   const preferredTime = watch('preferredTime');
   const dateOptions = useMemo(() => Array.from({ length: 14 }, (_, i) => toDateStr(addDays(new Date(), i))), []);
@@ -214,14 +215,14 @@ export default function NewServiceRequestScreen() {
   const mutation = useMutation({
     mutationFn: (values: FormValues) =>
       requestsApi.create({
-        serviceId: values.serviceId,
+        serviceId: values.serviceId || undefined,
         providerId: values.providerId || undefined,
         serviceOfferingId: values.serviceOfferingId || undefined,
         isPublic,
         locationId: locationId || undefined,
         attributeValues: Object.keys(attributeValues).length ? attributeValues : undefined,
-        title: values.title,
-        description: values.description,
+        title: values.title?.trim() || undefined,
+        description: values.description?.trim() || undefined,
         preferredDate: values.preferredDate,
         preferredTime: values.preferredTime || undefined,
         budgetMin: values.budgetMin === '' || values.budgetMin === undefined ? undefined : Number(values.budgetMin),
@@ -245,7 +246,7 @@ export default function NewServiceRequestScreen() {
     mutationFn: () => {
       const values = getValues();
       return parityCustomerApi.suggestRequest({
-        serviceId: values.serviceId,
+        serviceId: values.serviceId!,
         description: values.description,
         imageKey: images.find((i) => !i.error && !i.uploading)?.key,
         consentToProcess: assistConsent,
@@ -292,7 +293,14 @@ export default function NewServiceRequestScreen() {
 
         <Card variant="muted" style={{ gap: spacing.md }}>
           <Text style={[typography.bodyStrong, { color: colors.text }]}>Service</Text>
-          {!params.serviceId ? (
+          {selectedServiceOfferingId ? (
+            <View style={{ gap: spacing.xs }}>
+              <Text style={[typography.bodyStrong, { color: colors.text }]}>{selectedServiceName ?? 'Selected service'}</Text>
+              <Text style={[typography.caption, { color: colors.textMuted }]}>
+                This request is tied to the selected service offering. Add location, timing, and optional details.
+              </Text>
+            </View>
+          ) : (
             <>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
                 <Chip label="All" selected={!categoryId} onPress={() => setCategoryId(undefined)} />
@@ -310,9 +318,9 @@ export default function NewServiceRequestScreen() {
                   />
                 ))}
               </ScrollView>
+              <FormInput label="Service ID" control={control} name="serviceId" error={errors.serviceId?.message} placeholder="Select a service" editable={!params.serviceId} />
             </>
-          ) : null}
-          <FormInput label="Service ID" control={control} name="serviceId" error={errors.serviceId?.message} placeholder="Select a service" editable={!params.serviceId} />
+          )}
         </Card>
 
         {attributes.length ? (
@@ -334,15 +342,17 @@ export default function NewServiceRequestScreen() {
           </Card>
         ) : null}
 
-        <Card style={{ gap: spacing.sm }}>
-          <View style={styles.switchRow}>
-            <View style={{ flex: 1, gap: spacing.xs }}>
-              <Text style={[typography.bodyStrong, { color: colors.text }]}>Open request</Text>
-              <Text style={[typography.caption, { color: colors.textMuted }]}>Share this request with all available professionals.</Text>
+        {!selectedServiceOfferingId && !paramValue(params.providerId) ? (
+          <Card style={{ gap: spacing.sm }}>
+            <View style={styles.switchRow}>
+              <View style={{ flex: 1, gap: spacing.xs }}>
+                <Text style={[typography.bodyStrong, { color: colors.text }]}>Open request</Text>
+                <Text style={[typography.caption, { color: colors.textMuted }]}>Share this request with all available professionals.</Text>
+              </View>
+              <Switch value={isPublic} onValueChange={setIsPublic} accessibilityLabel="Open request" />
             </View>
-            <Switch value={isPublic} onValueChange={setIsPublic} accessibilityLabel="Open request" />
-          </View>
-        </Card>
+          </Card>
+        ) : null}
 
         <Card variant="muted" style={{ gap: spacing.sm }}>
           <Pressable accessibilityRole="button" onPress={() => router.push('/location')} style={styles.switchRow}>
@@ -355,18 +365,29 @@ export default function NewServiceRequestScreen() {
           </Pressable>
         </Card>
 
-        <Card style={{ gap: spacing.md }}>
-          <View style={styles.assistRow}>
-            <Sparkles size={18} color={colors.primaryDark} />
-            <Text style={[typography.bodyStrong, { color: colors.text, flex: 1 }]}>Draft with AI</Text>
-            <Switch value={assistConsent} onValueChange={setAssistConsent} accessibilityLabel="Allow AI processing" />
-          </View>
-          <Text style={[typography.caption, { color: colors.textMuted }]}>Allow AI processing of your description to suggest a clearer title and details.</Text>
-          <Button label="Suggest a draft" variant="secondary" size="sm" disabled={!assistConsent || !selectedServiceId} loading={assist.isPending} onPress={() => assist.mutate()} />
-        </Card>
+        {!selectedServiceOfferingId ? (
+          <>
+            <Card style={{ gap: spacing.md }}>
+              <View style={styles.assistRow}>
+                <Sparkles size={18} color={colors.primaryDark} />
+                <Text style={[typography.bodyStrong, { color: colors.text, flex: 1 }]}>Draft with AI</Text>
+                <Switch value={assistConsent} onValueChange={setAssistConsent} accessibilityLabel="Allow AI processing" />
+              </View>
+              <Text style={[typography.caption, { color: colors.textMuted }]}>Allow AI processing of your description to suggest a clearer title and details.</Text>
+              <Button label="Suggest a draft" variant="secondary" size="sm" disabled={!assistConsent || !selectedServiceId} loading={assist.isPending} onPress={() => assist.mutate()} />
+            </Card>
 
-        <FormInput label="Title" control={control} name="title" error={errors.title?.message} placeholder="e.g. Lawn mowing this weekend" />
-        <FormInput label="Description" control={control} name="description" error={errors.description?.message} placeholder="Describe what you need done" multiline numberOfLines={4} />
+            <FormInput label="Title" control={control} name="title" error={errors.title?.message} placeholder="e.g. Lawn mowing this weekend" />
+            <FormInput label="Description" control={control} name="description" error={errors.description?.message} placeholder="Describe what you need done" multiline numberOfLines={4} />
+          </>
+        ) : (
+          <Card variant="muted" style={{ gap: spacing.xs }}>
+            <Text style={[typography.bodyStrong, { color: colors.text }]}>What’s needed</Text>
+            <Text style={[typography.caption, { color: colors.textMuted }]}>
+              The selected service already defines what you’re booking. Add location, preferred time, photos, or notes below.
+            </Text>
+          </Card>
+        )}
 
         <View style={{ gap: spacing.sm }}>
           <View style={styles.labelRow}><CalendarDays size={16} color={colors.primary} /><Text style={[typography.bodyStrong, { color: colors.text }]}>Preferred date</Text></View>

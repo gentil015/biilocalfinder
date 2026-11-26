@@ -280,6 +280,8 @@ export interface QuoteRevision {
   quoteId: string;
   price: number;
   message?: string | null;
+  proposedDate?: string | null;
+  estimatedDuration?: string | null;
   status: string;
   createdAt: string;
 }
@@ -371,16 +373,26 @@ export interface ChatMessage {
   attachments?: Array<{ storageKey: string; url?: string; mimeType?: string; fileName?: string }>;
 }
 
+export interface OfferingImage {
+  id: string;
+  url: string;
+  storageKey?: string;
+  position?: number;
+}
+
 export interface OfferingItem {
   id: string;
   serviceId: string;
   title?: string | null;
   description?: string | null;
   basePrice?: number | null;
+  currency?: string | null;
   priceType?: string;
   duration?: string | number | null;
+  availabilityNote?: string | null;
   isActive: boolean;
-  attributeValues?: Record<string, unknown>;
+  images?: OfferingImage[];
+  attributeValues?: Record<string, unknown> | Array<Record<string, unknown>>;
   service?: { id: string; name: string; category?: { id: string; name: string } | null } | null;
 }
 

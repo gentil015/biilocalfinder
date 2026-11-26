@@ -7,6 +7,7 @@ import { Check, Eye, EyeOff, UserRound, Wrench } from 'lucide-react';
 import { authApi, ApiError } from '@/lib/api';
 import { AuthShell, AUTH_POINTS_CLIENT, AUTH_POINTS_PROVIDER } from '@/components/auth-shell';
 import { useAuth, homeForRole } from '@/components/auth-provider';
+import { GoogleAuthButton } from '@/components/google-auth-button';
 import { useI18n } from '@/components/locale-provider';
 import type { MessageKey } from '@/lib/locales';
 import { CURRENT_TERMS_VERSION } from '@/lib/legal';
@@ -267,6 +268,14 @@ function RegisterForm() {
               : t('register.submitClient')}
         </button>
       </form>
+
+      <GoogleAuthButton
+        mode="register"
+        role={role}
+        termsAccepted={termsAccepted}
+        next={new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('next')}
+        onError={setError}
+      />
     </AuthShell>
   );
 }

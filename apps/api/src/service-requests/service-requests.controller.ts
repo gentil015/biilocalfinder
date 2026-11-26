@@ -42,6 +42,13 @@ export class ServiceRequestsController {
     return this.serviceRequestsService.findOne(id, user.id);
   }
 
+  @Roles('CLIENT', 'PROVIDER')
+  @WorkspaceScoped()
+  @Get(':id/negotiation')
+  negotiation(@CurrentUser() user: { id: string }, @Param('id') id: string) {
+    return this.serviceRequestsService.getNegotiation(id, user.id);
+  }
+
   @Roles('CLIENT')
   @Patch(':id/privacy')
   setPrivacy(

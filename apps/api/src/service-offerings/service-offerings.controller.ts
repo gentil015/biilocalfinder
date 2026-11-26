@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
@@ -13,10 +13,38 @@ import { UpdateOfferingDto } from './dto/update-offering.dto';
 export class ServiceOfferingsController {
   constructor(private offeringsService: ServiceOfferingsService) {}
 
-  // Public — crawl discovery (sitemap). Minimal fields, no tracking.
   @Get('service-offerings')
-  listPublic() {
-    return this.offeringsService.listPublicSitemapEntries();
+  listPublic(
+    @Query('providerId') providerId?: string,
+    @Query('serviceId') serviceId?: string,
+    @Query('categoryId') categoryId?: string,
+    @Query('q') q?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.offeringsService.listPublic({
+      providerId,
+      serviceId,
+      categoryId,
+      q,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
+  @Get('catalog/offerings')
+  listCatalogue(
+    @Query('providerId') providerId?: string,
+    @Query('serviceId') serviceId?: string,
+    @Query('categoryId') categoryId?: string,
+    @Query('q') q?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.offeringsService.listPublic({
+      providerId,
+      serviceId,
+      categoryId,
+      q,
+      limit: limit ? Number(limit) : undefined,
+    });
   }
 
   // Public — the dedicated service offering page (spec §19). Stays public

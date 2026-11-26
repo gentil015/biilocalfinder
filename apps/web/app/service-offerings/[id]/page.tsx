@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { BadgeCheck, ChevronRight, Clock, MapPin, Star } from 'lucide-react';
+import { BadgeCheck, CalendarClock, ChevronRight, Clock, MapPin, Star } from 'lucide-react';
 import { offeringsApi } from '@/lib/api';
 import { BookingPath } from '@/components/booking-path';
 import { Panel } from '@/components/ui/page';
@@ -249,6 +249,20 @@ export default async function ServiceOfferingPage({ params }: { params: { id: st
         </span>
       </div>
 
+      {(offering.images?.length ?? 0) > 0 && (
+        <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {offering.images.slice(0, 6).map((img: any, i: number) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={img.id ?? img.storageKey ?? i}
+              src={img.url}
+              alt={`${serviceName} photo ${i + 1}`}
+              className={`rounded-xl border border-ink-200 object-cover ${i === 0 ? 'col-span-2 h-56 sm:col-span-2 sm:h-64' : 'h-28 sm:h-32'}`}
+            />
+          ))}
+        </div>
+      )}
+
       {offering.basePrice != null && (
         <div className="mt-6 rounded-xl border border-ink-200 bg-surface p-5 shadow-xs">
           <p className="eyebrow-muted">
@@ -263,6 +277,12 @@ export default async function ServiceOfferingPage({ params }: { params: { id: st
               </span>
             )}
           </p>
+          {offering.availabilityNote && (
+            <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-800">
+              <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
+              {offering.availabilityNote}
+            </p>
+          )}
         </div>
       )}
 

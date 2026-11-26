@@ -19,6 +19,7 @@ const bullmq_1 = require("@nestjs/bullmq");
 const bullmq_2 = require("bullmq");
 const notifications_module_1 = require("../notifications/notifications.module");
 const files_module_1 = require("../files/files.module");
+const trust_safety_module_1 = require("../trust-safety/trust-safety.module");
 const verification_constants_1 = require("./verification.constants");
 const verification_service_1 = require("./verification.service");
 const contact_verification_service_1 = require("./contact-verification.service");
@@ -49,7 +50,12 @@ let VerificationModule = VerificationModule_1 = class VerificationModule {
 exports.VerificationModule = VerificationModule;
 exports.VerificationModule = VerificationModule = VerificationModule_1 = __decorate([
     (0, common_1.Module)({
-        imports: [notifications_module_1.NotificationsModule, files_module_1.FilesModule, bullmq_1.BullModule.registerQueue({ name: verification_constants_1.VERIFICATION_QUEUE })],
+        imports: [
+            notifications_module_1.NotificationsModule,
+            files_module_1.FilesModule,
+            trust_safety_module_1.TrustSafetyModule,
+            bullmq_1.BullModule.registerQueue({ name: verification_constants_1.VERIFICATION_QUEUE }),
+        ],
         controllers: [verification_controller_1.ProviderVerificationController, verification_controller_1.ContactVerificationController, verification_controller_1.AdminVerificationController],
         providers: [
             verification_service_1.VerificationService,

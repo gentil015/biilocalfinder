@@ -18,7 +18,6 @@ const provider = (overrides: Partial<MatchableProvider> = {}): MatchableProvider
   verificationStatus: 'VERIFIED',
   businessVerified: false,
   availabilityStatus: 'AVAILABLE',
-  subscriptionStatus: 'ACTIVE',
   yearsOfExperience: 5,
   responseRate: 90,
   responseTimeMinutes: 45,

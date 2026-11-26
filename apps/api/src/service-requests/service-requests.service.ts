@@ -78,47 +78,52 @@ export class ServiceRequestsService {
     const clientProfile = await this.prisma.clientProfile.findUnique({ where: { userId: clientUserId } });
     if (!clientProfile) throw new ForbiddenException('Only clients can create service requests');
 
-    const service = await this.prisma.service.findUnique({ where: { id: dto.serviceId } });
-    if (!service || !service.isActive) throw new BadRequestException('Service not found');
-
     let providerId = dto.providerId;
+    let serviceId = dto.serviceId;
+    let selectedOffering: { id: string; serviceId: string; providerId: string; title: string | null; service: { name: string; categoryId: string } } | null = null;
 
-    // Picking a specific offering (e.g. "Wedding Photography" from a
-    // provider's profile) pins the exact provider+service — spec §20.
     if (dto.serviceOfferingId) {
-      const offering = await this.prisma.serviceOffering.findUnique({ where: { id: dto.serviceOfferingId } });
-      if (!offering || !offering.isActive) throw new BadRequestException('Service offering not found');
-      if (offering.serviceId !== dto.serviceId) {
+      selectedOffering = await this.prisma.serviceOffering.findUnique({
+        where: { id: dto.serviceOfferingId },
+        include: { service: { select: { name: true, categoryId: true } } },
+      }) as any;
+      if (!selectedOffering || !(selectedOffering as any).isActive) throw new BadRequestException('Service offering not found');
+      if (serviceId && selectedOffering.serviceId !== serviceId) {
         throw new BadRequestException('This offering does not match the selected service');
       }
-      providerId = offering.providerId;
-    } else if (dto.providerId) {
+      serviceId = selectedOffering.serviceId;
+      providerId = selectedOffering.providerId;
+    }
+
+    if (!serviceId) throw new BadRequestException('serviceId or serviceOfferingId is required');
+
+    const service = await this.prisma.service.findUnique({ where: { id: serviceId } });
+    if (!service || !service.isActive) throw new BadRequestException('Service not found');
+
+    if (!dto.serviceOfferingId && dto.providerId) {
       const provider = await this.prisma.provider.findUnique({ where: { id: dto.providerId } });
       if (!provider) throw new BadRequestException('Provider not found');
     }
 
-    // Category-specific answers are validated the same way an offering's
-    // own attribute values are (spec §25-26), then frozen into a snapshot
-    // (spec §21) so the request stays meaningful even if an admin later
-    // changes the category's attributes.
     const normalizedValues = dto.attributeValues
       ? await this.offerings.validateAttributeValues(service.categoryId, dto.attributeValues, { partial: true })
       : [];
 
+    const title = dto.title?.trim() || selectedOffering?.title || service.name;
+    const description =
+      dto.description?.trim() ||
+      dto.additionalNotes?.trim() ||
+      (selectedOffering ? `Request for ${selectedOffering.title || service.name}` : `Request for ${service.name}`);
+
     const request = await this.prisma.serviceRequest.create({
       data: {
         clientId: clientProfile.id,
-        serviceId: dto.serviceId,
+        serviceId,
         serviceOfferingId: dto.serviceOfferingId,
         providerId,
-        // isPublic is only meaningful on a direct (pinned) request: opening
-        // it invites competing quotes from other matching providers. A
-        // broadcast has no pinned provider and is public by construction, so
-        // the flag is forced off there (it would otherwise read as "opened",
-        // widening marketplace exposure later).
         isPublic: !!providerId && dto.isPublic === true,
-        title: dto.title,
-        description: dto.description,
+        title,
+        description,
         preferredDate: new Date(dto.preferredDate),
         preferredTime: dto.preferredTime,
         budgetMin: dto.budgetMin,
@@ -126,11 +131,7 @@ export class ServiceRequestsService {
         additionalNotes: dto.additionalNotes,
         locationId: dto.locationId,
         images: dto.images?.length
-          ? {
-              // File upload/storage is implemented as its own module later;
-              // for now the frontend uploads directly and passes back URLs.
-              create: dto.images.map((url) => ({ url, storageKey: url })),
-            }
+          ? { create: dto.images.map((url) => ({ url, storageKey: url })) }
           : undefined,
         attributeSnapshots: normalizedValues.length
           ? {
@@ -158,13 +159,13 @@ export class ServiceRequestsService {
 
       const provider = await this.prisma.provider.findUnique({ where: { id: providerId } });
       if (provider) {
-        await this.notifications.notify({
-          userId: provider.userId,
-          type: 'NEW_SERVICE_REQUEST',
-          title: 'New service request',
-          body: dto.title,
-          data: { requestId: request.id },
-        });
+      await this.notifications.notify({
+        userId: provider.userId,
+        type: 'NEW_SERVICE_REQUEST',
+        title: 'New service request',
+        body: title,
+        data: { requestId: request.id },
+      });
       }
     }
 
@@ -270,6 +271,60 @@ export class ServiceRequestsService {
     if (!request) throw new NotFoundException('Service request not found');
     await this.assertParticipant(request, userId);
     return request;
+  }
+
+  async getNegotiation(id: string, userId: string) {
+    const request = await this.prisma.serviceRequest.findUnique({
+      where: { id },
+      include: {
+        ...REQUEST_INCLUDE,
+        quotes: {
+          include: {
+            provider: { select: { id: true, businessName: true, logoUrl: true, rating: true, reviewCount: true, user: { select: { avatarUrl: true } } } },
+            revisions: { orderBy: { createdAt: 'asc' } },
+            attachments: true,
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+        booking: true,
+      },
+    });
+    if (!request) throw new NotFoundException('Service request not found');
+    await this.assertParticipant(request, userId);
+
+    const clientProfile = await this.prisma.clientProfile.findUnique({ where: { userId } });
+    const isClient = !!clientProfile && request.clientId === clientProfile.id;
+    const providerIds = isClient ? [] : await this.providerContext.getProviderIdsForUser(userId);
+
+    const quotes = request.quotes
+      .filter((q) => isClient || providerIds.includes(q.providerId))
+      .map((q) => ({
+        ...q,
+        revisions: q.revisions ?? [],
+      }));
+
+    return {
+      request: {
+        id: request.id,
+        status: request.status,
+        title: request.title,
+        description: request.description,
+        preferredDate: request.preferredDate,
+        preferredTime: request.preferredTime,
+        additionalNotes: request.additionalNotes,
+        budgetMin: request.budgetMin,
+        budgetMax: request.budgetMax,
+        service: request.service,
+        serviceOffering: request.serviceOffering,
+        provider: request.provider,
+        location: request.location,
+        images: request.images,
+        attributeSnapshots: request.attributeSnapshots,
+      },
+      quotes,
+      booking: request.booking,
+      viewerRole: isClient ? 'CLIENT' : 'PROVIDER',
+    };
   }
 
   async cancel(id: string, clientUserId: string) {

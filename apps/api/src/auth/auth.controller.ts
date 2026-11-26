@@ -5,9 +5,11 @@ import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { GoogleAuthService } from './google-auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import {
@@ -23,7 +25,10 @@ import {
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private googleAuthService: GoogleAuthService,
+  ) {}
 
   // Brute-force / credential-stuffing / signup-spam protection: these three
   // endpoints get a much tighter limit than the global 100/min default.
@@ -38,6 +43,14 @@ export class AuthController {
   @Post('login')
   async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const session = await this.authService.login(dto);
+    return this.sendSession(req, res, session);
+  }
+
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  @Post('google')
+  async google(@Body() dto: GoogleAuthDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const identity = await this.googleAuthService.verifyIdToken(dto.idToken);
+    const session = await this.authService.authenticateWithGoogle(identity, dto);
     return this.sendSession(req, res, session);
   }
 

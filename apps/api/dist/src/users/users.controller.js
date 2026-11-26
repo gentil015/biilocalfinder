@@ -19,6 +19,8 @@ const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const current_user_decorator_1 = require("../common/decorators/current-user.decorator");
 const users_service_1 = require("./users.service");
 const update_locale_dto_1 = require("./dto/update-locale.dto");
+const update_me_dto_1 = require("./dto/update-me.dto");
+const delete_account_dto_1 = require("./dto/delete-account.dto");
 let UsersController = class UsersController {
     constructor(usersService) {
         this.usersService = usersService;
@@ -31,6 +33,12 @@ let UsersController = class UsersController {
     }
     updateLocale(user, dto) {
         return this.usersService.updateLocale(user.id, dto.locale);
+    }
+    exportMe(user) {
+        return this.usersService.exportMe(user.id);
+    }
+    deleteMe(user, dto) {
+        return this.usersService.deleteMe(user.id, dto.password);
     }
 };
 exports.UsersController = UsersController;
@@ -48,7 +56,7 @@ __decorate([
     __param(0, (0, current_user_decorator_1.CurrentUser)()),
     __param(1, (0, common_1.Body)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:paramtypes", [Object, update_me_dto_1.UpdateMeDto]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "updateMe", null);
 __decorate([
@@ -61,6 +69,27 @@ __decorate([
     __metadata("design:paramtypes", [Object, update_locale_dto_1.UpdateLocaleDto]),
     __metadata("design:returntype", void 0)
 ], UsersController.prototype, "updateLocale", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Get)('me/export'),
+    (0, common_1.Header)('Content-Disposition', 'attachment; filename="bii-account-export.json"'),
+    (0, common_1.Header)('Cache-Control', 'no-store'),
+    (0, swagger_1.ApiOperation)({ summary: 'Download a portable copy of the account data' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "exportMe", null);
+__decorate([
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
+    (0, common_1.Delete)('me'),
+    (0, swagger_1.ApiOperation)({ summary: 'Permanently delete/anonymise the account' }),
+    __param(0, (0, current_user_decorator_1.CurrentUser)()),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, delete_account_dto_1.DeleteAccountDto]),
+    __metadata("design:returntype", void 0)
+], UsersController.prototype, "deleteMe", null);
 exports.UsersController = UsersController = __decorate([
     (0, swagger_1.ApiTags)('users'),
     (0, swagger_1.ApiBearerAuth)(),

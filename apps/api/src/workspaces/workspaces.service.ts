@@ -10,7 +10,6 @@ import {
 import { Prisma, WorkspaceMemberRole } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditLogService } from '../common/services/audit-log.service';
-import { EntitlementsService } from '../subscriptions/entitlements.service';
 import { slugify } from '../common/utils/slugify';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
@@ -27,7 +26,6 @@ const WORKSPACE_PROVIDER_SUMMARY = {
   businessName: true,
   logoUrl: true,
   verificationStatus: true,
-  subscriptionStatus: true,
   availabilityStatus: true,
   rating: true,
   reviewCount: true,
@@ -57,7 +55,6 @@ export class WorkspacesService {
   constructor(
     private prisma: PrismaService,
     private auditLog: AuditLogService,
-    private entitlements: EntitlementsService,
     @Inject(EMAIL_SENDER) private emailSender?: EmailSender,
   ) {}
 
@@ -224,10 +221,7 @@ export class WorkspacesService {
       },
     });
 
-    if (!pendingInvitation && existingMembership?.status !== 'INVITED') {
-      const provider = await this.prisma.provider.findUnique({ where: { workspaceId } });
-      if (provider) await this.entitlements.assertCanAdd(provider, 'teamMembers');
-    }
+
 
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = this.hashInviteToken(token);

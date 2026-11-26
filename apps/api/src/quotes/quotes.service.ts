@@ -219,6 +219,8 @@ export class QuotesService {
         proposedBy: role,
         price: dto.price,
         message: dto.message,
+        proposedDate: dto.proposedDate ? new Date(dto.proposedDate) : undefined,
+        estimatedDuration: dto.estimatedDuration,
       },
     });
 
@@ -281,7 +283,14 @@ export class QuotesService {
         where: { quoteId: revision.quoteId, id: { not: revisionId }, status: 'PENDING' },
         data: { status: 'SUPERSEDED' },
       }),
-      this.prisma.quote.update({ where: { id: revision.quoteId }, data: { price: revision.price } }),
+      this.prisma.quote.update({
+        where: { id: revision.quoteId },
+        data: {
+          price: revision.price,
+          ...(revision.proposedDate ? { proposedDate: revision.proposedDate } : {}),
+          ...(revision.estimatedDuration ? { estimatedDuration: revision.estimatedDuration } : {}),
+        },
+      }),
     ]);
 
     if (action === 'accept') {

@@ -5,7 +5,6 @@ export interface RankableProvider {
   availabilityStatus: string;
   yearsOfExperience: number;
   verificationStatus: string;
-  subscriptionStatus: string;
   // 0 (unrelated) to 1 (near-identical meaning) similarity between the
   // search query and this provider's best-matching offering, from pgvector
   // cosine distance. Undefined/null whenever there was no text query, no

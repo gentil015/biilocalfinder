@@ -44,11 +44,11 @@ export const otpSchema = z.object({
 });
 
 export const serviceRequestSchema = z.object({
-  serviceId: uuidSchema,
+  serviceId: uuidSchema.optional(),
   providerId: uuidSchema.optional(),
   serviceOfferingId: uuidSchema.optional(),
-  title: z.string().trim().min(4, 'Add a short title'),
-  description: z.string().trim().min(10, 'Describe the work in a little more detail'),
+  title: z.string().trim().max(120).optional().or(z.literal('')),
+  description: z.string().trim().max(4000).optional().or(z.literal('')),
   preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Choose a preferred date'),
   preferredTime: z.string().regex(/^\d{2}:\d{2}$/, 'Use HH:MM').optional().or(z.literal('')),
   budgetMin: z.number().min(0).optional(),
@@ -56,11 +56,35 @@ export const serviceRequestSchema = z.object({
   additionalNotes: z.string().max(2000).optional(),
   locationId: uuidSchema.optional(),
   images: z.array(z.string()).max(5).optional(),
+}).superRefine((data, ctx) => {
+  if (!data.serviceOfferingId) {
+    if (!data.serviceId) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['serviceId'], message: 'Select a service' });
+    if (!data.title || data.title.trim().length < 4) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['title'], message: 'Add a short title' });
+    if (!data.description || data.description.trim().length < 10) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['description'], message: 'Describe the work in a little more detail' });
+  }
 });
 
-export const serviceRequestFormSchema = serviceRequestSchema.extend({
+const serviceRequestFormBaseSchema = z.object({
+  serviceId: uuidSchema.optional(),
+  providerId: uuidSchema.optional(),
+  serviceOfferingId: uuidSchema.optional(),
+  title: z.string().trim().max(120).optional().or(z.literal('')),
+  description: z.string().trim().max(4000).optional().or(z.literal('')),
+  preferredDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Choose a preferred date'),
+  preferredTime: z.string().regex(/^\d{2}:\d{2}$/, 'Use HH:MM').optional().or(z.literal('')),
   budgetMin: z.union([z.literal(''), z.coerce.number().min(0)]).optional(),
   budgetMax: z.union([z.literal(''), z.coerce.number().min(0)]).optional(),
+  additionalNotes: z.string().max(2000).optional(),
+  locationId: uuidSchema.optional(),
+  images: z.array(z.string()).max(5).optional(),
+});
+
+export const serviceRequestFormSchema = serviceRequestFormBaseSchema.superRefine((data, ctx) => {
+  if (!data.serviceOfferingId) {
+    if (!data.serviceId) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['serviceId'], message: 'Select a service' });
+    if (!data.title || data.title.trim().length < 4) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['title'], message: 'Add a short title' });
+    if (!data.description || data.description.trim().length < 10) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['description'], message: 'Describe the work in a little more detail' });
+  }
 });
 
 export const offeringSchema = z.object({

@@ -12,8 +12,10 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { slugify } from '../common/utils/slugify';
-import { RegisterDto, REGISTERABLE_ROLES } from './dto/register.dto';
+import { RegisterDto, REGISTERABLE_ROLES, type RegisterableRole } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
+import { VerifiedGoogleIdentity } from './google-auth.service';
 import { passwordResetCodeEmail } from './auth-email-templates';
 import { EMAIL_SENDER, EmailSender } from '../notifications/channels/email-sender';
 import { CURRENT_TERMS_VERSION, TERMS_DOCUMENT_TYPE } from '../legal/terms.constants';
@@ -112,53 +114,8 @@ export class AuthService {
           },
         });
 
-        // An invitation may have been sent before this person had an
-        // account. Surface it as a pending membership immediately; the
-        // token in the email is still what activates access.
-        const pendingInvites = await tx.workspaceInvitation.findMany({
-          where: {
-            email: created.email.toLowerCase(),
-            acceptedAt: null,
-            revokedAt: null,
-            expiresAt: { gt: new Date() },
-          },
-          select: { workspaceId: true, role: true },
-        });
-        for (const invite of pendingInvites) {
-          const existingMembership = await tx.workspaceMembership.findUnique({
-            where: { workspaceId_userId: { workspaceId: invite.workspaceId, userId: created.id } },
-          });
-          if (!existingMembership) {
-            await tx.workspaceMembership.create({
-              data: {
-                workspaceId: invite.workspaceId,
-                userId: created.id,
-                role: invite.role,
-                status: 'INVITED',
-                invitedEmail: created.email.toLowerCase(),
-                invitedAt: new Date(),
-              },
-            });
-          }
-        }
-
-        if (dto.role === 'PROVIDER') {
-          const businessName = `${dto.firstName} ${dto.lastName}`;
-          const workspace = await tx.workspace.create({
-            data: {
-              name: businessName,
-              slug: await this.uniqueWorkspaceSlug(tx, businessName),
-              type: 'INDIVIDUAL',
-              ownerId: created.id,
-            },
-          });
-          await tx.provider.create({
-            data: { userId: created.id, workspaceId: workspace.id, businessName },
-          });
-          await tx.workspaceMembership.create({
-            data: { workspaceId: workspace.id, userId: created.id, role: 'OWNER', status: 'ACTIVE', joinedAt: new Date() },
-          });
-        }
+        await this.acceptPendingInvites(tx, created.id, created.email);
+        if (dto.role === 'PROVIDER') await this.createProviderWorkspace(tx, created.id, `${dto.firstName} ${dto.lastName}`.trim());
 
         return created;
       });
@@ -192,18 +149,127 @@ export class AuthService {
 
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
-    if (!user) throw new UnauthorizedException('Invalid credentials');
+    if (!user || !user.passwordHash) throw new UnauthorizedException('Invalid credentials');
 
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) throw new UnauthorizedException('Invalid credentials');
 
-    if (user.status !== 'ACTIVE') {
-      throw new UnauthorizedException('Account is not active');
+    await this.assertAccountActive(user.id, user.status);
+    return this.issueTokens(user.id, user.email, user.role);
+  }
+
+  async authenticateWithGoogle(identity: VerifiedGoogleIdentity, dto: GoogleAuthDto) {
+    const existingBySub = await this.prisma.user.findUnique({ where: { googleSub: identity.sub } });
+    if (existingBySub) {
+      await this.assertAccountActive(existingBySub.id, existingBySub.status);
+      const updated = await this.prisma.user.update({
+        where: { id: existingBySub.id },
+        data: {
+          googleEmail: identity.email,
+          emailVerified: true,
+          ...(existingBySub.avatarUrl ? {} : identity.avatarUrl ? { avatarUrl: identity.avatarUrl } : {}),
+        },
+      });
+      return this.issueTokens(updated.id, updated.email, updated.role);
     }
 
+    const existingByEmail = await this.prisma.user.findUnique({ where: { email: identity.email } });
+    if (existingByEmail) {
+      if (!existingByEmail.emailVerified) {
+        throw new UnauthorizedException('Verify your email before linking a Google account');
+      }
+      if (existingByEmail.googleSub && existingByEmail.googleSub !== identity.sub) {
+        throw new ConflictException('This account is linked to a different Google account');
+      }
+      await this.assertAccountActive(existingByEmail.id, existingByEmail.status);
+      const linked = await this.prisma.user.update({
+        where: { id: existingByEmail.id },
+        data: {
+          googleSub: identity.sub,
+          googleEmail: identity.email,
+          emailVerified: true,
+          ...(existingByEmail.avatarUrl ? {} : identity.avatarUrl ? { avatarUrl: identity.avatarUrl } : {}),
+        },
+      });
+      return this.issueTokens(linked.id, linked.email, linked.role);
+    }
+
+    return this.registerWithGoogle(identity, dto);
+  }
+
+  private async registerWithGoogle(identity: VerifiedGoogleIdentity, dto: GoogleAuthDto) {
+    const role = dto.role;
+    if (!role || !REGISTERABLE_ROLES.includes(role)) {
+      throw new BadRequestException('Select an account type to continue with Google');
+    }
+    if (dto.termsAccepted !== true || dto.termsVersion !== CURRENT_TERMS_VERSION) {
+      throw new BadRequestException('You must accept the current Terms and Conditions to register');
+    }
+
+    let user;
+    try {
+      user = await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const created = await tx.user.create({
+          data: {
+            email: identity.email,
+            googleSub: identity.sub,
+            googleEmail: identity.email,
+            passwordHash: null,
+            firstName: identity.firstName,
+            lastName: identity.lastName,
+            avatarUrl: identity.avatarUrl,
+            role,
+            emailVerified: true,
+            ...(role === 'CLIENT' ? { clientProfile: { create: {} } } : {}),
+          },
+        });
+
+        await tx.termsAcceptance.create({
+          data: {
+            userId: created.id,
+            documentType: TERMS_DOCUMENT_TYPE,
+            version: CURRENT_TERMS_VERSION,
+            accountRole: created.role,
+          },
+        });
+
+        const registrationEvent = await tx.securityEvent.create({
+          data: {
+            userId: created.id,
+            eventType: 'USER_REGISTERED',
+            dedupeKey: `registration:${created.id}`,
+          },
+        });
+        await tx.riskAssessment.create({
+          data: {
+            userId: created.id,
+            sourceEventId: registrationEvent.id,
+            riskScore: 0,
+            riskLevel: 'LOW',
+            assessmentVersion: 'v1',
+            summary: 'Account registered via Google. No automated fraud finding was made.',
+          },
+        });
+
+        await this.acceptPendingInvites(tx, created.id, created.email);
+        if (role === 'PROVIDER') await this.createProviderWorkspace(tx, created.id, `${created.firstName} ${created.lastName}`.trim());
+        return created;
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw new ConflictException('An account with this email already exists');
+      }
+      throw err;
+    }
+
+    return this.issueTokens(user.id, user.email, user.role);
+  }
+
+  private async assertAccountActive(userId: string, status: string) {
+    if (status !== 'ACTIVE') throw new UnauthorizedException('Account is not active');
     const suspension = await this.prisma.accountRestriction.findFirst({
       where: {
-        userId: user.id,
+        userId,
         status: 'ACTIVE',
         restrictionType: { in: [RestrictionType.TEMPORARY_SUSPENSION, RestrictionType.PERMANENT_SUSPENSION] },
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
@@ -211,8 +277,33 @@ export class AuthService {
       select: { id: true },
     });
     if (suspension) throw new UnauthorizedException('Account access is temporarily restricted');
+  }
 
-    return this.issueTokens(user.id, user.email, user.role);
+  private async acceptPendingInvites(tx: Prisma.TransactionClient, userId: string, email: string) {
+    const pendingInvites = await tx.workspaceInvitation.findMany({
+      where: { email: email.toLowerCase(), acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } },
+      select: { workspaceId: true, role: true },
+    });
+    for (const invite of pendingInvites) {
+      const existingMembership = await tx.workspaceMembership.findUnique({
+        where: { workspaceId_userId: { workspaceId: invite.workspaceId, userId } },
+      });
+      if (!existingMembership) {
+        await tx.workspaceMembership.create({
+          data: { workspaceId: invite.workspaceId, userId, role: invite.role, status: 'INVITED', invitedEmail: email.toLowerCase(), invitedAt: new Date() },
+        });
+      }
+    }
+  }
+
+  private async createProviderWorkspace(tx: Prisma.TransactionClient, userId: string, businessName: string) {
+    const workspace = await tx.workspace.create({
+      data: { name: businessName, slug: await this.uniqueWorkspaceSlug(tx, businessName), type: 'INDIVIDUAL', ownerId: userId },
+    });
+    await tx.provider.create({ data: { userId, workspaceId: workspace.id, businessName } });
+    await tx.workspaceMembership.create({
+      data: { workspaceId: workspace.id, userId, role: 'OWNER', status: 'ACTIVE', joinedAt: new Date() },
+    });
   }
 
   async refresh(refreshToken: string) {
@@ -331,7 +422,7 @@ export class AuthService {
     await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       await tx.user.update({
         where: { id: stored.userId },
-        data: { passwordHash },
+        data: { passwordHash, emailVerified: true },
       });
       await tx.passwordResetToken.update({
         where: { id: stored.id },

@@ -9,7 +9,6 @@ function baseProvider(overrides: Partial<RankableProvider> = {}): RankableProvid
     availabilityStatus: 'AVAILABLE',
     yearsOfExperience: 5,
     verificationStatus: 'VERIFIED',
-    subscriptionStatus: 'ACTIVE',
     ...overrides,
   };
 }
@@ -29,11 +28,9 @@ describe('RuleBasedRankingService', () => {
     expect(good).toBeGreaterThan(bad);
   });
 
-  it('rewards verified and subscribed providers over unverified/free ones', () => {
-    const verified = ranking.score(baseProvider({ verificationStatus: 'VERIFIED', subscriptionStatus: 'ACTIVE' }));
-    const unverified = ranking.score(
-      baseProvider({ verificationStatus: 'UNVERIFIED', subscriptionStatus: 'EXPIRED' }),
-    );
+  it('rewards verified providers over unverified ones', () => {
+    const verified = ranking.score(baseProvider({ verificationStatus: 'VERIFIED' }));
+    const unverified = ranking.score(baseProvider({ verificationStatus: 'UNVERIFIED' }));
     expect(verified).toBeGreaterThan(unverified);
   });
 

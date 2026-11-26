@@ -15,12 +15,14 @@ var VerificationService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VerificationService = void 0;
 const common_1 = require("@nestjs/common");
+const crypto = require("crypto");
 const client_1 = require("@prisma/client");
 const prisma_service_1 = require("../prisma/prisma.service");
 const notifications_service_1 = require("../notifications/notifications.service");
 const audit_log_service_1 = require("../common/services/audit-log.service");
 const storage_interface_1 = require("../files/storage.interface");
 const provider_context_service_1 = require("../providers/provider-context.service");
+const provider_fraud_detection_service_1 = require("../trust-safety/provider-fraud-detection.service");
 const verification_constants_1 = require("./verification.constants");
 const verification_status_1 = require("./verification-status");
 const file_sniffer_1 = require("./file-sniffer");
@@ -37,12 +39,13 @@ const RECORD_INCLUDE = {
     serviceOffering: { select: { id: true, title: true, service: { select: { name: true } } } },
 };
 let VerificationService = VerificationService_1 = class VerificationService {
-    constructor(prisma, notifications, auditLog, storage, providerContext) {
+    constructor(prisma, notifications, auditLog, storage, providerContext, providerFraudDetection) {
         this.prisma = prisma;
         this.notifications = notifications;
         this.auditLog = auditLog;
         this.storage = storage;
         this.providerContext = providerContext;
+        this.providerFraudDetection = providerFraudDetection;
         this.logger = new common_1.Logger(VerificationService_1.name);
     }
     async recomputeProvider(db, providerId, now = new Date()) {
@@ -124,9 +127,13 @@ let VerificationService = VerificationService_1 = class VerificationService {
         if (!dto.documents.some((d) => verification_constants_1.REQUIRED_ANY_OF[dto.type].includes(d.documentType))) {
             throw new common_1.BadRequestException(`Attach at least one of: ${verification_constants_1.REQUIRED_ANY_OF[dto.type].map((t) => t.replace(/_/g, ' ').toLowerCase()).join(', ')}`);
         }
-        const stats = await Promise.all(dto.documents.map((d) => this.storage.statObject(d.storageKey)));
-        if (stats.some((s) => !s))
+        const [stats, contents] = await Promise.all([
+            Promise.all(dto.documents.map((d) => this.storage.statObject(d.storageKey))),
+            Promise.all(dto.documents.map((d) => this.storage.readPrivate(d.storageKey))),
+        ]);
+        if (stats.some((s) => !s) || contents.some((content) => !content)) {
             throw new common_1.BadRequestException('One or more documents were not found. Upload them again.');
+        }
         const existing = await this.prisma.verificationRecord.findMany({
             where: { providerId: provider.id, type: dto.type, serviceOfferingId: offeringId },
             select: { status: true, expiresAt: true },
@@ -158,6 +165,7 @@ let VerificationService = VerificationService_1 = class VerificationService {
                                 storageKey: d.storageKey,
                                 mimeType: stats[i].mimeType,
                                 sizeBytes: stats[i].sizeBytes,
+                                contentHash: crypto.createHash('sha256').update(contents[i]).digest('hex'),
                             })),
                         },
                     },
@@ -173,6 +181,11 @@ let VerificationService = VerificationService_1 = class VerificationService {
             }
             throw err;
         }
+        await this.providerFraudDetection
+            .screenUser(userId, 'verification_submitted')
+            .catch((error) => {
+            this.logger.warn(`Automated provider screening failed after verification submission: ${error.message}`);
+        });
         return created;
     }
     async myStatus(userId, now = new Date()) {
@@ -211,7 +224,7 @@ let VerificationService = VerificationService_1 = class VerificationService {
             expiresAt: provider.verificationExpiresAt,
             phoneVerified: provider.user.phoneVerified,
             emailVerified: provider.user.emailVerified,
-            hasPhone: !!(provider.user?.phone || provider.phone),
+            hasPhone: !!provider.user.phone,
             nextSteps,
             records: records.map((r) => this.toProviderView(r, now)),
             offerings: offerings.map((o) => ({ id: o.id, name: o.title || o.service.name })),
@@ -412,6 +425,91 @@ let VerificationService = VerificationService_1 = class VerificationService {
         await this.notifyProvider(record.provider.userId, record.type, stillValid ? `Your ${TYPE_LABEL[record.type]} verification was reinstated` : `Your ${TYPE_LABEL[record.type]} verification has expired`, undefined, id);
         return updated;
     }
+    async adminVerifyProvider(adminId, providerId, note, now = new Date()) {
+        const provider = await this.prisma.provider.findUnique({
+            where: { id: providerId },
+            select: { id: true, userId: true, user: { select: { phoneVerified: true } } },
+        });
+        if (!provider)
+            throw new common_1.NotFoundException('Provider not found');
+        if (!provider.user.phoneVerified) {
+            throw new common_1.BadRequestException('The provider must verify their phone number before the badge can be granted');
+        }
+        const records = await this.prisma.verificationRecord.findMany({
+            where: { providerId, type: { in: verification_constants_1.PROVIDER_LEVEL_TYPES }, serviceOfferingId: null },
+            orderBy: { submittedAt: 'desc' },
+        });
+        if (records.some((r) => r.status === 'SUSPENDED')) {
+            throw new common_1.BadRequestException('This provider has a suspended verification. Reinstate that record instead.');
+        }
+        const liveIdentity = records.find((r) => r.type === 'IDENTITY' && (0, verification_status_1.isLive)(r, now));
+        const pendingIdentity = records.find((r) => r.type === 'IDENTITY' && r.status === 'PENDING');
+        if (pendingIdentity) {
+            await this.approve(pendingIdentity.id, adminId, { note }, now);
+            return this.recomputeProvider(this.prisma, providerId, now);
+        }
+        if (liveIdentity) {
+            return this.recomputeProvider(this.prisma, providerId, now);
+        }
+        const expiresAt = (0, verification_constants_1.addMonths)(now, verification_constants_1.DEFAULT_VALIDITY_MONTHS);
+        const record = await this.prisma.$transaction(async (tx) => {
+            const created = await tx.verificationRecord.create({
+                data: {
+                    providerId,
+                    type: 'IDENTITY',
+                    status: 'VERIFIED',
+                    submitterNote: 'Manually verified by an administrator',
+                    decisionNote: note ?? null,
+                    verifiedAt: now,
+                    expiresAt,
+                    reviewedAt: now,
+                    reviewedById: adminId,
+                },
+            });
+            await this.recomputeProvider(tx, providerId, now);
+            return created;
+        });
+        await this.auditLog.log(adminId, 'VERIFICATION_MANUALLY_VERIFIED', 'Provider', providerId, {
+            recordId: record.id,
+            expiresAt: expiresAt.toISOString(),
+            note: note ?? null,
+        });
+        await this.notifyProvider(provider.userId, 'IDENTITY', 'Your provider verification was approved', `An administrator verified your account. Valid until ${expiresAt.toISOString().slice(0, 10)}.`, record.id);
+        return this.recomputeProvider(this.prisma, providerId, now);
+    }
+    async adminUnverifyProvider(adminId, providerId, reason, now = new Date()) {
+        const provider = await this.prisma.provider.findUnique({
+            where: { id: providerId },
+            select: { id: true, userId: true },
+        });
+        if (!provider)
+            throw new common_1.NotFoundException('Provider not found');
+        const live = await this.prisma.verificationRecord.findMany({
+            where: {
+                providerId,
+                type: { in: verification_constants_1.PROVIDER_LEVEL_TYPES },
+                status: 'VERIFIED',
+                OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+            },
+            select: { id: true, type: true },
+        });
+        if (live.length === 0) {
+            throw new common_1.BadRequestException('This provider has no active verification badge to remove');
+        }
+        await this.prisma.$transaction(async (tx) => {
+            await tx.verificationRecord.updateMany({
+                where: { id: { in: live.map((r) => r.id) } },
+                data: { status: 'SUSPENDED', reviewedAt: now, reviewedById: adminId, decisionNote: reason },
+            });
+            await this.recomputeProvider(tx, providerId, now);
+        });
+        await this.auditLog.log(adminId, 'VERIFICATION_MANUALLY_SUSPENDED', 'Provider', providerId, {
+            recordIds: live.map((r) => r.id),
+            reason,
+        });
+        await this.notifyProvider(provider.userId, 'IDENTITY', 'Your provider verification was suspended', reason, live[0].id);
+        return this.recomputeProvider(this.prisma, providerId, now);
+    }
     async sweepExpired(now = new Date()) {
         const due = await this.prisma.verificationRecord.findMany({
             where: { status: 'VERIFIED', expiresAt: { lte: now } },
@@ -477,6 +575,7 @@ exports.VerificationService = VerificationService = VerificationService_1 = __de
     __param(3, (0, common_1.Inject)(storage_interface_1.STORAGE_SERVICE)),
     __metadata("design:paramtypes", [prisma_service_1.PrismaService,
         notifications_service_1.NotificationsService,
-        audit_log_service_1.AuditLogService, Object, provider_context_service_1.ProviderContextService])
+        audit_log_service_1.AuditLogService, Object, provider_context_service_1.ProviderContextService,
+        provider_fraud_detection_service_1.ProviderFraudDetectionService])
 ], VerificationService);
 //# sourceMappingURL=verification.service.js.map

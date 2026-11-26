@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { GoogleAuthService } from './google-auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { NotificationsModule } from '../notifications/notifications.module';
 
@@ -12,7 +13,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
   // unverified addresses, neither of which applies to a reset link).
   imports: [PassportModule, JwtModule.register({}), NotificationsModule],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, GoogleAuthService, JwtStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

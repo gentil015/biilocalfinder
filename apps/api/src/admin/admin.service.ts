@@ -6,7 +6,6 @@ import { AuditLogService } from '../common/services/audit-log.service';
 import { VerificationService } from '../verification/verification.service';
 import { ListUsersQueryDto } from './dto/list-users-query.dto';
 import { ListAuditLogsQueryDto } from './dto/list-audit-logs-query.dto';
-import { ListSubscriptionsQueryDto } from './dto/list-subscriptions-query.dto';
 import { BusinessAnalyticsQueryDto } from './dto/business-analytics-query.dto';
 import { AdminUpdateProviderDto } from './dto/admin-update-provider.dto';
 
@@ -36,7 +35,6 @@ export class AdminService {
       totalUsers,
       totalProviders,
       verifiedProviders,
-      activeSubscriptions,
       activeBookings,
       completedBookings,
       newServiceRequests,
@@ -47,7 +45,6 @@ export class AdminService {
       this.prisma.user.count(),
       this.prisma.provider.count(),
       this.prisma.provider.count({ where: { verificationStatus: 'VERIFIED' } }),
-      this.prisma.providerSubscription.count({ where: { status: 'ACTIVE' } }),
       this.prisma.booking.count({ where: { status: { in: ['ACCEPTED', 'CONFIRMED', 'IN_PROGRESS'] } } }),
       this.prisma.booking.count({ where: { status: 'COMPLETED' } }),
       this.prisma.serviceRequest.count({
@@ -62,7 +59,6 @@ export class AdminService {
       totalUsers,
       totalProviders,
       verifiedProviders,
-      activeSubscriptions,
       activeBookings,
       completedBookings,
       newServiceRequestsLast7Days: newServiceRequests,
@@ -305,7 +301,6 @@ export class AdminService {
               businessName: true,
               providerType: true,
               verificationStatus: true,
-              subscriptionStatus: true,
               availabilityStatus: true,
             },
             orderBy: { createdAt: 'asc' },
@@ -346,7 +341,6 @@ export class AdminService {
             businessName: true,
             providerType: true,
             verificationStatus: true,
-            subscriptionStatus: true,
             availabilityStatus: true,
           },
           orderBy: { createdAt: 'asc' },
@@ -416,7 +410,6 @@ export class AdminService {
             responseRate: true,
             responseTimeMinutes: true,
             availabilityStatus: true,
-            subscriptionStatus: true,
             createdAt: true,
             updatedAt: true,
             location: {
@@ -468,26 +461,6 @@ export class AdminService {
                 expiresAt: true,
                 serviceOffering: {
                   select: { id: true, title: true, service: { select: { name: true } } },
-                },
-              },
-            },
-            subscriptions: {
-              orderBy: { createdAt: 'desc' },
-              select: {
-                id: true,
-                status: true,
-                startDate: true,
-                endDate: true,
-                renewalDate: true,
-                createdAt: true,
-                plan: {
-                  select: {
-                    id: true,
-                    name: true,
-                    price: true,
-                    currency: true,
-                    billingInterval: true,
-                  },
                 },
               },
             },
@@ -715,118 +688,4 @@ export class AdminService {
     return { items, total, page, limit };
   }
 
-  async listSubscriptions(query: ListSubscriptionsQueryDto) {
-    const page = Math.max(1, Number(query.page) || 1);
-    const limit = 20;
-    const searchTerms = query.search?.trim().split(/\s+/).filter(Boolean) ?? [];
-    const billingIssueRows = await this.prisma.$queryRaw<Array<{ id: string }>>`
-      SELECT ps."id"
-      FROM "provider_subscriptions" ps
-      WHERE ps."status" = 'PAST_DUE'
-        OR (
-          SELECT st."paymentStatus"
-          FROM "subscription_transactions" st
-          WHERE st."subscriptionId" = ps."id"
-          ORDER BY st."createdAt" DESC, st."id" DESC
-          LIMIT 1
-        ) = 'FAILED'
-    `;
-    const where: Prisma.ProviderSubscriptionWhereInput = {
-      status: query.status,
-      ...(query.providerType ? { provider: { is: { providerType: query.providerType } } } : {}),
-      ...(query.billingIssues === 'true' ? { id: { in: billingIssueRows.map(({ id }) => id) } } : {}),
-      ...(searchTerms.length
-        ? {
-            AND: searchTerms.map((term) => ({
-              OR: [
-                { provider: { is: { businessName: { contains: term, mode: 'insensitive' } } } },
-                {
-                  provider: {
-                    is: {
-                      user: {
-                        is: {
-                          OR: [
-                            { firstName: { contains: term, mode: 'insensitive' } },
-                            { lastName: { contains: term, mode: 'insensitive' } },
-                            { email: { contains: term, mode: 'insensitive' } },
-                          ],
-                        },
-                      },
-                    },
-                  },
-                },
-                { plan: { is: { name: { contains: term, mode: 'insensitive' } } } },
-              ],
-            })),
-          }
-        : {}),
-    };
-
-    const now = new Date();
-    const inThirtyDays = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const [items, total, active, pastDue, expiringSoon] = await this.prisma.$transaction([
-      this.prisma.providerSubscription.findMany({
-        where,
-        select: {
-          id: true,
-          status: true,
-          startDate: true,
-          renewalDate: true,
-          endDate: true,
-          createdAt: true,
-          provider: {
-            select: {
-              id: true,
-              businessName: true,
-              providerType: true,
-              subscriptionStatus: true,
-              user: { select: { firstName: true, lastName: true, email: true } },
-            },
-          },
-          plan: {
-            select: {
-              id: true,
-              name: true,
-              workspaceType: true,
-              price: true,
-              currency: true,
-              billingInterval: true,
-            },
-          },
-          transactions: {
-            orderBy: { createdAt: 'desc' },
-            take: 1,
-            select: {
-              id: true,
-              amount: true,
-              currency: true,
-              paymentProvider: true,
-              paymentStatus: true,
-              createdAt: true,
-            },
-          },
-        },
-        orderBy: [{ renewalDate: 'asc' }, { createdAt: 'desc' }],
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      this.prisma.providerSubscription.count({ where }),
-      this.prisma.providerSubscription.count({ where: { status: 'ACTIVE' } }),
-      this.prisma.providerSubscription.count({ where: { status: 'PAST_DUE' } }),
-      this.prisma.providerSubscription.count({
-        where: {
-          status: { in: ['ACTIVE', 'TRIALING'] },
-          renewalDate: { gte: now, lte: inThirtyDays },
-        },
-      }),
-    ]);
-
-    return {
-      items,
-      total,
-      page,
-      limit,
-      stats: { active, pastDue, expiringSoon, billingIssues: billingIssueRows.length },
-    };
-  }
 }

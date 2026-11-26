@@ -1,17 +1,18 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CategoriesService } from '../categories/categories.service';
 import { InteractionService } from '../personalization/interactions/interaction.service';
 import { EmbeddingIndexService } from '../search/embedding/embedding-index.service';
-import { EntitlementsService } from '../subscriptions/entitlements.service';
 import { ProviderContextService } from '../providers/provider-context.service';
+import { STORAGE_SERVICE, StorageService } from '../files/storage.interface';
 import { CreateOfferingDto } from './dto/create-offering.dto';
 import { UpdateOfferingDto } from './dto/update-offering.dto';
 
 const OFFERING_INCLUDE = {
   service: { include: { category: true } },
   attributeValues: { include: { categoryAttribute: true } },
+  images: { orderBy: { position: 'asc' as const } },
 } as const;
 
 interface NormalizedValueEntry {
@@ -47,8 +48,8 @@ export class ServiceOfferingsService {
     private categories: CategoriesService,
     private interactions: InteractionService,
     private embeddingIndex: EmbeddingIndexService,
-    private entitlements: EntitlementsService,
     private providerContext: ProviderContextService,
+    @Inject(STORAGE_SERVICE) private storage: StorageService,
   ) {}
 
   async create(userId: string, dto: CreateOfferingDto) {
@@ -57,17 +58,13 @@ export class ServiceOfferingsService {
     const service = await this.prisma.service.findUnique({ where: { id: dto.serviceId } });
     if (!service || !service.isActive) throw new BadRequestException('Service not found');
 
-    // Centralized plan-based entitlement (spec §7) — replaces the old
-    // hardcoded "2 free, then require ACTIVE subscription" check with a
-    // real per-plan, per-type limit lookup.
-    await this.entitlements.assertCanAdd(provider, 'services');
-
     const existing = await this.prisma.serviceOffering.findUnique({
       where: { providerId_serviceId: { providerId: provider.id, serviceId: dto.serviceId } },
     });
     if (existing) throw new BadRequestException('You already have an offering for this service');
 
     const normalizedValues = await this.validateAttributeValues(service.categoryId, dto.attributeValues ?? {});
+    const images = await this.normalizeImages(dto.images);
 
     const created = await this.prisma.serviceOffering.create({
       data: {
@@ -78,16 +75,14 @@ export class ServiceOfferingsService {
         basePrice: dto.basePrice,
         priceType: dto.priceType,
         duration: dto.duration,
+        availabilityNote: dto.availabilityNote,
         attributeValues: normalizedValues.length
           ? { create: normalizedValues.map((v) => ({ ...attributeValueWrite(v.value), categoryAttributeId: v.attributeId })) }
           : undefined,
+        images: images.length ? { create: images } : undefined,
       },
       include: OFFERING_INCLUDE,
     });
-    // Fire-and-forget: semantic search indexing must never block or fail
-    // creating an offering (EmbeddingIndexService.enqueueReindex never
-    // throws, same "never break the calling business action" contract as
-    // InteractionService.record).
     void this.embeddingIndex.enqueueReindex(created.id);
     return created;
   }
@@ -108,18 +103,18 @@ export class ServiceOfferingsService {
     return offering;
   }
 
-  // Public — the dedicated service offering page (spec §19). Records a
-  // VIEW_SERVICE interaction against the SERVICE_OFFERING (not the shared
-  // Service) when the viewer is logged in, so the view is attributable to
-  // this one provider (spec §7 — per-provider service views / most viewed
-  // service), same privacy-conscious pattern as ProvidersService.getPublicProfile.
   async findPublic(id: string, viewerUserId?: string) {
     const offering = await this.prisma.serviceOffering.findUnique({
       where: { id, isActive: true },
       include: {
         ...OFFERING_INCLUDE,
         provider: {
-          include: { user: { select: { firstName: true, lastName: true, avatarUrl: true } }, location: true },
+          include: {
+            user: { select: { firstName: true, lastName: true, avatarUrl: true } },
+            location: true,
+            availabilityWindows: true,
+            availabilityOverrides: { where: { date: { gte: new Date() } }, orderBy: { date: 'asc' }, take: 14 },
+          },
         },
       },
     });
@@ -130,8 +125,47 @@ export class ServiceOfferingsService {
     return offering;
   }
 
-  // Public — minimal listing for crawl discovery (sitemap). Excludes inactive
-  // offerings; no viewer-specific tracking or heavy joins.
+  async listPublic(query: { providerId?: string; serviceId?: string; categoryId?: string; q?: string; limit?: number } = {}) {
+    const limit = Math.min(Math.max(query.limit ?? 50, 1), 100);
+    const q = query.q?.trim();
+    return this.prisma.serviceOffering.findMany({
+      where: {
+        isActive: true,
+        ...(query.providerId ? { providerId: query.providerId } : {}),
+        ...(query.serviceId ? { serviceId: query.serviceId } : {}),
+        ...(query.categoryId ? { service: { categoryId: query.categoryId } } : {}),
+        ...(q
+          ? {
+              OR: [
+                { title: { contains: q, mode: 'insensitive' } },
+                { description: { contains: q, mode: 'insensitive' } },
+                { service: { name: { contains: q, mode: 'insensitive' } } },
+                { provider: { businessName: { contains: q, mode: 'insensitive' } } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        ...OFFERING_INCLUDE,
+        provider: {
+          select: {
+            id: true,
+            businessName: true,
+            logoUrl: true,
+            verificationStatus: true,
+            availabilityStatus: true,
+            rating: true,
+            reviewCount: true,
+            location: { select: { city: true } },
+            user: { select: { avatarUrl: true } },
+          },
+        },
+      },
+      orderBy: [{ provider: { rating: 'desc' } }, { updatedAt: 'desc' }],
+      take: limit,
+    });
+  }
+
   async listPublicSitemapEntries() {
     return this.prisma.serviceOffering.findMany({
       where: { isActive: true },
@@ -165,6 +199,16 @@ export class ServiceOfferingsService {
       );
     }
 
+    if (dto.images !== undefined) {
+      const images = await this.normalizeImages(dto.images);
+      await this.prisma.$transaction([
+        this.prisma.serviceOfferingImage.deleteMany({ where: { serviceOfferingId: id } }),
+        ...(images.length
+          ? [this.prisma.serviceOfferingImage.createMany({ data: images.map((img) => ({ ...img, serviceOfferingId: id })) })]
+          : []),
+      ]);
+    }
+
     const updated = await this.prisma.serviceOffering.update({
       where: { id },
       data: {
@@ -173,12 +217,11 @@ export class ServiceOfferingsService {
         basePrice: dto.basePrice,
         priceType: dto.priceType,
         duration: dto.duration,
+        availabilityNote: dto.availabilityNote,
         isActive: dto.isActive,
       },
       include: OFFERING_INCLUDE,
     });
-    // Only the fields that feed buildEmbeddingText are worth a re-embed
-    // call — skip it for a pure price/duration edit.
     if (dto.title !== undefined || dto.description !== undefined) {
       void this.embeddingIndex.enqueueReindex(updated.id);
     }
@@ -236,6 +279,21 @@ export class ServiceOfferingsService {
     if (value.jsonValue !== null) return value.jsonValue.join(', ');
     if (value.numberValue !== null) return String(value.numberValue);
     return value.textValue ?? '';
+  }
+
+  private async normalizeImages(images?: { storageKey: string; url?: string }[]) {
+    if (!images?.length) return [];
+    const seen = new Set<string>();
+    const normalized: { storageKey: string; url: string; position: number }[] = [];
+    for (const [index, image] of images.entries()) {
+      const storageKey = image.storageKey?.trim();
+      if (!storageKey || seen.has(storageKey)) continue;
+      seen.add(storageKey);
+      const stat = await this.storage.statObject(storageKey).catch(() => null);
+      if (!stat) throw new BadRequestException('One or more offering images were not found. Upload them again.');
+      normalized.push({ storageKey, url: image.url?.trim() || this.storage.getUrl(storageKey), position: index });
+    }
+    return normalized;
   }
 
   private async getProvider(userId: string) {

@@ -58,6 +58,15 @@ export class QuotesController {
     return this.quotesService.proposeRevision(id, user.id, dto);
   }
 
+  @Post('quotes/:id/counter-offers')
+  counterOffer(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+    @Body() dto: ProposeRevisionDto,
+  ) {
+    return this.quotesService.proposeRevision(id, user.id, dto);
+  }
+
   @Post('quote-revisions/:id/accept')
   acceptRevision(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.quotesService.respondToRevision(id, user.id, 'accept');

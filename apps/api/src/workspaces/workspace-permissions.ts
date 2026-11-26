@@ -8,7 +8,6 @@ export type WorkspacePermission =
   | 'workspace.members.remove'
   | 'workspace.members.roles'
   | 'workspace.ownership.transfer'
-  | 'workspace.billing.manage'
   | 'workspace.audit.view'
   | 'catalog.manage'
   | 'availability.manage'
@@ -30,7 +29,6 @@ const ALL: WorkspacePermission[] = [
   'workspace.members.remove',
   'workspace.members.roles',
   'workspace.ownership.transfer',
-  'workspace.billing.manage',
   'workspace.audit.view',
   'catalog.manage',
   'availability.manage',
@@ -50,7 +48,6 @@ export const WORKSPACE_PERMISSIONS: Record<WorkspaceMemberRole, ReadonlySet<Work
   MANAGER: new Set(
     ALL.filter(
       (permission) =>
-        permission !== 'workspace.billing.manage' &&
         permission !== 'workspace.ownership.transfer' &&
         permission !== 'workspace.members.roles',
     ),

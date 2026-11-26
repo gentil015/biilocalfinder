@@ -21,7 +21,7 @@ import { Notice } from '@/src/components/ui/Notice';
 import { Screen } from '@/src/components/ui/Screen';
 import { SegmentedControl, type SegmentOption } from '@/src/components/ui/SegmentedControl';
 import { CURRENT_TERMS_VERSION } from '@/src/constants/config';
-import { homeForRole } from '@/src/navigation/role-routes';
+import { postAuthRouteForRole } from '@/src/navigation/role-routes';
 import { authApi } from '@/src/services/api/endpoints/auth';
 import { toApiError } from '@/src/services/api/errors';
 import { useAppStore } from '@/src/stores/app.store';
@@ -42,7 +42,6 @@ export default function RegisterScreen() {
   const theme = useTheme();
   const { colors } = theme;
   const signIn = useAuthStore((state) => state.signIn);
-  const activeExperience = useAppStore((state) => state.activeExperience);
   const [formError, setFormError] = useState<string | null>(null);
   const {
     handleSubmit,
@@ -73,7 +72,9 @@ export default function RegisterScreen() {
         termsVersion: CURRENT_TERMS_VERSION,
       });
       await signIn(tokens);
-      router.replace(homeForRole(useAuthStore.getState().user?.role, activeExperience));
+      const role = useAuthStore.getState().user?.role;
+      if (role === 'PROVIDER') await useAppStore.getState().setActiveExperience('provider');
+      router.replace(postAuthRouteForRole(role));
     } catch (error) {
       setFormError(toApiError(error).message);
     }

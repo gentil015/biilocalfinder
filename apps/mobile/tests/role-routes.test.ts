@@ -1,4 +1,14 @@
-import { homeForRole } from '@/src/navigation/role-routes';
+import { homeForRole, postAuthRouteForRole } from '@/src/navigation/role-routes';
+
+describe('postAuthRouteForRole', () => {
+  it('sends providers to the provider workspace after sign-in', () => {
+    expect(postAuthRouteForRole('PROVIDER')).toBe('/provider');
+  });
+
+  it('sends clients to the customer home after sign-in', () => {
+    expect(postAuthRouteForRole('CLIENT')).toBe('/home');
+  });
+});
 
 describe('homeForRole', () => {
   it('sends clients to the customer home', () => {

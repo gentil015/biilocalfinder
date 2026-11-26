@@ -13,7 +13,7 @@ import { IconButton } from '@/src/components/ui/IconButton';
 import { Input } from '@/src/components/ui/Input';
 import { Notice } from '@/src/components/ui/Notice';
 import { Screen } from '@/src/components/ui/Screen';
-import { homeForRole } from '@/src/navigation/role-routes';
+import { postAuthRouteForRole } from '@/src/navigation/role-routes';
 import { authApi } from '@/src/services/api/endpoints/auth';
 import { toApiError } from '@/src/services/api/errors';
 import { useAppStore } from '@/src/stores/app.store';
@@ -29,7 +29,6 @@ export default function LoginScreen() {
   const theme = useTheme();
   const { colors } = theme;
   const signIn = useAuthStore((state) => state.signIn);
-  const activeExperience = useAppStore((state) => state.activeExperience);
   const [formError, setFormError] = useState<string | null>(null);
   const {
     handleSubmit,
@@ -45,7 +44,9 @@ export default function LoginScreen() {
     try {
       const tokens = await authApi.login(values);
       await signIn(tokens);
-      router.replace(homeForRole(useAuthStore.getState().user?.role, activeExperience));
+      const role = useAuthStore.getState().user?.role;
+      if (role === 'PROVIDER') await useAppStore.getState().setActiveExperience('provider');
+      router.replace(postAuthRouteForRole(role));
     } catch (error) {
       setFormError(toApiError(error).message);
     }

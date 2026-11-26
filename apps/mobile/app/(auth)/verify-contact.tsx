@@ -11,7 +11,7 @@ import { FormInput } from '@/src/components/ui/FormInput';
 import { Notice } from '@/src/components/ui/Notice';
 import { Screen } from '@/src/components/ui/Screen';
 import { SegmentedControl, type SegmentOption } from '@/src/components/ui/SegmentedControl';
-import { homeForRole } from '@/src/navigation/role-routes';
+import { postAuthRouteForRole } from '@/src/navigation/role-routes';
 import { authApi } from '@/src/services/api/endpoints/auth';
 import { toApiError } from '@/src/services/api/errors';
 import { useAppStore } from '@/src/stores/app.store';
@@ -30,7 +30,6 @@ const channels: SegmentOption<Channel>[] = [
 export default function VerifyContactScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const activeExperience = useAppStore((state) => state.activeExperience);
   const [channel, setChannel] = useState<Channel>('PHONE');
   const [codeSent, setCodeSent] = useState(false);
   const [sending, setSending] = useState(false);
@@ -43,6 +42,12 @@ export default function VerifyContactScreen() {
     resolver: zodResolver(otpSchema),
     defaultValues: { code: '' },
   });
+
+  const finish = async () => {
+    const role = useAuthStore.getState().user?.role;
+    if (role === 'PROVIDER') await useAppStore.getState().setActiveExperience('provider');
+    router.replace(postAuthRouteForRole(role));
+  };
 
   const requestCode = async () => {
     if (sending) return;
@@ -63,7 +68,7 @@ export default function VerifyContactScreen() {
     try {
       await authApi.confirmContactCode(channel, values.code);
       await useAuthStore.getState().refreshUser();
-      router.replace(homeForRole(useAuthStore.getState().user?.role, activeExperience));
+      await finish();
     } catch (error) {
       setMessage(toApiError(error).message);
     }
@@ -122,7 +127,7 @@ export default function VerifyContactScreen() {
       <Button
         label="Skip for now"
         variant="ghost"
-        onPress={() => router.replace(homeForRole(useAuthStore.getState().user?.role, activeExperience))}
+        onPress={() => void finish()}
         fullWidth
       />
     </Screen>

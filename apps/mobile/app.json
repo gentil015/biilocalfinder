@@ -1,0 +1,70 @@
+{
+  "expo": {
+    "name": "BII LocalFinder",
+    "slug": "bii-localfinder",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "scheme": "biilocalfinder",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.biitechnologies.localfinder",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "BII LocalFinder uses your location to show professionals and services near you. You can choose a location manually instead.",
+        "NSCameraUsageDescription": "Take photos of the work needed or add images to your provider portfolio.",
+        "NSPhotoLibraryUsageDescription": "Choose photos to attach to a service request or provider profile.",
+        "NSUserNotificationAlertStyle": "alert"
+      }
+    },
+    "android": {
+      "package": "com.biitechnologies.localfinder",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#174D38"
+      },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "CAMERA",
+        "READ_MEDIA_IMAGES",
+        "POST_NOTIFICATIONS",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-camera",
+      "expo-image-picker",
+      [
+        "expo-location",
+        {
+          "isAndroidForegroundServiceEnabled": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#174D38"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#174D38",
+          "imageWidth": 200
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

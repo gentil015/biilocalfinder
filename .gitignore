@@ -30,6 +30,7 @@ coverage/
 .turbo/
 .eslintcache
 .cache/
+.expo/
 
 # Local disk storage fallback (when no S3/MinIO is reachable)
 .local-storage/

@@ -35,6 +35,11 @@ export const queryKeys = {
   workspaces: ['workspaces'] as const,
 };
 
+function useWorkspaceScopedKey(key: readonly unknown[]) {
+  const workspaceId = useAppStore((state) => state.activeWorkspaceId);
+  return [...key, workspaceId ?? null] as const;
+}
+
 export function useCategories() {
   return useQuery({ queryKey: queryKeys.categories, queryFn: () => discoveryApi.categories() });
 }
@@ -91,51 +96,60 @@ export function useFavorites() {
 }
 
 export function useMyRequests() {
-  return useQuery({ queryKey: queryKeys.myRequests, queryFn: () => requestsApi.mine() });
+  const queryKey = useWorkspaceScopedKey(queryKeys.myRequests);
+  return useQuery({ queryKey, queryFn: () => requestsApi.mine() });
 }
 
 export function useIncomingRequests() {
-  return useQuery({ queryKey: queryKeys.incomingRequests, queryFn: () => requestsApi.incoming() });
+  const queryKey = useWorkspaceScopedKey(queryKeys.incomingRequests);
+  return useQuery({ queryKey, queryFn: () => requestsApi.incoming() });
 }
 
 export function useRequest(id: string | undefined) {
+  const queryKey = useWorkspaceScopedKey(queryKeys.request(id ?? ''));
   return useQuery({
-    queryKey: queryKeys.request(id ?? ''),
+    queryKey,
     queryFn: () => requestsApi.detail(id!),
     enabled: Boolean(id),
   });
 }
 
 export function useQuotes(requestId: string | undefined) {
+  const queryKey = useWorkspaceScopedKey(queryKeys.quotes(requestId ?? ''));
   return useQuery({
-    queryKey: queryKeys.quotes(requestId ?? ''),
+    queryKey,
     queryFn: () => requestsApi.quotes(requestId!),
     enabled: Boolean(requestId),
   });
 }
 
 export function useBookings(provider = false) {
+  const queryKey = useWorkspaceScopedKey(queryKeys.bookings(provider));
   return useQuery({
-    queryKey: queryKeys.bookings(provider),
+    queryKey,
     queryFn: () => (provider ? requestsApi.providerBookings() : requestsApi.myBookings()),
   });
 }
 
 export function useNotifications() {
-  return useQuery({ queryKey: queryKeys.notifications, queryFn: () => notificationsApi.list() });
+  const queryKey = useWorkspaceScopedKey(queryKeys.notifications);
+  return useQuery({ queryKey, queryFn: () => notificationsApi.list() });
 }
 
 export function useNotificationPreferences() {
-  return useQuery({ queryKey: queryKeys.preferences, queryFn: () => notificationsApi.preferences() });
+  const queryKey = useWorkspaceScopedKey(queryKeys.preferences);
+  return useQuery({ queryKey, queryFn: () => notificationsApi.preferences() });
 }
 
 export function useConversations() {
-  return useQuery({ queryKey: queryKeys.conversations, queryFn: () => messagingApi.conversations() });
+  const queryKey = useWorkspaceScopedKey(queryKeys.conversations);
+  return useQuery({ queryKey, queryFn: () => messagingApi.conversations() });
 }
 
 export function useMessages(id: string | undefined) {
+  const queryKey = useWorkspaceScopedKey(queryKeys.messages(id ?? ''));
   return useQuery({
-    queryKey: queryKeys.messages(id ?? ''),
+    queryKey,
     queryFn: () => messagingApi.messages(id!),
     enabled: Boolean(id),
     refetchInterval: 15_000,
@@ -143,31 +157,38 @@ export function useMessages(id: string | undefined) {
 }
 
 export function useProviderProfile() {
-  return useQuery({ queryKey: queryKeys.providerProfile, queryFn: () => providerApi.profile() });
+  const queryKey = useWorkspaceScopedKey(queryKeys.providerProfile);
+  return useQuery({ queryKey, queryFn: () => providerApi.profile() });
 }
 
 export function useOfferings() {
-  return useQuery({ queryKey: queryKeys.offerings, queryFn: () => providerApi.offerings() });
+  const queryKey = useWorkspaceScopedKey(queryKeys.offerings);
+  return useQuery({ queryKey, queryFn: () => providerApi.offerings() });
 }
 
 export function useOnboarding() {
-  return useQuery({ queryKey: queryKeys.onboarding, queryFn: () => providerApi.onboarding() });
+  const queryKey = useWorkspaceScopedKey(queryKeys.onboarding);
+  return useQuery({ queryKey, queryFn: () => providerApi.onboarding() });
 }
 
 export function useAvailability() {
-  return useQuery({ queryKey: queryKeys.availability, queryFn: () => providerApi.availability() });
+  const queryKey = useWorkspaceScopedKey(queryKeys.availability);
+  return useQuery({ queryKey, queryFn: () => providerApi.availability() });
 }
 
 export function useVerification() {
-  return useQuery({ queryKey: queryKeys.verification, queryFn: () => providerApi.verification() });
+  const queryKey = useWorkspaceScopedKey(queryKeys.verification);
+  return useQuery({ queryKey, queryFn: () => providerApi.verification() });
 }
 
 export function useProviderAnalytics() {
-  return useQuery({ queryKey: queryKeys.analytics, queryFn: () => providerApi.analytics() });
+  const queryKey = useWorkspaceScopedKey(queryKeys.analytics);
+  return useQuery({ queryKey, queryFn: () => providerApi.analytics() });
 }
 
 export function useInboxReviews() {
-  return useQuery({ queryKey: queryKeys.inboxReviews, queryFn: () => providerApi.inboxReviews() });
+  const queryKey = useWorkspaceScopedKey(queryKeys.inboxReviews);
+  return useQuery({ queryKey, queryFn: () => providerApi.inboxReviews() });
 }
 
 export function useAuthWorkspaces() {

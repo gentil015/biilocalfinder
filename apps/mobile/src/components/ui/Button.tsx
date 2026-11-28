@@ -1,7 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
 import type { ReactNode } from 'react';
 import { useTheme } from '@/src/theme/ThemeProvider';
-import { radius, spacing, typography } from '@/src/theme/metrics';
+import { hit, radius, spacing, typography } from '@/src/theme/metrics';
 import { elevation } from '@/src/theme/elevation';
 
 interface ButtonProps {
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  small: { minHeight: 40, paddingHorizontal: spacing.md },
+  small: { minHeight: hit.min, paddingHorizontal: spacing.md },
   fullWidth: { width: '100%' },
   border: { borderWidth: 1 },
   primaryShadow: elevation.subtle,

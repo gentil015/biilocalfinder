@@ -63,7 +63,7 @@ export default function FavoritesScreen() {
           title="No favorites yet"
           message="Tap the heart on a provider profile to save them here."
           actionLabel="Browse providers"
-          onAction={() => router.push('/(customer)/(tabs)/explore')}
+          onAction={() => router.push('/explore')}
         />
       )}
     </Screen>

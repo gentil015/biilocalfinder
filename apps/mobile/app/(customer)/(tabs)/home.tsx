@@ -45,7 +45,7 @@ export default function CustomerHomeScreen() {
 
   const submitSearch = () => {
     const q = search.trim();
-    router.push({ pathname: '/(customer)/(tabs)/explore', params: q ? { q } : {} });
+    router.push({ pathname: '/explore', params: q ? { q } : {} });
   };
 
   const personalizedSections = useMemo(() => {
@@ -113,7 +113,7 @@ export default function CustomerHomeScreen() {
           title="Browse categories"
           subtitle="Start with a service type"
           action={
-            <Pressable accessibilityRole="button" onPress={() => router.push('/(customer)/(tabs)/explore')}>
+            <Pressable accessibilityRole="button" onPress={() => router.push('/explore')}>
               <Text style={[typography.small, { color: colors.primaryDark, fontWeight: '600' }]}>Explore</Text>
             </Pressable>
           }
@@ -133,7 +133,7 @@ export default function CustomerHomeScreen() {
                 key={category.id}
                 accessibilityRole="button"
                 accessibilityLabel={`Browse ${category.name}`}
-                onPress={() => router.push({ pathname: '/(customer)/(tabs)/explore', params: { categoryId: category.id } })}
+                onPress={() => router.push({ pathname: '/explore', params: { categoryId: category.id } })}
                 style={[styles.category, { backgroundColor: colors.surface, borderColor: colors.border }]}
               >
                 <View style={[styles.categoryIcon, { backgroundColor: colors.primarySoft }]}>
@@ -174,7 +174,7 @@ export default function CustomerHomeScreen() {
           title={selectedLocation ? 'Nearby professionals' : 'Recommended professionals'}
           subtitle={selectedLocation ? 'Close to your selected location' : 'Set a location for nearby matches'}
           action={
-            <Pressable accessibilityRole="button" onPress={() => router.push('/(customer)/(tabs)/explore')}>
+            <Pressable accessibilityRole="button" onPress={() => router.push('/explore')}>
               <Text style={[typography.small, { color: colors.primaryDark, fontWeight: '600' }]}>View all</Text>
             </Pressable>
           }

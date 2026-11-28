@@ -1,8 +1,9 @@
 import { create } from 'zustand';
+import { clearQueryCache } from '@/src/services/api/client';
 import { authApi } from '@/src/services/api/endpoints/auth';
 import { usersApi } from '@/src/services/api/endpoints/users';
 import { workspacesApi } from '@/src/services/api/endpoints/workspaces';
-import { tokenStore } from '@/src/services/storage/token-store';
+import { cacheStore, tokenStore } from '@/src/services/storage/token-store';
 import { signOutGoogle } from '@/src/services/auth/google';
 import { useAppStore } from './app.store';
 import type { AuthTokens, AuthUser, WorkspaceSummary } from '@/src/types/api';
@@ -32,6 +33,11 @@ async function loadContext(): Promise<{ user: AuthUser; workspaces: WorkspaceSum
   return { user, workspaces };
 }
 
+async function clearSessionCaches(): Promise<void> {
+  clearQueryCache();
+  await cacheStore.clearSessionData();
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   status: 'loading',
   user: null,
@@ -53,6 +59,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ status: 'authenticated', user, workspaces });
     } catch {
       await tokenStore.clear();
+      await clearSessionCaches();
       set({ status: 'anonymous', user: null, workspaces: [] });
     }
   },
@@ -65,6 +72,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ status: 'authenticated', user, workspaces });
     } catch (error) {
       await tokenStore.clear();
+      await clearSessionCaches();
       set({
         status: 'anonymous',
         user: null,
@@ -87,16 +95,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await signOutGoogle().catch(() => undefined);
     await tokenStore.clear();
     await useAppStore.getState().setActiveWorkspace(null);
+    await clearSessionCaches();
     get().reset();
   },
 
   refreshUser: async () => {
+    const previousWorkspaceId = useAppStore.getState().activeWorkspaceId;
     const { user, workspaces } = await loadContext();
+    if (useAppStore.getState().activeWorkspaceId !== previousWorkspaceId) clearQueryCache();
     set({ user, workspaces });
   },
 
   selectWorkspace: async (workspaceId) => {
     await useAppStore.getState().setActiveWorkspace(workspaceId);
+    clearQueryCache();
     set({});
   },
 

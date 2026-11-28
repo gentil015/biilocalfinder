@@ -41,11 +41,11 @@ export function ConfirmDialog({
     >
       <View accessible={false} style={[styles.backdrop, { backgroundColor: colors.overlay }]}>
         <Pressable accessibilityLabel="Close dialog" style={styles.dismiss} onPress={onCancel} />
-        <View style={[styles.card, { backgroundColor: colors.surfaceElevated }, elevation.overlay]}>
+        <View accessible accessibilityViewIsModal accessibilityRole="alert" accessibilityLabel={`${title}. ${message}`} style={[styles.card, { backgroundColor: colors.surfaceElevated }, elevation.overlay]}>
           <View style={[styles.iconWrap, { backgroundColor: destructive ? colors.dangerSoft : colors.primarySoft }]}>
             <TriangleAlert size={22} color={destructive ? colors.danger : colors.primary} />
           </View>
-          <Text style={[typography.h3, { color: colors.text }]}>{title}</Text>
+          <Text accessibilityRole="header" style={[typography.h3, { color: colors.text }]}>{title}</Text>
           <Text style={[typography.small, { color: colors.textSecondary }]}>{message}</Text>
           <View style={styles.actions}>
             <Button label={cancelLabel} onPress={onCancel} variant="secondary" />

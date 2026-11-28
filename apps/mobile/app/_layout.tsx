@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { DEFAULT_ACTION_IDENTIFIER } from 'expo-notifications/build/NotificationsEmitter';
+import { useLastNotificationResponse } from 'expo-notifications/build/useLastNotificationResponse';
 import { AppErrorBoundary } from '@/src/components/layout/AppErrorBoundary';
 import { ToastProvider } from '@/src/components/ui/Toast';
 import { useReducedMotion } from '@/src/hooks/useReducedMotion';
-import { setUnauthorizedHandler } from '@/src/services/api/client';
+import { clearQueryCache, setActiveQueryClient, setUnauthorizedHandler } from '@/src/services/api/client';
+import { routeForNotification } from '@/src/navigation/notification-routes';
 import { bindNotificationEvents, configureLocalNotifications } from '@/src/services/notifications/local';
+import { cacheStore } from '@/src/services/storage/token-store';
 import { disconnectSocket } from '@/src/services/socket';
 import { useAppStore } from '@/src/stores/app.store';
 import { useAuthStore } from '@/src/stores/auth.store';
@@ -24,15 +28,24 @@ export default function RootLayout() {
   );
   const bootstrap = useAuthStore((state) => state.bootstrap);
   const authStatus = useAuthStore((state) => state.status);
+  const role = useAuthStore((state) => state.user?.role);
+  const router = useRouter();
+  const lastNotificationResponse = useLastNotificationResponse();
+  const handledNotificationId = useRef<string | null>(null);
 
   useEffect(() => {
-    setUnauthorizedHandler(() => useAuthStore.getState().reset());
+    setActiveQueryClient(queryClient);
+    setUnauthorizedHandler(async () => {
+      clearQueryCache();
+      await cacheStore.clearSessionData();
+      useAuthStore.getState().reset();
+    });
     void configureLocalNotifications().catch(() => undefined);
     void (async () => {
       await useAppStore.getState().hydrate();
       await bootstrap();
     })();
-  }, [bootstrap]);
+  }, [bootstrap, queryClient]);
 
   useEffect(() => {
     if (authStatus !== 'authenticated') {
@@ -52,6 +65,25 @@ export default function RootLayout() {
       dispose?.();
     };
   }, [authStatus]);
+
+  useEffect(() => {
+    const response = lastNotificationResponse;
+    if (
+      authStatus !== 'authenticated' ||
+      !response ||
+      response.actionIdentifier !== DEFAULT_ACTION_IDENTIFIER ||
+      handledNotificationId.current === response.notification.request.identifier
+    ) {
+      return;
+    }
+    const route = routeForNotification(
+      { data: response.notification.request.content.data as Record<string, unknown> },
+      role,
+    );
+    if (!route) return;
+    handledNotificationId.current = response.notification.request.identifier;
+    router.push(route);
+  }, [authStatus, lastNotificationResponse, role, router]);
 
   return (
     <ThemeProvider>

@@ -65,6 +65,14 @@ function asNumber(v: string): number | undefined {
   const parsed = Number(v);
   return Number.isFinite(parsed) ? parsed : undefined;
 }
+function clampNumber(value: number | undefined, min: number, max: number, fallback?: number): number | undefined {
+  if (value === undefined) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+function clampNumberString(value: string | undefined, min: number, max: number, fallback?: number): string {
+  if (value === undefined || !value.trim()) return fallback === undefined ? '' : String(fallback);
+  return String(clampNumber(asNumber(value), min, max, fallback));
+}
 function parseAttributes(v: string | string[] | undefined): Record<string, string> {
   const raw = asString(v);
   if (!raw) return {};
@@ -178,6 +186,7 @@ export default function ExploreScreen() {
   const [showFilters, setShowFilters] = useState(false);
   const [showAi, setShowAi] = useState(false);
   const [aiMessage, setAiMessage] = useState('');
+  const [aiConsent, setAiConsent] = useState(false);
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const seededFromPreferences = useRef(false);
@@ -236,11 +245,11 @@ export default function ExploreScreen() {
       serviceId,
       lat,
       lng,
-      radiusKm: Number(radiusKm) || 15,
-      minRating: asNumber(minRating),
-      minPrice: asNumber(minPrice),
-      maxPrice: asNumber(maxPrice),
-      minExperience: asNumber(minExperience),
+      radiusKm: clampNumber(asNumber(radiusKm), 1, 200, 15)!,
+      minRating: clampNumber(asNumber(minRating), 0, 5),
+      minPrice: clampNumber(asNumber(minPrice), 0, Number.MAX_SAFE_INTEGER),
+      maxPrice: clampNumber(asNumber(maxPrice), 0, Number.MAX_SAFE_INTEGER),
+      minExperience: clampNumber(asNumber(minExperience), 0, Number.MAX_SAFE_INTEGER),
       availableNow: availableNow || undefined,
       verifiedOnly: verifiedOnly || undefined,
       sort,
@@ -276,18 +285,40 @@ export default function ExploreScreen() {
         message,
         lat,
         lng,
-        radiusKm: Number(radiusKm) || 15,
+        radiusKm: clampNumber(asNumber(radiusKm), 1, 200, 15)!,
+        consentToProcess: aiConsent,
       }),
     onSuccess: async (parsed) => {
       const nextQ = parsed.filters.q ?? '';
       const nextCategory = parsed.filters.categoryId ?? categoryId;
       const nextService = parsed.filters.serviceId ?? serviceId;
-      const nextRadius = parsed.filters.radiusKm ? String(parsed.filters.radiusKm) : radiusKm;
+      const nextRadius = clampNumberString(
+        parsed.filters.radiusKm !== undefined ? String(parsed.filters.radiusKm) : radiusKm,
+        1,
+        200,
+        15,
+      );
       const nextSort = parsed.filters.sort && SORTS.some((option) => option.value === parsed.filters.sort) ? parsed.filters.sort : sort;
-      const nextMinRating = parsed.filters.minRating !== undefined ? String(parsed.filters.minRating) : minRating;
-      const nextMinPrice = parsed.filters.minPrice !== undefined ? String(parsed.filters.minPrice) : minPrice;
-      const nextMaxPrice = parsed.filters.maxPrice !== undefined ? String(parsed.filters.maxPrice) : maxPrice;
-      const nextMinExperience = parsed.filters.minExperience !== undefined ? String(parsed.filters.minExperience) : minExperience;
+      const nextMinRating = clampNumberString(
+        parsed.filters.minRating !== undefined ? String(parsed.filters.minRating) : minRating,
+        0,
+        5,
+      );
+      const nextMinPrice = clampNumberString(
+        parsed.filters.minPrice !== undefined ? String(parsed.filters.minPrice) : minPrice,
+        0,
+        Number.MAX_SAFE_INTEGER,
+      );
+      const nextMaxPrice = clampNumberString(
+        parsed.filters.maxPrice !== undefined ? String(parsed.filters.maxPrice) : maxPrice,
+        0,
+        Number.MAX_SAFE_INTEGER,
+      );
+      const nextMinExperience = clampNumberString(
+        parsed.filters.minExperience !== undefined ? String(parsed.filters.minExperience) : minExperience,
+        0,
+        Number.MAX_SAFE_INTEGER,
+      );
       const nextAvailableNow = parsed.filters.availableNow ?? availableNow;
       const nextVerifiedOnly = parsed.filters.verifiedOnly ?? verifiedOnly;
       const nextAttributes = parsed.attributes ?? attributes;
@@ -325,6 +356,16 @@ export default function ExploreScreen() {
     },
     onError: (error) => setNotice(toApiError(error).message),
   });
+
+  const submitAiSearch = () => {
+    const message = aiMessage.trim();
+    if (!message) return;
+    if (!aiConsent) {
+      setNotice('Turn on AI processing consent before sending a search.');
+      return;
+    }
+    aiSearch.mutate(message);
+  };
 
   const toggleCompare = (id: string) => {
     setCompareIds((current) => {
@@ -686,9 +727,20 @@ export default function ExploreScreen() {
             numberOfLines={3}
             placeholder="I need a plumber in Kigali today"
           />
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: aiConsent }}
+            onPress={() => setAiConsent((current) => !current)}
+            style={styles.checkRow}
+          >
+            <Text style={[typography.body, { color: colors.text, flex: 1 }]}>
+              I consent to AI processing of this search
+            </Text>
+            <View style={[styles.checkbox, { backgroundColor: aiConsent ? colors.primary : colors.surfaceAlt, borderColor: colors.border }]} />
+          </Pressable>
           <Button
             label="Find providers"
-            onPress={() => aiMessage.trim() && aiSearch.mutate(aiMessage.trim())}
+            onPress={submitAiSearch}
             loading={aiSearch.isPending}
             disabled={!aiMessage.trim()}
             fullWidth

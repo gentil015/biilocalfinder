@@ -19,7 +19,7 @@ export function EmptyState({
 }) {
   const { colors } = useTheme();
   return (
-    <View style={[styles.container, { borderColor: colors.border }]}>
+    <View accessible accessibilityRole="text" accessibilityLabel={`${title}. ${message}`} style={[styles.container, { borderColor: colors.border }]}>
       {icon}
       <Text style={[typography.h3, { color: colors.text, textAlign: 'center' }]}>{title}</Text>
       <Text style={[typography.small, { color: colors.textMuted, textAlign: 'center' }]}>{message}</Text>
@@ -33,7 +33,7 @@ export function EmptyState({
 export function LoadingState({ label = 'Loading…' }: { label?: string }) {
   const { colors } = useTheme();
   return (
-    <View style={[styles.loading, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+    <View accessible accessibilityRole="progressbar" accessibilityLabel={label} style={[styles.loading, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <ActivityIndicator color={colors.primary} />
       <Text style={[typography.small, { color: colors.textSecondary }]}>{label}</Text>
     </View>
@@ -51,7 +51,7 @@ export function ErrorState({
 }) {
   const { colors } = useTheme();
   return (
-    <View style={[styles.container, { borderColor: colors.border }]}>
+    <View accessible accessibilityRole="alert" accessibilityLabel={`${title}. ${message}`} style={[styles.container, { borderColor: colors.border }]}>
       <Text style={[typography.h3, { color: colors.danger, textAlign: 'center' }]}>{title}</Text>
       <Text style={[typography.small, { color: colors.textMuted, textAlign: 'center' }]}>{message}</Text>
       {onRetry ? <Button label="Try again" onPress={onRetry} variant="secondary" /> : null}

@@ -26,7 +26,7 @@ import { formatDate } from '@/src/utils/format';
 
 type CategoryOption = { id: string; name: string };
 
-const browseRoute: Href = '/(customer)/(tabs)/explore';
+const browseRoute: Href = '/explore';
 
 function paramValue(value: string | string[] | undefined): string {
   return typeof value === 'string' ? value : '';

@@ -122,8 +122,8 @@ export default function AccountScreen() {
               onPress={() =>
                 router.push(
                   user.role === 'PROVIDER'
-                    ? '/(provider)/provider/(tabs)/profile'
-                    : '/(customer)/(tabs)/profile',
+                    ? '/provider/profile'
+                    : '/profile',
                 )
               }
             />

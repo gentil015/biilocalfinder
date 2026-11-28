@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { Image as ExpoImage } from 'expo-image';
 import { RefreshCw, Send } from 'lucide-react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -21,6 +22,7 @@ import { queryKeys, useQuotes, useRequest } from '@/src/hooks/queries';
 import { requestsApi } from '@/src/services/api/endpoints/requests';
 import { toApiError } from '@/src/services/api/errors';
 import { useTheme } from '@/src/theme/ThemeProvider';
+import { radius as radiusTokens } from '@/src/theme/metrics';
 import { formatDate, formatMoney, formatTime, humanize, statusLabel } from '@/src/utils/format';
 import { quoteFormSchema } from '@/src/utils/validation';
 import type { QuoteItem, QuoteStatus } from '@/src/types/api';
@@ -50,6 +52,14 @@ function formatBudget(min?: number | null, max?: number | null): string {
   }
   const value = max ?? min;
   return value === null || value === undefined ? 'Not specified' : formatMoney(value);
+}
+
+function formatAttributeValue(value: unknown): string {
+  if (value === undefined || value === null) return '—';
+  if (Array.isArray(value)) return value.map(formatAttributeValue).join(', ');
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
 }
 
 export default function ProviderRequestDetailScreen() {
@@ -114,6 +124,19 @@ export default function ProviderRequestDetailScreen() {
     onError: (error) => setNotice({ message: toApiError(error).message, tone: 'error' }),
   });
 
+  const revisionResponse = useMutation({
+    mutationFn: ({ revisionId, action }: { revisionId: string; action: 'accept' | 'reject' }) =>
+      action === 'accept' ? requestsApi.acceptRevision(revisionId) : requestsApi.rejectRevision(revisionId),
+    onSuccess: async (_result, variables) => {
+      await invalidate();
+      setNotice({
+        message: variables.action === 'accept' ? 'Counter-offer accepted. Your quote was updated.' : 'Counter-offer declined.',
+        tone: 'success',
+      });
+    },
+    onError: (error) => setNotice({ message: toApiError(error).message, tone: 'error' }),
+  });
+
   if (!id) {
     return (
       <Screen>
@@ -141,6 +164,14 @@ export default function ProviderRequestDetailScreen() {
   const data = request.data;
   const clientName = [data.client?.firstName, data.client?.lastName].filter(Boolean).join(' ') || 'Client';
   const canQuote = ['OPEN', 'QUOTED', 'NEGOTIATING'].includes(data.status);
+  const images = requestImages(data.images);
+  const snapshots = (data.attributeSnapshots ?? []) as Array<{
+    name?: string;
+    label?: string;
+    value?: unknown;
+    attributeName?: string;
+    attributeValue?: unknown;
+  }>;
   const cardStyle = {
     backgroundColor: colors.surface,
     borderColor: colors.border,
@@ -188,6 +219,66 @@ export default function ProviderRequestDetailScreen() {
         ) : null}
       </Card>
 
+      {data.serviceOffering ? (
+        <Card variant="elevated" style={[cardStyle, elevation.subtle]}>
+          <Text style={[typography.bodyStrong, { color: colors.text }]}>
+            {data.serviceOffering.title ?? data.service?.name ?? 'Selected offering'}
+          </Text>
+          {data.serviceOffering.description ? (
+            <Text style={[typography.small, { color: colors.textSecondary }]}>{data.serviceOffering.description}</Text>
+          ) : null}
+          <View style={styles.meta}>
+            {data.serviceOffering.basePrice != null ? (
+              <DetailRow label="Offering price" value={formatMoney(data.serviceOffering.basePrice)} />
+            ) : null}
+            {data.serviceOffering.priceType ? <DetailRow label="Price type" value={data.serviceOffering.priceType} /> : null}
+            {data.serviceOffering.duration != null ? (
+              <DetailRow label="Duration" value={String(data.serviceOffering.duration)} />
+            ) : null}
+          </View>
+        </Card>
+      ) : null}
+
+      {data.location ? (
+        <Card variant="elevated" style={[cardStyle, elevation.subtle]}>
+          <DetailRow label="Location" value={data.location.label ?? data.location.city ?? 'Selected location'} />
+          {data.location.label && data.location.city ? <DetailRow label="City" value={data.location.city} /> : null}
+        </Card>
+      ) : null}
+
+      {snapshots.length ? (
+        <Card variant="elevated" style={[cardStyle, elevation.subtle]}>
+          <Text style={[typography.bodyStrong, { color: colors.text }]}>Service details</Text>
+          <View style={styles.meta}>
+            {snapshots.map((snapshot, index) => (
+              <DetailRow
+                key={`${snapshot.name ?? snapshot.label ?? snapshot.attributeName ?? 'attribute'}-${index}`}
+                label={snapshot.label ?? snapshot.name ?? snapshot.attributeName ?? 'Attribute'}
+                value={formatAttributeValue(snapshot.value ?? snapshot.attributeValue)}
+              />
+            ))}
+          </View>
+        </Card>
+      ) : null}
+
+      {images.length ? (
+        <Card variant="elevated" style={[cardStyle, elevation.subtle]}>
+          <Text style={[typography.bodyStrong, { color: colors.text }]}>Photos ({images.length})</Text>
+          {images.some((image) => image.uri) ? (
+            <View style={styles.requestImages}>
+              {images.filter((image) => image.uri).map((image, index) => (
+                <ExpoImage key={`${image.label}-${index}`} source={{ uri: image.uri! }} style={styles.requestImage} contentFit="cover" />
+              ))}
+            </View>
+          ) : null}
+          {images.map((image, index) => (
+            <Text key={`${image.label}-${index}`} style={[typography.caption, { color: colors.textMuted }]} numberOfLines={1}>
+              {image.label}
+            </Text>
+          ))}
+        </Card>
+      ) : null}
+
       {notice ? <Notice message={notice.message} tone={notice.tone} /> : null}
 
       {canQuote ? (
@@ -226,7 +317,15 @@ export default function ProviderRequestDetailScreen() {
           <ErrorState message="Quotes could not be loaded." onRetry={() => void quotes.refetch()} />
         ) : quotes.data?.length ? (
           <View style={{ gap: spacing.sm }}>
-            {quotes.data.map((quote) => <QuoteEntry key={quote.id} quote={quote} cardStyle={cardStyle} />)}
+            {quotes.data.map((quote) => (
+              <QuoteEntry
+                key={quote.id}
+                quote={quote}
+                cardStyle={cardStyle}
+                response={revisionResponse.isPending ? revisionResponse.variables : undefined}
+                onRespond={(revisionId, action) => revisionResponse.mutate({ revisionId, action })}
+              />
+            ))}
           </View>
         ) : (
           <EmptyState title="No quotes yet" message="Quotes you submit for this request will appear here." />
@@ -246,7 +345,17 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function QuoteEntry({ quote, cardStyle }: { quote: QuoteItem; cardStyle: StyleProp<ViewStyle> }) {
+function QuoteEntry({
+  quote,
+  cardStyle,
+  response,
+  onRespond,
+}: {
+  quote: QuoteItem;
+  cardStyle: StyleProp<ViewStyle>;
+  response?: { revisionId: string; action: 'accept' | 'reject' };
+  onRespond: (revisionId: string, action: 'accept' | 'reject') => void;
+}) {
   const { colors, spacing, radius, typography, borderWidth } = useTheme();
   const revisionStyle = {
     backgroundColor: colors.surfaceAlt,
@@ -255,6 +364,9 @@ function QuoteEntry({ quote, cardStyle }: { quote: QuoteItem; cardStyle: StylePr
     borderRadius: radius.sm,
     padding: spacing.sm,
   };
+  const pendingRevision = quote.revisions?.find((revision) => revision.status === 'PENDING');
+  const earlierRevisions = quote.revisions?.filter((revision) => revision.id !== pendingRevision?.id) ?? [];
+  const needsProviderResponse = pendingRevision?.proposedBy === 'CLIENT';
   return (
     <Card variant="elevated" style={cardStyle}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
@@ -271,10 +383,51 @@ function QuoteEntry({ quote, cardStyle }: { quote: QuoteItem; cardStyle: StylePr
       {quote.materials ? <Text style={[typography.small, { color: colors.textSecondary }]}>Materials: {quote.materials}</Text> : null}
       {quote.includedItems?.length ? <Text style={[typography.caption, { color: colors.textMuted }]}>Included: {quote.includedItems.join(', ')}</Text> : null}
       {quote.excludedItems?.length ? <Text style={[typography.caption, { color: colors.textMuted }]}>Excluded: {quote.excludedItems.join(', ')}</Text> : null}
-      {quote.revisions?.length ? (
+      {pendingRevision ? (
+        <View style={[revisionStyle, { gap: spacing.xs }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
+            <Text style={[typography.bodyStrong, { color: colors.text, flexShrink: 1 }]}>
+              {needsProviderResponse ? 'Client counter-offer' : 'Your counter-offer'}
+            </Text>
+            <Badge label={formatMoney(pendingRevision.price)} tone="accent" />
+          </View>
+          <Text style={[typography.caption, { color: colors.textMuted }]}>{formatDate(pendingRevision.createdAt)}</Text>
+          {pendingRevision.proposedDate ? (
+            <Text style={[typography.caption, { color: colors.textMuted }]}>Proposed: {formatDate(pendingRevision.proposedDate)}</Text>
+          ) : null}
+          {pendingRevision.estimatedDuration ? (
+            <Text style={[typography.caption, { color: colors.textMuted }]}>Duration: {pendingRevision.estimatedDuration}</Text>
+          ) : null}
+          {pendingRevision.message ? <Text style={[typography.small, { color: colors.textSecondary }]}>{pendingRevision.message}</Text> : null}
+          {needsProviderResponse ? (
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
+              <Button
+                label="Accept"
+                size="sm"
+                style={{ flex: 1 }}
+                disabled={Boolean(response)}
+                loading={response?.revisionId === pendingRevision.id && response.action === 'accept'}
+                onPress={() => onRespond(pendingRevision.id, 'accept')}
+              />
+              <Button
+                label="Decline"
+                size="sm"
+                variant="secondary"
+                style={{ flex: 1 }}
+                disabled={Boolean(response)}
+                loading={response?.revisionId === pendingRevision.id && response.action === 'reject'}
+                onPress={() => onRespond(pendingRevision.id, 'reject')}
+              />
+            </View>
+          ) : (
+            <Text style={[typography.caption, { color: colors.textMuted }]}>Waiting for the client to respond.</Text>
+          )}
+        </View>
+      ) : null}
+      {earlierRevisions.length ? (
         <View style={{ gap: spacing.sm }}>
-          <Text style={[typography.caption, { color: colors.textMuted }]}>{quote.revisions.length} revision(s)</Text>
-          {quote.revisions.map((revision) => (
+          <Text style={[typography.caption, { color: colors.textMuted }]}>{earlierRevisions.length} earlier revision(s)</Text>
+          {earlierRevisions.map((revision) => (
             <View key={revision.id} style={revisionStyle}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
                 <Text style={[typography.bodyStrong, { color: colors.text }]}>{formatMoney(revision.price)}</Text>
@@ -290,7 +443,25 @@ function QuoteEntry({ quote, cardStyle }: { quote: QuoteItem; cardStyle: StylePr
   );
 }
 
+function requestImages(value: unknown): Array<{ uri?: string; label: string }> {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (typeof item === 'string' && item) {
+      return [{ uri: /^https?:\/\//.test(item) ? item : undefined, label: item }];
+    }
+    if (item && typeof item === 'object') {
+      const raw = item as { url?: string | null; storageKey?: string | null };
+      const label = raw.url ?? raw.storageKey;
+      if (!label) return [];
+      return [{ uri: /^https?:\/\//.test(label) ? label : undefined, label }];
+    }
+    return [];
+  });
+}
+
 const styles = StyleSheet.create({
   meta: { gap: 6 },
   notes: { gap: 4 },
+  requestImages: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginVertical: 6 },
+  requestImage: { width: 72, height: 72, borderRadius: radiusTokens.sm },
 });

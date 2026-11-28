@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query';
 import { API_TIMEOUT_MS, API_URL } from '@/src/constants/config';
 import { useAppStore } from '@/src/stores/app.store';
 import { tokenStore } from '@/src/services/storage/token-store';
@@ -13,9 +14,18 @@ type UnauthorizedHandler = () => void | Promise<void>;
 
 let unauthorizedHandler: UnauthorizedHandler | null = null;
 let refreshInFlight: Promise<boolean> | null = null;
+let activeQueryClient: QueryClient | null = null;
 
 export function setUnauthorizedHandler(handler: UnauthorizedHandler): void {
   unauthorizedHandler = handler;
+}
+
+export function setActiveQueryClient(client: QueryClient): void {
+  activeQueryClient = client;
+}
+
+export function clearQueryCache(): void {
+  activeQueryClient?.clear();
 }
 
 async function buildHeaders(options: ApiRequestOptions): Promise<HeadersInit> {

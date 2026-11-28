@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '@/src/theme/ThemeProvider';
-import { radius, spacing, typography } from '@/src/theme/metrics';
+import { hit, radius, spacing, typography } from '@/src/theme/metrics';
 import { elevation } from '@/src/theme/elevation';
 
 export interface SegmentOption<T extends string> {
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
-    minHeight: 38,
+    minHeight: hit.min,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.sm,

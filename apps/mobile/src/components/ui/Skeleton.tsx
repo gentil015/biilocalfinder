@@ -46,6 +46,8 @@ export function Skeleton({
 
   return (
     <Animated.View
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
       style={[
         styles.block,
         { backgroundColor: colors.skeleton, width, height, opacity },

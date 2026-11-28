@@ -41,7 +41,6 @@ export default function ResetPasswordScreen() {
     try {
       await authApi.resetPassword(values.token, values.newPassword);
       setDone(true);
-      router.replace('/login');
     } catch (caught) {
       setError(toApiError(caught).message);
     }
@@ -56,7 +55,14 @@ export default function ResetPasswordScreen() {
       />
 
       {done ? (
-        <Notice message="Password updated. You can sign in now." tone="success" />
+        <Card variant="elevated">
+          <Notice message="Password updated. You can sign in now." tone="success" />
+          <Button
+            label="Go to sign in"
+            onPress={() => router.replace('/login')}
+            fullWidth
+          />
+        </Card>
       ) : (
         <Card variant="elevated">
           <View style={{ gap: theme.spacing.md }}>

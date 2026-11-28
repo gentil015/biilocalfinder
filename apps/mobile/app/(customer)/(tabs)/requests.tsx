@@ -18,6 +18,7 @@ import { spacing, typography } from '@/src/theme/metrics';
 
 const NEEDS_ACTION_REQUEST = new Set(['QUOTED', 'NEGOTIATING']);
 const ACTIVE_REQUEST = new Set(['OPEN', 'QUOTED', 'NEGOTIATING', 'ACCEPTED', 'BOOKED']);
+const WAITING_BOOKING = new Set(['ACCEPTED']);
 const ACTIVE_BOOKING = new Set(['REQUESTED', 'QUOTED', 'NEGOTIATING', 'ACCEPTED', 'CONFIRMED', 'IN_PROGRESS']);
 
 export default function CustomerRequestsScreen() {
@@ -40,8 +41,8 @@ export default function CustomerRequestsScreen() {
   const bookingGroups = useMemo(() => {
     const items = bookings.data ?? [];
     return {
-      needsAction: items.filter((b) => b.status === 'ACCEPTED'),
-      upcoming: items.filter((b) => ACTIVE_BOOKING.has(b.status)),
+      waiting: items.filter((b) => WAITING_BOOKING.has(b.status)),
+      upcoming: items.filter((b) => ACTIVE_BOOKING.has(b.status) && !WAITING_BOOKING.has(b.status)),
       history: items.filter((b) => !ACTIVE_BOOKING.has(b.status)),
     };
   }, [bookings.data]);
@@ -105,13 +106,21 @@ export default function CustomerRequestsScreen() {
             title="No requests yet"
             message="Find a professional and send your first service request."
             actionLabel="Browse providers"
-            onAction={() => router.push('/(customer)/(tabs)/explore')}
+            onAction={() => router.push('/explore')}
           />
         )
       ) : bookings.isLoading ? (
         <ListSkeleton rows={4} />
       ) : bookings.data?.length ? (
         <View style={{ gap: spacing.xl }}>
+          {bookingGroups.waiting.length ? (
+            <View style={{ gap: spacing.md }}>
+              <SectionHeader title="Waiting for provider" subtitle="Your quote was accepted. The provider will confirm the booking." />
+              {bookingGroups.waiting.map((booking) => (
+                <BookingCard key={booking.id} booking={booking} onPress={() => router.push({ pathname: '/booking/[id]', params: { id: booking.id } })} />
+              ))}
+            </View>
+          ) : null}
           {bookingGroups.upcoming.length ? (
             <View style={{ gap: spacing.md }}>
               <SectionHeader title="Upcoming & active" />

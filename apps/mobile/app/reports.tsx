@@ -36,7 +36,7 @@ type ReportRow = {
   resolution?: string | null;
 };
 
-const browseRoute: Href = '/(customer)/(tabs)/explore';
+const browseRoute: Href = '/explore';
 
 function statusTone(status: string): 'neutral' | 'success' | 'warning' | 'danger' {
   if (status === 'RESOLVED' || status === 'DISMISSED') return 'success';

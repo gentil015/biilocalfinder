@@ -269,7 +269,7 @@ export default function NewServiceRequestScreen() {
         queryClient.invalidateQueries({ queryKey: queryKeys.myRequests }),
         queryClient.invalidateQueries({ queryKey: ['bookings'] }),
       ]);
-      router.push('/(customer)/(tabs)/requests');
+      router.push('/requests');
     },
     onError: (error) => setNotice(toApiError(error).message),
   });

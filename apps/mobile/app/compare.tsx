@@ -117,7 +117,7 @@ function CellText({ children }: { children: ReactNode }) {
   return <Text style={[typography.small, { color: colors.text }]}>{children}</Text>;
 }
 
-const browseRoute: Href = '/(customer)/(tabs)/explore';
+const browseRoute: Href = '/explore';
 
 export default function CompareScreen() {
   const { ready } = useRoleGuard(['CLIENT', 'PROVIDER']);

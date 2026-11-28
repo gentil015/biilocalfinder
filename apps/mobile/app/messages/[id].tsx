@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { Paperclip, Send } from 'lucide-react-native';
@@ -23,7 +23,7 @@ import { Notice, type NoticeTone } from '@/src/components/ui/Notice';
 import { Screen } from '@/src/components/ui/Screen';
 import { Skeleton } from '@/src/components/ui/Skeleton';
 import { EmptyState, ErrorState } from '@/src/components/ui/States';
-import { useMessages } from '@/src/hooks/queries';
+import { queryKeys, useMessages } from '@/src/hooks/queries';
 import { filesApi } from '@/src/services/api/endpoints/files';
 import { messagingApi } from '@/src/services/api/endpoints/messaging';
 import { toApiError } from '@/src/services/api/errors';
@@ -51,6 +51,7 @@ function dayLabel(value: string): string {
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors, spacing, radius, typography, borderWidth, hit } = useTheme();
+  const queryClient = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const messages = useMessages(id);
   const conversation = useQuery({
@@ -133,17 +134,24 @@ export default function ChatScreen() {
         };
         socket.on('message:new', onNew);
         socket.on('typing', onTyping);
-        void messagingApi.markRead(id).catch(() => undefined);
+        void messagingApi
+          .markRead(id)
+          .then(() => queryClient.invalidateQueries({ queryKey: queryKeys.conversations }))
+          .catch(() => undefined);
         cleanup = () => {
           socket.off('message:new', onNew);
           socket.off('typing', onTyping);
         };
       } catch {
         setNotice({ message: 'Live chat is unavailable; messages will still send over HTTP.', tone: 'info' });
+        void messagingApi
+          .markRead(id)
+          .then(() => queryClient.invalidateQueries({ queryKey: queryKeys.conversations }))
+          .catch(() => undefined);
       }
     })();
     return () => cleanup();
-  }, [clearSendTimer, id, user?.id]);
+  }, [clearSendTimer, id, queryClient, user?.id]);
 
   useEffect(() => {
     scrollRef.current?.scrollToEnd({ animated: true });
@@ -167,15 +175,11 @@ export default function ChatScreen() {
     if (retryId) {
       setPending((current) => current.map((item) => (item.id === retryId ? { ...item, status: 'pending', retrying: true } : item)));
     }
-    const socket = getSocket();
-    if (socket?.connected) {
-      socket.emit('message:send', { conversationId: id, body });
-      return;
-    }
     try {
       const message = await messagingApi.sendMessage(id, body);
-      setItems((current) => [...current, message]);
+      setItems((current) => (current.some((item) => item.id === message.id) ? current : [...current, message]));
       resolveSend(localId);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
     } catch (error) {
       setPending((current) =>
         current.map((item) => (item.id === localId ? { ...item, status: 'failed', retrying: false } : item)),
@@ -194,8 +198,9 @@ export default function ChatScreen() {
     );
     try {
       const message = await messagingApi.sendMessage(id, '', [{ storageKey: item.storageKey }]);
-      setItems((current) => [...current, message]);
+      setItems((current) => (current.some((entry) => entry.id === message.id) ? current : [...current, message]));
       resolveSend(item.id);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
     } catch (error) {
       setPending((current) =>
         current.map((entry) => (entry.id === item.id ? { ...entry, status: 'failed', retrying: false } : entry)),
@@ -213,8 +218,9 @@ export default function ChatScreen() {
       const uploaded = await filesApi.uploadMessageAttachment(id, result.assets[0]);
       localId = queueSend('Attachment', true, uploaded.storageKey);
       const message = await messagingApi.sendMessage(id, '', [{ storageKey: uploaded.storageKey }]);
-      setItems((current) => [...current, message]);
+      setItems((current) => (current.some((item) => item.id === message.id) ? current : [...current, message]));
       resolveSend(localId);
+      await queryClient.invalidateQueries({ queryKey: queryKeys.conversations });
     } catch (error) {
       if (localId) {
         setPending((current) =>

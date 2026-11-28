@@ -123,15 +123,15 @@ export default function MessagesScreen() {
           message={
             query || filter === 'unread'
               ? 'Try another search or switch back to all conversations.'
-              : isProvider
-                ? 'Message a client from an incoming request to start a conversation.'
-                : 'Message a provider from their profile to start a conversation.'
+                : isProvider
+                  ? 'Conversations start when a client messages you about a service request.'
+                  : 'Message a provider from their profile to start a conversation.'
           }
           actionLabel={(query || filter === 'unread') && items.length ? 'Show all' : isProvider ? 'Go to provider workspace' : 'Browse providers'}
           onAction={() =>
             (query || filter === 'unread') && items.length
               ? (setQuery(''), setFilter('all'))
-              : router.push(isProvider ? '/provider' : '/(customer)/(tabs)/explore')
+              : router.push(isProvider ? '/provider' : '/explore')
           }
         />
       )}

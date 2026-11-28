@@ -29,3 +29,19 @@ export function useRoleGuard(allowed: UserRole[]) {
 
   return { ready: authorized, user: authorized ? user : null };
 }
+
+export function useGuestGuard() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const status = useAuthStore((state) => state.status);
+  const user = useAuthStore((state) => state.user);
+  const activeExperience = useAppStore((state) => state.activeExperience);
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+    const target = homeForRole(user?.role, activeExperience);
+    if (pathname !== target) router.replace(target);
+  }, [status, user, router, pathname, activeExperience]);
+
+  return { ready: status === 'anonymous' };
+}

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Building2, Check, Mail, ShieldCheck, Trash2, UserRound, Users } from 'lucide-react-native';
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { RoleGuardLoading } from '@/src/components/layout/RoleGuardLoading';
 import { AppScreenHeader } from '@/src/components/ui/AppScreenHeader';
 import { Badge } from '@/src/components/ui/Badges';
 import { Button } from '@/src/components/ui/Button';
@@ -17,6 +18,7 @@ import { Skeleton } from '@/src/components/ui/Skeleton';
 import { EmptyState, ErrorState } from '@/src/components/ui/States';
 import { useToast } from '@/src/components/ui/Toast';
 import { queryKeys, useAuthWorkspaces } from '@/src/hooks/queries';
+import { useRoleGuard } from '@/src/hooks/useRoleGuard';
 import { toApiError } from '@/src/services/api/errors';
 import {
   workspacesApi,
@@ -46,6 +48,7 @@ function memberName(member: WorkspaceMember): string {
 }
 
 export default function WorkspacesScreen() {
+  const { ready } = useRoleGuard(['PROVIDER']);
   const theme = useTheme();
   const { colors } = theme;
   const { showToast } = useToast();
@@ -215,6 +218,8 @@ export default function WorkspacesScreen() {
   const nameValid = createName.trim().length >= 2;
   const renameValid = renameName.trim().length >= 2;
   const invitationsData = invitations.data ?? [];
+
+  if (!ready) return <RoleGuardLoading label="Loading workspaces…" />;
 
   return (
     <Screen contentStyle={{ gap: theme.spacing.lg, paddingBottom: theme.spacing.xxl }}>

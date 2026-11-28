@@ -3,7 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleShee
 import { X } from 'lucide-react-native';
 import { useReducedMotion } from '@/src/hooks/useReducedMotion';
 import { useTheme } from '@/src/theme/ThemeProvider';
-import { radius, spacing, typography } from '@/src/theme/metrics';
+import { hit, radius, spacing, typography } from '@/src/theme/metrics';
 import { elevation } from '@/src/theme/elevation';
 import { IconButton } from './IconButton';
 
@@ -32,13 +32,13 @@ export function BottomSheet({ visible, title, onClose, children, footer }: Botto
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboard}
         >
-          <View style={[styles.sheet, { backgroundColor: colors.surfaceElevated }, elevation.overlay]}>
+          <View accessible accessibilityViewIsModal accessibilityLabel={title} style={[styles.sheet, { backgroundColor: colors.surfaceElevated }, elevation.overlay]}>
             <View style={styles.handleWrap}>
               <View style={[styles.handle, { backgroundColor: colors.borderStrong }]} />
             </View>
             <View style={styles.header}>
-              <Text style={[typography.h3, { color: colors.text }]}>{title}</Text>
-              <IconButton icon={<X size={18} />} label="Close sheet" variant="ghost" size={36} onPress={onClose} />
+              <Text accessibilityRole="header" style={[typography.h3, { color: colors.text }]}>{title}</Text>
+              <IconButton icon={<X size={18} />} label="Close sheet" variant="ghost" size={hit.min} onPress={onClose} />
             </View>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
               {children}

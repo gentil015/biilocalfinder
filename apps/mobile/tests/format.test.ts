@@ -26,8 +26,8 @@ describe('format utilities', () => {
   it('exposes the backend dispute and report category enums', () => {
     expect(DISPUTE_CATEGORIES).toContain('SERVICE_NOT_AS_DESCRIBED');
     expect(DISPUTE_CATEGORIES).toContain('PAYMENT_DISAGREEMENT');
-    expect(REPORT_CATEGORIES).toContain('FAKE_LISTING');
-    expect(REPORT_CATEGORIES).toContain('FAKE_REVIEW');
+    expect(REPORT_CATEGORIES).toContain('FAKE_PROVIDER_IDENTITY');
+    expect(REPORT_CATEGORIES).toContain('SUSPECTED_SCAM');
     expect(humanize(DISPUTE_CATEGORIES[0])).toBe('Service Not As Described');
   });
 });

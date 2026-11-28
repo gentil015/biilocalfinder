@@ -14,6 +14,7 @@ import { ListSkeleton } from '@/src/components/ui/Skeleton';
 import { EmptyState, ErrorState } from '@/src/components/ui/States';
 import { useToast } from '@/src/components/ui/Toast';
 import { queryKeys, useNotificationPreferences, useNotifications } from '@/src/hooks/queries';
+import { routeForNotification } from '@/src/navigation/notification-routes';
 import { notificationsApi } from '@/src/services/api/endpoints/notifications';
 import { toApiError } from '@/src/services/api/errors';
 import { useAuthStore } from '@/src/stores/auth.store';
@@ -23,34 +24,6 @@ import type { NotificationItem } from '@/src/types/api';
 import { formatDate, humanize } from '@/src/utils/format';
 
 type Tab = 'list' | 'preferences';
-
-function stringData(data: Record<string, unknown> | null | undefined, key: string): string | null {
-  const value = data?.[key];
-  return typeof value === 'string' && value ? value : null;
-}
-
-function routeFor(item: NotificationItem, role?: string): Href | null {
-  const data = item.data;
-  const savedSearchId = stringData(data, 'savedSearchId');
-  if (savedSearchId) return '/saved-searches';
-  const conversationId = stringData(data, 'conversationId');
-  if (conversationId) return { pathname: '/messages/[id]', params: { id: conversationId } };
-  const disputeId = stringData(data, 'disputeId');
-  if (disputeId) return { pathname: '/disputes/[id]', params: { id: disputeId } };
-  const bookingId = stringData(data, 'bookingId');
-  if (bookingId) return { pathname: '/booking/[id]', params: { id: bookingId } };
-  const requestId = stringData(data, 'requestId');
-  if (requestId) {
-    return role === 'PROVIDER'
-      ? { pathname: '/(provider)/provider/request/[id]', params: { id: requestId } }
-      : { pathname: '/request/[id]', params: { id: requestId } };
-  }
-  const providerId = stringData(data, 'providerId');
-  if (providerId) return { pathname: '/provider/[id]', params: { id: providerId } };
-  if (item.type === 'VERIFICATION_UPDATED' || item.type === 'VERIFICATION_EXPIRING') return '/verification';
-  if (item.type === 'NEW_REVIEW' || item.type === 'REVIEW_RESPONSE') return '/reviews';
-  return null;
-}
 
 export default function NotificationsScreen() {
   const params = useLocalSearchParams<{ tab?: string }>();
@@ -150,7 +123,7 @@ export default function NotificationsScreen() {
             <View key={group.label} style={{ gap: spacing.sm }}>
               <SectionHeader title={group.label} />
               {group.items.map((item) => {
-                const route = routeFor(item, role);
+                const route = routeForNotification(item, role);
                 return (
                   <Card
                     key={item.id}

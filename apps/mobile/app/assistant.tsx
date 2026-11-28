@@ -47,7 +47,7 @@ function asParams(payload: Record<string, unknown> = {}): Record<string, string>
 function toRoute(action: CustomerAssistAction, role?: string): Href | null {
   if (action.kind === 'open-offering') {
     const offeringId = action.payload?.offeringId;
-    if (offeringId) return { pathname: '/(provider)/provider/(tabs)/services', params: { offeringId: String(offeringId) } };
+    if (offeringId) return { pathname: '/provider/services', params: { offeringId: String(offeringId) } };
   }
   if (action.href) {
     try {
@@ -57,9 +57,9 @@ function toRoute(action: CustomerAssistAction, role?: string): Href | null {
       if (path === '/search') return { pathname: '/explore', params: { q: params.q ?? '' } };
       if (path === '/become-a-provider') return '/become-provider';
       if (path === '/bookings') {
-        return (role === 'PROVIDER' ? '/(provider)/provider/(tabs)' : '/(customer)/(tabs)/requests') as Href;
+        return (role === 'PROVIDER' ? '/provider' : '/requests') as Href;
       }
-      if (path === '/provider/offerings') return '/(provider)/provider/(tabs)/services';
+      if (path === '/provider/offerings') return '/provider/services';
       if (path.startsWith('/providers/')) return { pathname: '/provider/[id]', params: { id: path.split('/')[2] ?? '' } };
       if (path === '/requests/new') return { pathname: '/request/new', params: asParams(params) };
       if (path.startsWith('/requests/')) return { pathname: '/request/[id]', params: { id: path.split('/')[2] ?? '' } };
@@ -86,7 +86,7 @@ function toRoute(action: CustomerAssistAction, role?: string): Href | null {
     const id = payload.requestId ?? payload.id;
     return id
       ? {
-          pathname: '/(provider)/provider/request/[id]',
+          pathname: '/provider/request/[id]',
           params: asParams({
             id,
             price: payload.price,

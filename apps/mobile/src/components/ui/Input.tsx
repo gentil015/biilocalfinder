@@ -42,6 +42,8 @@ export function Input({
       <TextInput
         accessible
         accessibilityLabel={label ?? placeholder}
+        accessibilityHint={error ? `Error: ${error}` : hint}
+        accessibilityState={{ disabled: !editable }}
         autoCapitalize={autoCapitalize}
         editable={editable}
         keyboardType={keyboardType}

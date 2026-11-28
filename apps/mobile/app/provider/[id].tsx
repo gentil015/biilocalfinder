@@ -4,9 +4,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ProviderServicesCatalogue } from '@/src/components/domain/ProviderServicesCatalogue';
 import { Image } from 'expo-image';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ReviewCard } from '@/src/components/domain/ReviewCard';
 import { AvailabilityBadge, AvailabilityDetails, Avatar, Badge, VerificationBadge } from '@/src/components/ui/Badges';
+import { BottomSheet } from '@/src/components/ui/BottomSheet';
 import { Button } from '@/src/components/ui/Button';
 import { Card, SectionHeader } from '@/src/components/ui/Card';
 import { AppScreenHeader } from '@/src/components/ui/AppScreenHeader';
@@ -89,6 +90,8 @@ export default function ProviderDetailScreen() {
   const queryClient = useQueryClient();
   const { colors } = useTheme();
   const [notice, setNotice] = useState<string | null>(null);
+  const [contactDetails, setContactDetails] = useState<{ phone?: string | null; email?: string | null } | null>(null);
+  const [showContact, setShowContact] = useState(false);
   const [selectedOfferingId, setSelectedOfferingId] = useState<string | undefined>();
   const provider = useProvider(id);
   const reviews = useProviderReviews(id);
@@ -114,8 +117,13 @@ export default function ProviderDetailScreen() {
   const contactMutation = useMutation({
     mutationFn: () => discoveryApi.providerContact(id!),
     onSuccess: (contact) => {
-      const value = contact.phone ?? contact.email;
-      setNotice(value ? `Contact: ${value}` : 'No contact details are available yet.');
+      setNotice(null);
+      if (!contact.phone && !contact.email) {
+        setNotice('No contact details are available yet.');
+        return;
+      }
+      setContactDetails(contact);
+      setShowContact(true);
     },
     onError: () => setNotice('Contact details unlock after a booking is accepted.'),
   });
@@ -180,7 +188,7 @@ export default function ProviderDetailScreen() {
         </View>
 
         <View style={styles.content}>
-          {notice ? <Notice message={notice} tone={notice.startsWith('Contact:') ? 'info' : 'warning'} /> : null}
+          {notice ? <Notice message={notice} tone="warning" /> : null}
           {data.description || data.bio ? <Text style={[typography.body, { color: colors.textSecondary }]}>{data.description ?? data.bio}</Text> : null}
 
           <View style={styles.stats}>
@@ -370,6 +378,30 @@ export default function ProviderDetailScreen() {
         </View>
       </ScrollView>
 
+      <BottomSheet visible={showContact} title="Contact details" onClose={() => setShowContact(false)}>
+        <View style={{ gap: spacing.md }}>
+          {contactDetails?.phone ? (
+            <Button
+              label={`Call ${contactDetails.phone}`}
+              icon={<Phone size={16} />}
+              onPress={() => void Linking.openURL(`tel:${contactDetails.phone!.replace(/[^\d+]/g, '')}`)}
+              fullWidth
+            />
+          ) : null}
+          {contactDetails?.email ? (
+            <Button
+              label={`Email ${contactDetails.email}`}
+              variant="secondary"
+              onPress={() => void Linking.openURL(`mailto:${contactDetails.email!}`)}
+              fullWidth
+            />
+          ) : null}
+          {!contactDetails?.phone && !contactDetails?.email ? (
+            <Text style={[typography.small, { color: colors.textMuted }]}>No contact details are available yet.</Text>
+          ) : null}
+        </View>
+      </BottomSheet>
+
       <View style={[styles.actionBar, { backgroundColor: colors.surfaceElevated, borderTopColor: colors.border }]}>
         <Button
           label="Request service"
@@ -377,7 +409,7 @@ export default function ProviderDetailScreen() {
           style={{ flex: 1 }}
         />
         <IconButton icon={<MessageCircle size={20} />} label="Message provider" onPress={() => messageMutation.mutate()} disabled={messageMutation.isPending} />
-        <IconButton icon={<Phone size={20} />} label="Contact provider" onPress={() => contactMutation.mutate()} disabled={contactMutation.isPending} />
+        <IconButton icon={<Phone size={20} />} label="View contact details" onPress={() => contactMutation.mutate()} disabled={contactMutation.isPending} />
       </View>
     </Screen>
   );

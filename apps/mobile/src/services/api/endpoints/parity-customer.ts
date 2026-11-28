@@ -12,13 +12,12 @@ export const DISPUTE_CATEGORIES = [
 export type DisputeCategory = (typeof DISPUTE_CATEGORIES)[number];
 
 export const REPORT_CATEGORIES = [
-  'FRAUD_OR_SCAM',
-  'FAKE_LISTING',
+  'FAKE_PROVIDER_IDENTITY',
+  'SUSPICIOUS_PROVIDER_BEHAVIOR',
+  'MISLEADING_SERVICE_INFO',
+  'SUSPECTED_SCAM',
+  'SUSPICIOUS_BOOKING_ACTIVITY',
   'IMPERSONATION',
-  'MISLEADING_PRICE',
-  'INAPPROPRIATE_CONTENT',
-  'HARASSMENT',
-  'FAKE_REVIEW',
   'OTHER',
 ] as const;
 
@@ -253,24 +252,24 @@ export const parityCustomerApi = {
     lat?: number;
     lng?: number;
     radiusKm?: number;
-    consentToProcess?: boolean;
-  }) => post<ParsedSearch>('/search-assist/parse', { ...dto, consentToProcess: dto.consentToProcess ?? true }),
+    consentToProcess: boolean;
+  }) => post<ParsedSearch>('/search-assist/parse', { ...dto, consentToProcess: dto.consentToProcess === true }),
   recordInteraction: (dto: InteractionDto) => post<unknown>('/personalization/interactions', dto),
   preferences: () => apiRequest<PersonalizationPreferences>('/personalization/preferences'),
   updatePreferences: (dto: UpdatePersonalizationPreferencesDto) =>
     apiRequest<PersonalizationPreferences>('/personalization/preferences', { method: 'PATCH', body: JSON.stringify(dto) }),
   interests: () => apiRequest<PersonalizationInterest[]>('/personalization/interests'),
-  suggestRequest: (dto: { serviceId: string; description?: string; imageKey?: string; consentToProcess?: boolean }) =>
-    post<RequestAssistSuggestion>('/request-assist/suggest', { ...dto, consentToProcess: dto.consentToProcess ?? true }),
+  suggestRequest: (dto: { serviceId: string; description?: string; imageKey?: string; consentToProcess: boolean }) =>
+    post<RequestAssistSuggestion>('/request-assist/suggest', { ...dto, consentToProcess: dto.consentToProcess === true }),
   suggestBooking: (dto: {
     message: string;
     history?: AssistTurn[];
     serviceId?: string;
     filledFields?: string[];
-    consentToProcess?: boolean;
-  }) => post<BookingAssistSuggestion>('/booking-assist/suggest', { ...dto, consentToProcess: dto.consentToProcess ?? true }),
-  customerAssistChat: (dto: { message: string; history?: AssistTurn[]; language?: string; consentToProcess?: boolean }) =>
-    post<CustomerAssistResult>('/customer-assist/chat', { ...dto, consentToProcess: dto.consentToProcess ?? true }),
+    consentToProcess: boolean;
+  }) => post<BookingAssistSuggestion>('/booking-assist/suggest', { ...dto, consentToProcess: dto.consentToProcess === true }),
+  customerAssistChat: (dto: { message: string; history?: AssistTurn[]; language?: string; consentToProcess: boolean }) =>
+    post<CustomerAssistResult>('/customer-assist/chat', { ...dto, consentToProcess: dto.consentToProcess === true }),
   myDisputes: () => apiRequest<Dispute[]>('/disputes/mine'),
   getDispute: (id: string) => apiRequest<Dispute>(`/disputes/${id}`),
   createDispute: (dto: CreateDisputeDto) => post<Dispute>('/disputes', dto),

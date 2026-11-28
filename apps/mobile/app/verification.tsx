@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { RoleGuardLoading } from '@/src/components/layout/RoleGuardLoading';
 import { AppScreenHeader } from '@/src/components/ui/AppScreenHeader';
 import { Badge } from '@/src/components/ui/Badges';
 import { Button } from '@/src/components/ui/Button';
@@ -18,6 +19,7 @@ import { queryKeys, useOfferings, useVerification } from '@/src/hooks/queries';
 import { filesApi } from '@/src/services/api/endpoints/files';
 import { providerApi } from '@/src/services/api/endpoints/provider';
 import { toApiError } from '@/src/services/api/errors';
+import { useRoleGuard } from '@/src/hooks/useRoleGuard';
 import { useTheme } from '@/src/theme/ThemeProvider';
 import { spacing, typography } from '@/src/theme/metrics';
 import { formatDate, humanize, statusLabel } from '@/src/utils/format';
@@ -87,6 +89,7 @@ function recordTone(status?: string): 'neutral' | 'success' | 'warning' | 'dange
 }
 
 export default function VerificationScreen() {
+  const { ready } = useRoleGuard(['PROVIDER']);
   const router = useRouter();
   const queryClient = useQueryClient();
   const theme = useTheme();
@@ -191,6 +194,8 @@ export default function VerificationScreen() {
     !submit.isPending &&
     !picking &&
     (type !== 'SERVICE' || Boolean(serviceOfferingId));
+
+  if (!ready) return <RoleGuardLoading label="Loading verification…" />;
 
   const statusNotice: { message: string; tone: NoticeTone } =
     status === 'VERIFIED'

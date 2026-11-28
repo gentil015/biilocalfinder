@@ -3,7 +3,7 @@ import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CircleCheck, CircleX, Info, X } from 'lucide-react-native';
 import { useReducedMotion } from '@/src/hooks/useReducedMotion';
 import { useTheme } from '@/src/theme/ThemeProvider';
-import { motion, radius, spacing, typography } from '@/src/theme/metrics';
+import { hit, motion, radius, spacing, typography } from '@/src/theme/metrics';
 import { elevation } from '@/src/theme/elevation';
 import type { NoticeTone } from './Notice';
 
@@ -61,7 +61,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <View style={styles.host} pointerEvents="box-none">
+      <View accessibilityLiveRegion="polite" style={styles.host} pointerEvents="box-none">
         {toasts.map((toast) => (
           <ToastCard key={toast.id} toast={toast} onDismiss={() => dismiss(toast.id)} />
         ))}
@@ -92,13 +92,16 @@ function ToastCard({ toast, onDismiss }: { toast: ToastItem; onDismiss: () => vo
 
   return (
     <Animated.View
+      accessible
+      accessibilityRole="alert"
+      accessibilityLabel={toast.message}
       style={[
         styles.card,
         { opacity, backgroundColor: colors.surfaceElevated, borderColor: colors.border },
         elevation.overlay,
       ]}
     >
-      <Pressable accessibilityRole="alert" accessibilityLabel={toast.message} onPress={onDismiss} style={styles.pressable}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`Dismiss: ${toast.message}`} onPress={onDismiss} style={styles.pressable}>
         <Icon size={18} color={foreground} />
         <Text style={[typography.small, { color: colors.text, flex: 1 }]}>{toast.message}</Text>
         <X size={16} color={colors.textMuted} />
@@ -123,5 +126,5 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   card: { borderRadius: radius.md, borderWidth: 1 },
-  pressable: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md },
+  pressable: { minHeight: hit.min, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md },
 });

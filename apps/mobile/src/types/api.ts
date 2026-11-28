@@ -286,6 +286,7 @@ export interface QuoteRevision {
   proposedDate?: string | null;
   estimatedDuration?: string | null;
   status: string;
+  proposedBy?: 'CLIENT' | 'PROVIDER' | string;
   createdAt: string;
 }
 

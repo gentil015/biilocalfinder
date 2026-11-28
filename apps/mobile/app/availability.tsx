@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays } from 'lucide-react-native';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Switch, Text, View } from 'react-native';
+import { RoleGuardLoading } from '@/src/components/layout/RoleGuardLoading';
 import { AppScreenHeader } from '@/src/components/ui/AppScreenHeader';
 import { Badge } from '@/src/components/ui/Badges';
 import { Button } from '@/src/components/ui/Button';
@@ -14,6 +15,7 @@ import { Screen } from '@/src/components/ui/Screen';
 import { Skeleton } from '@/src/components/ui/Skeleton';
 import { EmptyState, ErrorState } from '@/src/components/ui/States';
 import { queryKeys, useAvailability } from '@/src/hooks/queries';
+import { useRoleGuard } from '@/src/hooks/useRoleGuard';
 import { providerApi } from '@/src/services/api/endpoints/provider';
 import { toApiError } from '@/src/services/api/errors';
 import { useTheme } from '@/src/theme/ThemeProvider';
@@ -73,6 +75,7 @@ function hydrateSlots(data: Record<string, unknown> | undefined): Slot[] {
 const VALID_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export default function AvailabilityScreen() {
+  const { ready } = useRoleGuard(['PROVIDER']);
   const queryClient = useQueryClient();
   const { colors } = useTheme();
   const availability = useAvailability();
@@ -161,6 +164,8 @@ export default function AvailabilityScreen() {
     setNotice(null);
     weeklyMutation.mutate(activeSlots);
   };
+
+  if (!ready) return <RoleGuardLoading label="Loading availability…" />;
 
   if (availability.isError) {
     return (

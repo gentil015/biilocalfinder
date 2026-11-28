@@ -5,6 +5,7 @@ import { WorkspaceInvitationsController } from './workspace-invitations.controll
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [WorkspacesController, WorkspaceInvitationsController],
   providers: [WorkspacesService],
   exports: [WorkspacesService],

@@ -49,8 +49,6 @@ describe('ProvidersService — onboarding', () => {
     } as any, {
       record: jest.fn(),
     } as any, {
-      assertCanAdd: jest.fn().mockResolvedValue(undefined),
-    } as any, {
       // Delegates through the same prisma.provider.findUnique mock every
       // test in this file already sets up, so getOwnProviderRow's switch
       // to ProviderContextService needs no changes to those ~16 existing

@@ -119,6 +119,9 @@ export interface ApiErrorBody {
   statusCode?: number;
   message?: string | string[];
   error?: string;
+  requestId?: string;
+  path?: string;
+  timestamp?: string;
 }
 
 export interface ServiceWithCategory extends ServiceItem {

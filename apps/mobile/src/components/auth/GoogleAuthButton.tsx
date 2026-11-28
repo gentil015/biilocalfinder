@@ -27,6 +27,7 @@ export function GoogleAuthButton({
   const { colors } = useTheme();
   const signIn = useAuthStore((s) => s.signIn);
   const [loading, setLoading] = useState(false);
+  const [inFlight, setInFlight] = useState(false);
 
   if (!isGoogleSignInAvailable()) return null;
 
@@ -41,13 +42,15 @@ export function GoogleAuthButton({
         label="Continue with Google"
         variant="secondary"
         loading={loading}
-        disabled={loading}
+        disabled={loading || inFlight}
         fullWidth
         onPress={async () => {
+          if (inFlight) return;
           if (mode === 'register' && !termsAccepted) {
             onError?.('Accept the Terms and Conditions to create an account with Google.');
             return;
           }
+          setInFlight(true);
           setLoading(true);
           try {
             const idToken = await signInWithGoogle();
@@ -63,9 +66,12 @@ export function GoogleAuthButton({
             if (currentRole === 'PROVIDER') await useAppStore.getState().setActiveExperience('provider');
             router.replace(postAuthRouteForRole(currentRole));
           } catch (error) {
-            onError?.(toApiError(error).message);
+            const err = toApiError(error);
+            const prefix = err.kind === 'network' || err.kind === 'timeout' ? 'Connection problem: ' : err.kind === 'server' ? 'Server problem: ' : '';
+            onError?.(`${prefix}${err.message}`);
           } finally {
             setLoading(false);
+            setInFlight(false);
           }
         }}
       />

@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { Link, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { type Control, type FieldPath, type FieldValues, useController, useForm } from 'react-hook-form';
 import { StyleSheet, View } from 'react-native';
 import { z } from 'zod';
@@ -31,6 +31,7 @@ export default function LoginScreen() {
   const { colors } = theme;
   const signIn = useAuthStore((state) => state.signIn);
   const [formError, setFormError] = useState<string | null>(null);
+  const submitInFlight = useRef(false);
   const {
     handleSubmit,
     control,
@@ -41,6 +42,8 @@ export default function LoginScreen() {
   });
 
   const onSubmit = async (values: LoginValues) => {
+    if (submitInFlight.current) return;
+    submitInFlight.current = true;
     setFormError(null);
     try {
       const tokens = await authApi.login(values);
@@ -49,7 +52,16 @@ export default function LoginScreen() {
       if (role === 'PROVIDER') await useAppStore.getState().setActiveExperience('provider');
       router.replace(postAuthRouteForRole(role));
     } catch (error) {
-      setFormError(toApiError(error).message);
+      const err = toApiError(error);
+      const prefix =
+        err.kind === 'network' || err.kind === 'timeout'
+          ? 'Connection problem: '
+          : err.kind === 'server'
+            ? 'Server problem: '
+            : '';
+      setFormError(`${prefix}${err.message}`);
+    } finally {
+      submitInFlight.current = false;
     }
   };
 

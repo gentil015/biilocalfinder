@@ -7,6 +7,7 @@ import { AvailabilityModule } from '../availability/availability.module';
 import { VerificationModule } from '../verification/verification.module';
 
 @Module({
+  imports: [NotificationsModule, PersonalizationModule, AvailabilityModule, VerificationModule],
   controllers: [ProvidersController],
   providers: [ProvidersService],
   exports: [ProvidersService],

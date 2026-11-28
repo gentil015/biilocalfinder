@@ -6,7 +6,6 @@ describe('WorkspacesService', () => {
   let service: WorkspacesService;
   let prisma: any;
   let auditLog: any;
-  let entitlements: any;
 
   beforeEach(() => {
     prisma = {
@@ -45,8 +44,7 @@ describe('WorkspacesService', () => {
       }),
     );
     auditLog = { log: jest.fn() };
-    entitlements = { assertCanAdd: jest.fn().mockResolvedValue(undefined) };
-    service = new WorkspacesService(prisma, auditLog, entitlements);
+    service = new WorkspacesService(prisma, auditLog);
   });
 
   describe('create', () => {
@@ -209,23 +207,6 @@ describe('WorkspacesService', () => {
       ).rejects.toBeInstanceOf(ConflictException);
     });
 
-    it('enforces the plan-based team-member limit before inviting', async () => {
-      prisma.user.findUnique.mockResolvedValue({ id: 'user-2' });
-      prisma.workspaceMembership.findUnique.mockResolvedValue(null);
-      prisma.provider.findUnique.mockResolvedValue({ id: 'provider-1', providerType: 'TEAM', workspaceId: 'ws-1' });
-      entitlements.assertCanAdd.mockRejectedValue(new BadRequestException('limit reached'));
-
-      await expect(
-        service.inviteMember('ws-1', { email: 'existing@example.com', role: 'MEMBER' as any }, 'owner-1'),
-      ).rejects.toBeInstanceOf(BadRequestException);
-      expect(entitlements.assertCanAdd).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'provider-1' }),
-        'teamMembers',
-      );
-      expect(prisma.workspaceMembership.create).not.toHaveBeenCalled();
-      expect(prisma.workspaceInvitation.create).not.toHaveBeenCalled();
-    });
-
     it('creates an INVITED membership and invitation for a known account', async () => {
       prisma.user.findUnique.mockResolvedValue({ id: 'user-2' });
       prisma.workspaceMembership.findUnique.mockResolvedValue(null);
@@ -264,7 +245,6 @@ describe('WorkspacesService', () => {
 
       await service.inviteMember('ws-1', { email: 'existing@example.com', role: 'MEMBER' as any }, 'owner-1');
 
-      expect(entitlements.assertCanAdd).not.toHaveBeenCalled();
       expect(prisma.workspaceInvitation.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: 'invitation-existing' } }),
       );
@@ -272,7 +252,7 @@ describe('WorkspacesService', () => {
 
     it('reports an email delivery failure instead of claiming the invite was sent', async () => {
       const failingEmail = { send: jest.fn().mockRejectedValue(new Error('smtp down')) };
-      const serviceWithEmail = new WorkspacesService(prisma, auditLog, entitlements, failingEmail as any);
+      const serviceWithEmail = new WorkspacesService(prisma, auditLog, failingEmail as any);
       prisma.user.findUnique.mockResolvedValue(null);
 
       await expect(

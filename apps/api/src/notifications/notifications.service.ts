@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { NotificationCategory, NotificationType, UserRole } from '@prisma/client';
@@ -26,6 +26,8 @@ function defaultEmailForRole(role: UserRole | null | undefined): boolean {
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     private prisma: PrismaService,
     @InjectQueue(NOTIFICATIONS_QUEUE) private queue: Queue<NotificationJobData>,
@@ -36,10 +38,14 @@ export class NotificationsService {
   // in-app/push/email directly or check the user's preferences themselves;
   // NotificationsProcessor is the one place that fans out to channels.
   async notify(data: NotificationJobData) {
-    await this.queue.add('dispatch', data, {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 2000 },
-    });
+    try {
+      await this.queue.add('dispatch', data, {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+      });
+    } catch (err) {
+      this.logger.warn(`Could not enqueue notification (${data.type}): ${(err as Error).message}`);
+    }
   }
 
   // Bulk version for fan-out cases (a public request matching many
@@ -47,16 +53,20 @@ export class NotificationsService {
   // important when a broadcast legitimately matches dozens of providers.
   async notifyMany(items: NotificationJobData[]) {
     if (items.length === 0) return;
-    await this.queue.addBulk(
-      items.map((data) => ({
-        name: 'dispatch',
-        data,
-        opts: {
-          attempts: 3,
-          backoff: { type: 'exponential' as const, delay: 2000 },
-        },
-      })),
-    );
+    try {
+      await this.queue.addBulk(
+        items.map((data) => ({
+          name: 'dispatch',
+          data,
+          opts: {
+            attempts: 3,
+            backoff: { type: 'exponential' as const, delay: 2000 },
+          },
+        })),
+      );
+    } catch (err) {
+      this.logger.warn(`Could not enqueue ${items.length} notifications: ${(err as Error).message}`);
+    }
   }
 
   async findMine(userId: string, page = 1, limit = 20) {

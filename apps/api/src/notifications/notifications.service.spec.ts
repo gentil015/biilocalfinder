@@ -1,3 +1,4 @@
+import { NotificationType } from '@prisma/client';
 import { NotificationsService } from './notifications.service';
 
 describe('NotificationsService email defaults', () => {
@@ -41,5 +42,25 @@ describe('NotificationsService email defaults', () => {
     const { service } = build('PROVIDER');
     const pref = await service.getEffectivePreferenceForType('u1', 'BOOKING_CREATED');
     expect(pref).toMatchObject({ category: 'BOOKINGS', email: true });
+  });
+});
+
+describe('NotificationsService queue failures', () => {
+  const data = { userId: 'u1', type: NotificationType.NEW_SERVICE_REQUEST, title: 'New service request' };
+
+  it('does not fail the caller when a single notification cannot be queued', async () => {
+    const queue: any = { add: jest.fn().mockRejectedValue(new Error('redis down')), addBulk: jest.fn() };
+    const service = new NotificationsService({} as any, queue);
+    jest.spyOn((service as any).logger, 'warn').mockImplementation(() => undefined);
+
+    await expect(service.notify(data)).resolves.toBeUndefined();
+  });
+
+  it('does not fail the caller when bulk notifications cannot be queued', async () => {
+    const queue: any = { add: jest.fn(), addBulk: jest.fn().mockRejectedValue(new Error('redis down')) };
+    const service = new NotificationsService({} as any, queue);
+    jest.spyOn((service as any).logger, 'warn').mockImplementation(() => undefined);
+
+    await expect(service.notifyMany([data])).resolves.toBeUndefined();
   });
 });

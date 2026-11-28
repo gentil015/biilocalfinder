@@ -118,7 +118,7 @@ Status legend: `[x]` implemented in this transformation pass, `[~]` partially im
 - [ ] Add Negotiating filter to provider requests.
 - [ ] Reject non-finite numeric attribute inputs in service catalogue.
 - [x] Correct provider messages empty-state copy.
-- [ ] Make verification identity next step actionable or reword it.
+- [x] Make verification identity next step actionable or reword it.
 - [ ] Make insights opportunity cards actionable or label them informational.
 - [ ] Clarify service radius vs service areas copy.
 - [?] Persist provider location via `providerApi.updateLocation` from onboarding.

@@ -24,7 +24,7 @@ import { toApiError } from '@/src/services/api/errors';
 import { queryKeys, useCategories, useServices } from '@/src/hooks/queries';
 import { useAppStore } from '@/src/stores/app.store';
 import { useTheme } from '@/src/theme/ThemeProvider';
-import { radius, spacing, typography } from '@/src/theme/metrics';
+import { hit, radius, spacing, typography } from '@/src/theme/metrics';
 import { serviceRequestFormSchema } from '@/src/utils/validation';
 
 type FormValues = z.infer<typeof serviceRequestFormSchema>;
@@ -328,10 +328,8 @@ export default function NewServiceRequestScreen() {
     .join('  ·  ');
 
   return (
-    <Screen scroll={false} padded={false} edges={['top', 'bottom']}>
-      <View style={styles.fill}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <View style={[styles.hero, { backgroundColor: colors.primary }]}>
+    <Screen padded={false} edges={['top', 'bottom']}>
+      <View style={[styles.hero, { backgroundColor: colors.primary }]}>
             <View style={styles.heroBar}>
               <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.goldSoft }]}>
                 <ArrowLeft size={18} color={colors.primaryDark} />
@@ -572,24 +570,22 @@ export default function NewServiceRequestScreen() {
                 ) : null}
               </View>
             </FormSection>
-          </View>
-        </ScrollView>
 
-        <View style={[styles.footer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={[typography.eyebrow, { color: colors.primary }]}>READY TO SEND</Text>
-            <Text style={[typography.caption, { color: colors.textMuted }]} numberOfLines={2}>{summary}</Text>
+            <Card style={[styles.submitCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.footerRow}>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={[typography.eyebrow, { color: colors.primary }]}>READY TO SEND</Text>
+                  <Text style={[typography.caption, { color: colors.textMuted }]} numberOfLines={2}>{summary}</Text>
+                </View>
+                <Button label="Send request" onPress={handleSubmit((values) => mutation.mutate(values))} loading={isSubmitting || mutation.isPending} disabled={images.some((i) => i.uploading)} />
+              </View>
+            </Card>
           </View>
-          <Button label="Send request" onPress={handleSubmit((values) => mutation.mutate(values))} loading={isSubmitting || mutation.isPending} disabled={images.some((i) => i.uploading)} />
-        </View>
-      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1 },
-  scroll: { flexGrow: 1, paddingBottom: spacing.lg },
   hero: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xl,
@@ -598,14 +594,14 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: radius.xl,
   },
   heroBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg },
-  backButton: { width: 36, height: 36, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
+  backButton: { width: hit.min, height: hit.min, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
   heroPill: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   heroTop: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md },
   heroIcon: { width: 44, height: 44, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   heroText: { flex: 1, gap: spacing.xs },
   heroMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.lg },
   heroMetaItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, maxWidth: '48%' },
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, gap: spacing.lg },
+  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.xxl, gap: spacing.lg },
   section: { gap: spacing.sm },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   stepIcon: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
@@ -640,5 +636,6 @@ const styles = StyleSheet.create({
   image: { width: 72, height: 72, borderRadius: radius.sm },
   imageOverlay: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm },
   remove: { position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center' },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderTopWidth: 1, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  submitCard: { padding: spacing.md, gap: spacing.md },
+  footerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
 });
